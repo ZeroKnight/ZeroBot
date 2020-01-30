@@ -3,9 +3,9 @@
 Implementation of Server ABC for the IRC protocol.
 """
 
-import ZeroBot.common
+import ZeroBot.common.abc
 
-class Server(common.Server):
+class Server(abc.Server):
     """Represents a server on an IRC network.
 
     Attributes
@@ -32,7 +32,7 @@ class Server(common.Server):
 
     # TODO: Set servername on connection
 
-    def __init__(self, hostname: str, port: int=None, name: str=None,
+    def __init__(self, hostname: str, port: int=None, *, name: str=None,
                  ipv6: bool=False, tls: bool=False, password: str=None):
         self.hostname = hostname
         if port is None:

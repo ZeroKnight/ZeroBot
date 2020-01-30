@@ -5,9 +5,9 @@ Implementation of Message ABC for the IRC protocol.
 
 from typing import Dict, Optional, Union
 
-import ZeroBot.common
+import ZeroBot.common.abc
 
-class Message(common.Message):
+class Message(abc.Message):
     """Represents a message on an IRC network.
 
     Attributes

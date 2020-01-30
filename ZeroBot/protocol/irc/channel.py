@@ -5,9 +5,9 @@ Implementation of Channel ABC for the IRC protocol.
 
 import re
 
-import ZeroBot.common
+import ZeroBot.common.abc
 
-class Channel(common.Channel):
+class Channel(abc.Channel):
     """Represents a channel on an IRC network.
 
     Attributes

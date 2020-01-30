@@ -5,9 +5,9 @@ Implementation of User ABC for the IRC protocol.
 
 import re
 
-import ZeroBot.common
+import ZeroBot.common.abc
 
-class User(common.User):
+class User(abc.User):
     """Represents a user connected to an IRC server.
 
     Attributes
