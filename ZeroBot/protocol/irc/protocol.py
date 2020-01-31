@@ -17,7 +17,9 @@ def module_unregister():
 def module_get_instance(eventloop):
     # TEMP: get this stuff from config later
     print(f'module_get_instance: eventloop={eventloop}')
-    return Instance('ZeroBot', eventloop=eventloop)
+    inst = Instance('ZeroBot', eventloop=eventloop)
+    coro = inst.connect('wazu.info.tm')
+    return (inst, coro)
 
 # TBD: Include a ZeroBot-API level ABC in inheritance?
 class Instance(pydle.Client):

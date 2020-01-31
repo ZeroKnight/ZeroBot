@@ -3,9 +3,9 @@
 ZeroBot's core provides a foundation for protocol and feature modules to build
 off of, collecting and orchestrating events among them.
 
-On its own, ZeroBot's core doesn't directly do much of anything, relying on
-protocol modules to enable ZeroBot to connect to and communicate somewhere, and
-feature modules to do something meaningful with that connection.
+ZeroBot's core doesn't directly do much of anything on its own, instead relying
+on protocol modules to enable ZeroBot to connect to and communicate somewhere,
+and feature modules to do something meaningful with that connection.
 """
 
 import asyncio
@@ -31,6 +31,9 @@ class Core:
     # event loop? Ideally the interface would be something like:
     # add_instance(...) and remove_instance(...), but how do we do this on the
     # asyncio level?
+    # IIUC, the former can just be done with asyncio.ensure_future, and the
+    # latter will probably require stashing the Future of each instance and
+    # calling cancel() or something
 
     def __init__(self):
         self.eventloop = asyncio.get_event_loop()
@@ -52,7 +55,7 @@ class Core:
         loaded = self._load_protocols()
         if loaded:
             # log that `loaded` number of protocols were loaded, then list them
-            print('loaded irc protocol')
+            print(f'loaded {loaded} protocols')
             pass
         else:
             # log an error that no protocols were able to be loaded and quit
@@ -61,16 +64,16 @@ class Core:
 
         # Register protocols
         # TBD: Should this be done in _load_protocols? Or its own method?
-        for proto in self._protocols.values():
+        for name, proto in self._protocols.items():
+            print(f'init {proto}')
             proto.module_register()
-            self._instances.append(self._protocols['irc'].module_get_instance(self.eventloop))
-            self._instances.append(self._protocols['irc'].module_get_instance(self.eventloop))
+            self._instances.append(self._protocols[name].module_get_instance(self.eventloop))
             # do other stuff, error checking, etc
 
     def run(self):
         # TODO: stub
         for instance in self._instances:
-            asyncio.ensure_future(instance.connect('wazu.info.tm'), loop=self.eventloop)
+            asyncio.ensure_future(instance[1], loop=self.eventloop)
         return self.eventloop
 
     def _load_protocols(self) -> int:
@@ -81,7 +84,7 @@ class Core:
         TEMP: Currently just a stub until config is implemented
         """
         num_loaded = 0
-        stub_list = ['irc'] # normally we'd pull from the config here
+        stub_list = ['irc', 'discord'] # normally we'd pull from the config here
         for proto in stub_list:
             try:
                 module = importlib.import_module(f'ZeroBot.protocol.{proto}.protocol')
