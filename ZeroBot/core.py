@@ -25,14 +25,14 @@ class Core:
 
     # TODO: Decide on an interface that protocol modules must implement in order
     # for the core to Initialize them, provide a config, and request any number
-    # of instances so that the core may orchestrate them into an event loop
+    # of contexts so that the core may orchestrate them into an event loop
 
-    # TODO: How do we go about dynamically adding/removing "instances" from the
+    # TODO: How do we go about dynamically adding/removing "contexts" from the
     # event loop? Ideally the interface would be something like:
-    # add_instance(...) and remove_instance(...), but how do we do this on the
+    # add_context(...) and remove_context(...), but how do we do this on the
     # asyncio level?
     # IIUC, the former can just be done with asyncio.ensure_future, and the
-    # latter will probably require stashing the Future of each instance and
+    # latter will probably require stashing the Future of each context and
     # calling cancel() or something
 
     def __init__(self):
@@ -41,7 +41,7 @@ class Core:
         # put ZeroBot-API wrapped protocol objects here, e.g. pydle client
         # then put them all into a Future via asyncio.gather and run in
         # self.eventloop, similar to pydle's ClientPool
-        self._instances = []
+        self._contexts = []
         self._protocols = {} # maps protocol names to their module
 
         # do config loading stuff
@@ -67,13 +67,13 @@ class Core:
         for name, proto in self._protocols.items():
             print(f'init {proto}')
             proto.module_register()
-            self._instances.append(self._protocols[name].module_get_instance(self.eventloop))
+            self._contexts.append(self._protocols[name].module_get_context(self.eventloop))
             # do other stuff, error checking, etc
 
     def run(self):
         # TODO: stub
-        for instance in self._instances:
-            asyncio.ensure_future(instance[1], loop=self.eventloop)
+        for context in self._contexts:
+            asyncio.ensure_future(context[1], loop=self.eventloop)
         return self.eventloop
 
     def _load_protocols(self) -> int:

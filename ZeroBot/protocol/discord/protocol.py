@@ -14,14 +14,14 @@ def module_register():
 def module_unregister():
     pass
 
-def module_get_instance(eventloop):
+def module_get_context(eventloop: asyncio.AbstractEventLoop):
     # TEMP: get this stuff from config later
-    print(f'module_get_instance: eventloop={eventloop}')
-    inst = Instance(loop=eventloop)
-    coro = inst.start('token goes here')
-    return (inst, coro)
+    print(f'module_get_context: eventloop={eventloop}')
+    ctx = Context(loop=eventloop)
+    coro = ctx.start('token goes here')
+    return (ctx, coro)
 
-class Instance(discord.Client):
+class Context(discord.Client):
     async def on_ready(self):
         print('Logged on as {0}!'.format(self.user))
 

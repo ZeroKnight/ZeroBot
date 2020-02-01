@@ -14,15 +14,15 @@ def module_register():
 def module_unregister():
     pass
 
-def module_get_instance(eventloop):
+def module_get_context(eventloop: asyncio.AbstractEventLoop):
     # TEMP: get this stuff from config later
-    print(f'module_get_instance: eventloop={eventloop}')
-    inst = Instance('ZeroBot', eventloop=eventloop)
-    coro = inst.connect('wazu.info.tm')
-    return (inst, coro)
+    print(f'module_get_context: eventloop={eventloop}')
+    ctx = Context('ZeroBot', eventloop=eventloop)
+    coro = ctx.connect('wazu.info.tm')
+    return (ctx, coro)
 
 # TBD: Include a ZeroBot-API level ABC in inheritance?
-class Instance(pydle.Client):
+class Context(pydle.Client):
     """blah
     """
 
