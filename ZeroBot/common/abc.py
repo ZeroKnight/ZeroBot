@@ -6,14 +6,33 @@ Provides protocol-agnostic abstract base classes used throughout ZeroBot.
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 
-# TODO: Further flesh out design
-#   - Figure out if/how these will interact with the bot core
-#   - Should Channel have a different name? e.g. Messagable, Destination,
-#     Recipient, etc.
-#   - Should Server have a different name?
-#   - Include any other common, protocol-agnostic methods
+class ProtocolDetails(metaclass=ABCMeta):
+    """An abstract mixin that refers back to a specialized protocol object.
 
-class User(metaclass=ABCMeta):
+    Used in all of ZeroBot's generic protocol entity abstract classes.
+    """
+
+    @property
+    def protocol(self):
+        """str: The protocol where this protocol object originated from.
+
+        Feature modules may check against this property to implement
+        protocol-specific behavior.
+        """
+        return __name__
+
+    @property
+    @abstractmethod
+    def original(self):
+        """Any: A reference to the original protocol object.
+
+        This is the specialized, non-generic version created by the protocol
+        itself.
+        """
+        raise NotImplementedError
+
+
+class User(ProtocolDetails, metaclass=ABCMeta):
     """An ABC representing an individual that is connected on a protocol.
 
     This is a general interface that is protocol-agnostic and must be
@@ -42,12 +61,12 @@ class User(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def mentioned(self, message: Message) -> bool:
+    def mentioned(self, message: 'Message') -> bool:
         """Check if the user was mentioned in the given message."""
         raise NotImplementedError
 
 
-class Server(metaclass=ABCMeta):
+class Server(ProtocolDetails, metaclass=ABCMeta):
     """Represents an arbitrary host that can be connected to.
 
     The specifics of what constitutes a Server is dependent upon the
@@ -77,11 +96,11 @@ class Server(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class Message(metaclass=ABCMeta):
-    """Represents a message sent by a User.
+class Message(ProtocolDetails, metaclass=ABCMeta):
+    """Represents a message sent by a network entity via a protocol.
 
-    Messages consist of a source and one or more destinations, either of which
-    are a User, Channel, or a Server, depending on the type and context of the
+    Messages consist of a source and a destination, either of which could be
+    a User, Channel, or a Server, depending on the type and context of the
     message.
 
     Attributes
@@ -104,13 +123,13 @@ class Message(metaclass=ABCMeta):
         return len(self.contents)
 
 
-class Channel(metaclass=ABCMeta):
+class Channel(ProtocolDetails, metaclass=ABCMeta):
     """Represents some kind of communication destination for Messages.
 
     The specifics of what constitutesa Channel is dependent upon the
-    implementing protocol. In general, a Channel represents a something that can
-    send and receive Messages, e.g. an IRC or Discord channel, group chat, or
-    a single User.
+    implementing protocol. In general, a Channel represents a medium that can
+    pass along messages between Users, e.g. an IRC or Discord channel, group
+    chat, or even a single User.
 
     Attributes
     ----------
