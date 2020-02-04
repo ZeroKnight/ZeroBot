@@ -7,7 +7,10 @@ import asyncio
 
 import discord
 
-def module_register():
+def module_register(core):
+    global CORE
+    CORE = core
+
     print('hit module_register in discord')
     pass # do stuff
 
