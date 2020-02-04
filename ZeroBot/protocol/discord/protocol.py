@@ -24,7 +24,7 @@ def module_get_context(eventloop: asyncio.AbstractEventLoop):
     # TEMP: get this stuff from config later
     print(f'module_get_context: eventloop={eventloop}')
     ctx = DiscordContext(loop=eventloop)
-    coro = ctx.start('NjcyMjQxNTcyNDgxNTk3NDQw.XjIoUA.hhtREouFVWh-P9ibmYd0KNn_Glg')
+    coro = ctx.start('')
     return (ctx, coro)
 
 class DiscordMessage(abc.Message):
