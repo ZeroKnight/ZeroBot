@@ -37,12 +37,9 @@ class Core:
 
     def __init__(self):
         self.eventloop = asyncio.get_event_loop()
-        # TBD: name tentative
-        # put ZeroBot-API wrapped protocol objects here, e.g. pydle client
-        # then put them all into a Future via asyncio.gather and run in
-        # self.eventloop, similar to pydle's ClientPool
-        self._contexts = []
         self._protocols = {} # maps protocol names to their module
+        self._modules = {} # maps feature module names to their module
+        self._contexts = []
 
         # do config loading stuff
 
@@ -52,10 +49,10 @@ class Core:
         # the data structure, both the module and the core would see the most
         # up to date changes.
 
-        loaded = self._load_protocols()
-        if loaded:
+        protocols_loaded = self._load_protocols()
+        if protocols_loaded:
             # log that `loaded` number of protocols were loaded, then list them
-            print(f'loaded {loaded} protocols')
+            print(f'loaded {protocols_loaded} protocols')
             pass
         else:
             # log an error that no protocols were able to be loaded and quit
@@ -66,9 +63,14 @@ class Core:
         # TBD: Should this be done in _load_protocols? Or its own method?
         for name, proto in self._protocols.items():
             print(f'init {proto}')
-            proto.module_register()
+            proto.module_register(self)
             self._contexts.append(self._protocols[name].module_get_context(self.eventloop))
             # do other stuff, error checking, etc
+
+        modules_loaded = self._load_modules()
+        # log that `loaded` number of modules were loaded, then list them
+        print(f'loaded {modules_loaded} modules')
+        pass
 
     def run(self):
         # TODO: stub
@@ -77,7 +79,7 @@ class Core:
         return self.eventloop
 
     def _load_protocols(self) -> int:
-        """Get list of requested protocols from configuration and load them.
+        """Get list of requested protocols from config and load them.
 
         Returns the number of protocols that were successfully loaded.
 
@@ -97,4 +99,24 @@ class Core:
                 num_loaded += 1
         return num_loaded
 
+    def _load_modules(self) -> int:
+        """Get list of requested feature modules from config and laod them.
+
+        Returns the number of feature modules that were successfull loaded.
+
+        TEMP: Currently just a stub until config is implemented
+        """
+        num_loaded = 0
+        stub_list = ['chat']
+        for feature in stub_list:
+            try:
+                module = importlib.import_module(f'ZeroBot.feature.{feature}')
+            except ModuleNotFoundError:
+                # log failure to find feature module or one of its dependencies
+                # self.log_error(...)
+                raise # TEMP
+            else:
+                self._modules[feature] = module
+                num_loaded += 1
+        return num_loaded
 
