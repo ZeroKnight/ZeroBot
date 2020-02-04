@@ -120,3 +120,35 @@ class Core:
                 num_loaded += 1
         return num_loaded
 
+    async def module_send_event(self, event: str, ctx, *args, **kwargs):
+        """|coro|
+
+        Push an arbitrary event to all feature modules, specified by ``event``.
+
+        To receive the event, feature modules must have a coroutine defined
+        following the pattern: `module_on_<event>`, where `<event>` is the event
+        of interest.
+
+        For example, assume fooprotocol.py makes the following call:
+
+            CORE.module_send_event('join', ctx, who, where)
+
+        Then all registered feature modules will be checked for a definition of
+        `module_on_join`, and call it if it exists, passing all arguments that
+        were passed to `module_send_event`.
+
+        Parameters
+        ----------
+        event: str
+            The event to send to feature modules. Will try to call a function
+            matching `module_on_<event>`.
+        ctx: 'Context'
+            The protocol context where the event originated.
+        *args, **kwargs: Any
+            Any remaining arguments are passed on to the module event handler.
+        """
+        for module in self._modules.values():
+            method = getattr(module, f'module_on_{event}', None)
+            if callable(method):
+                await method(ctx, *args, **kwargs)
+
