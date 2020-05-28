@@ -10,15 +10,17 @@ import discord
 import ZeroBot.common.abc as abc
 from ZeroBot.protocol.context import Context
 
+
 def module_register(core):
     global CORE
     CORE = core
 
     print('hit module_register in discord')
-    pass # do stuff
+
 
 def module_unregister():
     pass
+
 
 def module_get_context(eventloop: asyncio.AbstractEventLoop):
     # TEMP: get this stuff from config later
@@ -26,6 +28,7 @@ def module_get_context(eventloop: asyncio.AbstractEventLoop):
     ctx = DiscordContext(loop=eventloop)
     coro = ctx.start('')
     return (ctx, coro)
+
 
 class DiscordMessage(abc.Message):
     def __init__(self, message: discord.Message):
@@ -40,7 +43,8 @@ class DiscordMessage(abc.Message):
         return self._original
 
     def __eq__(self, other):
-        pass # TODO
+        pass  # TODO
+
 
 class DiscordContext(Context, discord.Client):
     """blah
@@ -56,4 +60,3 @@ class DiscordContext(Context, discord.Client):
 
     async def module_message(self, destination, message):
         await destination.send(message)
-

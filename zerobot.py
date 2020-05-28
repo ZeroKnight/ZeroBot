@@ -13,10 +13,12 @@ import sys
 
 from ZeroBot.core import Core
 
+
 def main():
     bot = Core()
     loop = bot.run()
     loop.run_forever()
+
 
 if __name__ == '__main__':
     sys.exit(main())

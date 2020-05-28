@@ -12,7 +12,7 @@ MODULE_DESC = 'Allows ZeroBot to chat and respond to conversation in various way
 
 # \xa1 and \xbf are the inverted variants of ! and ?
 # \x203D is the interrobang
-dotchars = '.!?\xA1\xBF\u203D'
+DOTCHARS = '.!?\xA1\xBF\u203D'
 
 def module_register():
     # make database connection and initialize tables if necessary

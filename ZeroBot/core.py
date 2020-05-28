@@ -11,6 +11,7 @@ and feature modules to do something meaningful with that connection.
 import asyncio
 import importlib
 
+
 class Core:
     """blah
 
@@ -23,9 +24,10 @@ class Core:
     # a module being newly written/added while ZeroBot is running, the import
     # mechanism will see the new file.
 
-    # TODO: Decide on an interface that protocol modules must implement in order
-    # for the core to Initialize them, provide a config, and request any number
-    # of contexts so that the core may orchestrate them into an event loop
+    # TODO: Decide on an interface that protocol modules must implement in
+    # order for the core to Initialize them, provide a config, and request any
+    # number of contexts so that the core may orchestrate them into an event
+    # loop
 
     # TODO: How do we go about dynamically adding/removing "contexts" from the
     # event loop? Ideally the interface would be something like:
@@ -37,23 +39,22 @@ class Core:
 
     def __init__(self):
         self.eventloop = asyncio.get_event_loop()
-        self._protocols = {} # maps protocol names to their module
-        self._modules = {} # maps feature module names to their module
+        self._protocols = {}  # maps protocol names to their module
+        self._modules = {}  # maps feature module names to their module
         self._contexts = []
 
         # do config loading stuff
 
-        # IDEA: As part of module registration, the core could send the relevant
-        # config section data structure to the module, removing the burden from
-        # them to load it themselves. Since they will be passed a reference to
-        # the data structure, both the module and the core would see the most
-        # up to date changes.
+        # IDEA: As part of module registration, the core could send the
+        # relevant config section data structure to the module, removing the
+        # burden from them to load it themselves. Since they will be passed
+        # a reference to the data structure, both the module and the core would
+        # see the most up to date changes.
 
         protocols_loaded = self._load_protocols()
         if protocols_loaded:
             # log that `loaded` number of protocols were loaded, then list them
             print(f'loaded {protocols_loaded} protocols')
-            pass
         else:
             # log an error that no protocols were able to be loaded and quit
             # TODO: figure out how to properly "quit"
@@ -64,13 +65,13 @@ class Core:
         for name, proto in self._protocols.items():
             print(f'init {proto}')
             proto.module_register(self)
-            self._contexts.append(self._protocols[name].module_get_context(self.eventloop))
+            self._contexts.append(
+                self._protocols[name].module_get_context(self.eventloop))
             # do other stuff, error checking, etc
 
         modules_loaded = self._load_modules()
         # log that `loaded` number of modules were loaded, then list them
         print(f'loaded {modules_loaded} modules')
-        pass
 
     def run(self):
         # TODO: stub
@@ -86,14 +87,16 @@ class Core:
         TEMP: Currently just a stub until config is implemented
         """
         num_loaded = 0
-        stub_list = ['irc', 'discord'] # normally we'd pull from the config here
+        # normally we'd pull from the config here
+        stub_list = ['irc', 'discord']
         for proto in stub_list:
             try:
-                module = importlib.import_module(f'ZeroBot.protocol.{proto}.protocol')
+                module = importlib.import_module(
+                    f'ZeroBot.protocol.{proto}.protocol')
             except ModuleNotFoundError:
-                # log failure to find protocol module or one of its dependencies
-                # self.log_error(...)
-                raise # TEMP
+                # log failure to find protocol module or one of its
+                # dependencies self.log_error(...)
+                raise  # TEMP
             else:
                 self._protocols[proto] = module
                 num_loaded += 1
@@ -114,7 +117,7 @@ class Core:
             except ModuleNotFoundError:
                 # log failure to find feature module or one of its dependencies
                 # self.log_error(...)
-                raise # TEMP
+                raise  # TEMP
             else:
                 self._modules[feature] = module
                 num_loaded += 1
@@ -126,8 +129,8 @@ class Core:
         Push an arbitrary event to all feature modules, specified by ``event``.
 
         To receive the event, feature modules must have a coroutine defined
-        following the pattern: `module_on_<event>`, where `<event>` is the event
-        of interest.
+        following the pattern: `module_on_<event>`, where `<event>` is the
+        event of interest.
 
         For example, assume fooprotocol.py makes the following call:
 
@@ -151,4 +154,3 @@ class Core:
             method = getattr(module, f'module_on_{event}', None)
             if callable(method):
                 await method(ctx, *args, **kwargs)
-

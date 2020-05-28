@@ -9,17 +9,20 @@ import pydle
 
 import ZeroBot.common.abc as abc
 from ZeroBot.protocol.context import Context
+
 from .classes import IRCChannel, IRCMessage, IRCServer, IRCUser
+
 
 def module_register(core):
     global CORE
     CORE = core
 
     print('hit module_register')
-    pass # do stuff
+
 
 def module_unregister():
     pass
+
 
 def module_get_context(eventloop: asyncio.AbstractEventLoop):
     # TEMP: get this stuff from config later
@@ -27,6 +30,7 @@ def module_get_context(eventloop: asyncio.AbstractEventLoop):
     ctx = IRCContext('ZeroBot', eventloop=eventloop)
     coro = ctx.connect('wazu.info.tm')
     return (ctx, coro)
+
 
 class IRCContext(Context, pydle.Client):
     """blah
@@ -58,4 +62,3 @@ class IRCContext(Context, pydle.Client):
 
     async def module_message(self, destination, message):
         await self.message(destination, message)
-

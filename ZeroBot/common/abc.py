@@ -6,6 +6,7 @@ Provides protocol-agnostic abstract base classes used throughout ZeroBot.
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 
+
 class ProtocolDetails(metaclass=ABCMeta):
     """An abstract mixin that refers back to a specialized protocol object.
 
@@ -44,15 +45,15 @@ class User(ProtocolDetails, metaclass=ABCMeta):
         The name of the User; should represent the display name or nickname,
         depending on the protocol.
     username: Optional[str]
-        The username of the User; should represent some kind of login or account
-        name associated with the User. If username is ``None``, then it should
-        be equal to the nickname.
+        The username of the User; should represent some kind of login or
+        account name associated with the User. If username is ``None``, then it
+        should be equal to the nickname.
     bot: bool
         Whether or not this user is a bot; False by default.
     """
 
     @abstractmethod
-    def mention(self):
+    def mention(self) -> str:
         """Returns a string appropriate to "mention" a user.
 
         Mentioning a user typically notifies or alerts them in some way; the
@@ -92,7 +93,7 @@ class Server(ProtocolDetails, metaclass=ABCMeta):
 
     @abstractmethod
     def connected(self) -> bool:
-        """Whether or not the Server is currenlty connected."""
+        """Whether or not the Server is currently connected."""
         raise NotImplementedError
 
 
@@ -126,7 +127,7 @@ class Message(ProtocolDetails, metaclass=ABCMeta):
 class Channel(ProtocolDetails, metaclass=ABCMeta):
     """Represents some kind of communication destination for Messages.
 
-    The specifics of what constitutesa Channel is dependent upon the
+    The specifics of what constitutes a Channel is dependent upon the
     implementing protocol. In general, a Channel represents a medium that can
     pass along messages between Users, e.g. an IRC or Discord channel, group
     chat, or even a single User.

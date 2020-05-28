@@ -3,11 +3,12 @@
 IRC implementation of ZeroBot.common.abc classes.
 """
 
-from datetime import datetime
 import re
+from datetime import datetime
 from typing import Dict, Optional, Union
 
 import ZeroBot.common.abc as abc
+
 
 class IRCUser(abc.User):
     """Represents a user connected to an IRC server.
@@ -30,7 +31,7 @@ class IRCUser(abc.User):
     """
 
     def __init__(self, name: str, username: str, realname: str, hostname: str,
-                 bot: bool=False):
+                 bot: bool = False):
         self.name = name
         self.username = username
         self.realname = realname
@@ -39,7 +40,7 @@ class IRCUser(abc.User):
         self.mask = f'{self.name}!{self.username}@{self.hostname}'
 
     @classmethod
-    def from_mask(cls, mask: str, realname: str, bot: bool=False):
+    def from_mask(cls, mask: str, realname: str, bot: bool = False):
         """Constructs an User object from a user/host mask.
 
         The mask should be in the form of `nick!user@host`.
@@ -106,8 +107,8 @@ class IRCServer(abc.Server):
 
     # TODO: Set servername on connection
 
-    def __init__(self, hostname: str, port: int=None, *, name: str=None,
-                 ipv6: bool=False, tls: bool=False, password: str=None):
+    def __init__(self, hostname: str, port: int = None, *, name: str = None,
+                 ipv6: bool = False, tls: bool = False, password: str = None):
         self.hostname = hostname
         if port is None:
             self.port = 6697 if tls else 6667
@@ -153,7 +154,7 @@ class IRCChannel(abc.Channel):
     # Match valid channel prefixes
     _chanprefix = r'[#&!+]#?'
 
-    def __init__(self, name: str, password: str=None):
+    def __init__(self, name: str, password: str = None):
         self.name = name
         self.password = password
 
@@ -220,4 +221,3 @@ class IRCMessage(abc.Message):
     @property
     def original(self):
         return self
-
