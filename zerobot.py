@@ -16,8 +16,7 @@ from ZeroBot.core import Core
 
 def main():
     bot = Core()
-    loop = bot.run()
-    loop.run_forever()
+    bot.run()
 
 
 if __name__ == '__main__':

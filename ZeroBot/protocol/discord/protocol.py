@@ -17,17 +17,14 @@ def module_register(core):
 
     print('hit module_register in discord')
 
+    # TEMP: get this stuff from config later
+    ctx = DiscordContext(loop=core.eventloop)
+    coro = ctx.start('')
+    return (ctx, coro)
+
 
 def module_unregister():
     pass
-
-
-def module_get_context(eventloop: asyncio.AbstractEventLoop):
-    # TEMP: get this stuff from config later
-    print(f'module_get_context: eventloop={eventloop}')
-    ctx = DiscordContext(loop=eventloop)
-    coro = ctx.start('')
-    return (ctx, coro)
 
 
 class DiscordMessage(abc.Message):

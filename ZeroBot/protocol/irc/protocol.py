@@ -19,17 +19,14 @@ def module_register(core):
 
     print('hit module_register')
 
+    # TEMP: get this stuff from config later
+    ctx = IRCContext('ZeroBot', eventloop=core.eventloop)
+    coro = ctx.connect('wazu.info.tm')
+    return (ctx, coro)
+
 
 def module_unregister():
     pass
-
-
-def module_get_context(eventloop: asyncio.AbstractEventLoop):
-    # TEMP: get this stuff from config later
-    print(f'module_get_context: eventloop={eventloop}')
-    ctx = IRCContext('ZeroBot', eventloop=eventloop)
-    coro = ctx.connect('wazu.info.tm')
-    return (ctx, coro)
 
 
 class IRCContext(Context, pydle.Client):
