@@ -132,7 +132,7 @@ class Core:
             module = ProtocolModule(f'ZeroBot.protocol.{name}.protocol')
         except ModuleNotFoundError:
             self.logger.exception(f"Failed to load protocol module '{name}':")
-            return
+            return None
         self.logger.debug(f'Imported protocol module {module!r}')
         self._protocols[name] = module
 
@@ -141,7 +141,7 @@ class Core:
         except:
             self.logger.exception(
                 f'Failed to register protocol module {module!r}:')
-            return
+            return None
         self.logger.info(f"Loaded protocol module '{name}'")
         module.contexts.append(ctx)
         self.eventloop.create_task(coro)  # TODO: meaningful name
@@ -168,7 +168,7 @@ class Core:
             module = Module(f'ZeroBot.feature.{name}')
         except ModuleNotFoundError:
             self.logger.exception(f"Failed to load feature module '{name}':")
-            return
+            return None
         self.logger.debug(f'Imported feature module {module!r}')
         self._features[name] = module
 
@@ -177,7 +177,7 @@ class Core:
         except:
             self.logger.exception(
                 f'Failed to register feature module {module!r}:')
-            return
+            return None
         self.logger.info(f"Loaded feature module '{name}'")
         return module
 
