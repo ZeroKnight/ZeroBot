@@ -9,10 +9,19 @@ and feature modules to do something meaningful with that connection.
 """
 
 import asyncio
-from typing import Union
+import logging
+from typing import Optional, Union
 
 from ZeroBot.module import Module, ProtocolModule
 from ZeroBot.protocol.context import Context
+
+# NOTE: For log configuration, use logging.config.fileConfig and pass
+# a RawConfigParser object as `fname`, this will allow selecting only the
+# relevant logging section of zerobot.cfg. Alternatively, just use dictConfig()
+# and pass a dict we pull from configparser.
+logging.basicConfig(style='{',
+                    format='{asctime} {levelname:7} [{name}] {message}',
+                    datefmt='%T', level=logging.DEBUG)
 
 
 class Core:
@@ -33,6 +42,7 @@ class Core:
 
     def __init__(self, eventloop=None):
         self.eventloop = eventloop if eventloop else asyncio.get_event_loop()
+        self.logger = logging.getLogger('ZeroBot')
         self._protocols = {}  # maps protocol names to their ProtocolModule
         self._features = {}  # maps feature module names to their Module
 
@@ -46,16 +56,17 @@ class Core:
 
         protocols_loaded = self._load_protocols()
         if protocols_loaded:
-            # log that `loaded` number of protocols were loaded, then list them
-            print(f'loaded {protocols_loaded} protocols')
+            self.logger.info(f'Loaded {protocols_loaded} protocols')
         else:
-            # log an error that no protocols were able to be loaded and quit
-            # use logging.exception() ?
-            raise RuntimeError('Could not load any protocol modules.')
+            msg = 'Could not load any protocol modules.'
+            self.logger.critical(msg)
+            raise RuntimeError(msg)
 
         features_loaded = self._load_features()
-        # log that `loaded` number of modules were loaded, then list them
-        print(f'loaded {features_loaded} modules')
+        if features_loaded:
+            self.logger.info(f'Loaded {features_loaded} feature modules.')
+        else:
+            self.logger.warning('No feature modules were loaded.')
 
     def _load_protocols(self) -> int:
         """Get list of requested protocols from config and load them.
@@ -82,7 +93,7 @@ class Core:
             self.load_feature(feature)
         return len(self._features)
 
-    def load_protocol(self, name: str) -> ProtocolModule:
+    def load_protocol(self, name: str) -> Optional[ProtocolModule]:
         """Load and register a protocol module.
 
         Parameters
@@ -94,25 +105,31 @@ class Core:
 
         Returns
         -------
-        ProtocolModule
-            A class representing the loaded protocol.
+        ProtocolModule or None
+            A class representing the loaded protocol, or `None` if the module
+            could not be loaded.
         """
         # TODO: module search path?
         try:
             module = ProtocolModule(f'ZeroBot.protocol.{name}.protocol')
         except ModuleNotFoundError:
-            # log failure to find protocol module or one of itss
-            # dependencies self.log_error(...)
-            raise  # TEMP
-        else:
-            self._protocols[name] = module
+            self.logger.exception(f"Failed to load protocol module '{name}':")
+            return
+        self.logger.debug(f'Imported protocol module {module!r}')
+        self._protocols[name] = module
 
-        ctx, coro = module.handle.module_register(self)
+        try:
+            ctx, coro = module.handle.module_register(self)
+        except:
+            self.logger.exception(
+                f'Failed to register protocol module {module!r}:')
+            return
+        self.logger.info(f"Loaded protocol module '{name}'")
         module.contexts.append(ctx)
         self.eventloop.create_task(coro)  # TODO: meaningful name
         return module
 
-    def load_feature(self, name) -> Module:
+    def load_feature(self, name) -> Optional[Module]:
         """Load and register a ZeroBot feature module.
 
         Parameters
@@ -124,20 +141,26 @@ class Core:
 
         Returns
         -------
-        Module
-            A class representing the loaded feature.
+        Module or None
+            A class representing the loaded feature, or `None` if the module
+            could not be loaded.
         """
         # TODO: module search path?
         try:
             module = Module(f'ZeroBot.feature.{name}')
         except ModuleNotFoundError:
-            # log failure to find feature module or one of its dependencies
-            # self.log_error(...)
-            raise  # TEMP
-        else:
-            self._features[name] = module
+            self.logger.exception(f"Failed to load feature module '{name}':")
+            return
+        self.logger.debug(f'Imported feature module {module!r}')
+        self._features[name] = module
 
-        module.handle.module_register()
+        try:
+            module.handle.module_register()
+        except:
+            self.logger.exception(
+                f'Failed to register feature module {module!r}:')
+            return
+        self.logger.info(f"Loaded feature module '{name}'")
         return module
 
     def run(self):
@@ -145,7 +168,7 @@ class Core:
         try:
             self.eventloop.run_forever()
         finally:
-            print('Stopping event loop')
+            self.logger.debug('Stopping event loop')
             self.eventloop.stop()
 
     async def module_send_event(self, event: str, ctx, *args, **kwargs):
@@ -178,6 +201,8 @@ class Core:
         that were passed to ``module_send_event``.
 
         """
+        self.logger.debug(
+            f"Sending event '{event}', {ctx=}, {args=}, {kwargs=}")
         for module in self._features.values():
             method = getattr(module.handle, f'module_on_{event}', None)
             if callable(method):
@@ -201,7 +226,6 @@ class Core:
         *args, **kwargs: Any
             Any remaining arguments are passed on to the module event handler.
         """
-        print(f'Delaying event [{event}] for {delay} seconds...')
+        self.logger.debug(f'Delaying event {event} for {delay} seconds')
         await asyncio.sleep(delay)
-        print(f'Sending delayed event [{event}]: {ctx=}, {args=}, {kwargs=}')
         await self.module_send_event(event, ctx, *args, **kwargs)
