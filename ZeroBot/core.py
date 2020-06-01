@@ -9,9 +9,10 @@ and feature modules to do something meaningful with that connection.
 """
 
 import asyncio
-import importlib
+from typing import Union
 
 from ZeroBot.module import Module, ProtocolModule
+from ZeroBot.protocol.context import Context
 
 
 class Core:
@@ -150,11 +151,7 @@ class Core:
     async def module_send_event(self, event: str, ctx, *args, **kwargs):
         """|coro|
 
-        Push an arbitrary event to all feature modules, specified by ``event``.
-
-        To receive the event, feature modules must have a coroutine defined
-        following the pattern: ``module_on_<event>``, where ``<event>`` is the
-        event of interest.
+        Push an arbitrary event to all feature modules.
 
         Parameters
         ----------
@@ -168,6 +165,10 @@ class Core:
 
         Notes
         -----
+        To receive the event, feature modules must have a coroutine defined
+        following the pattern: ``module_on_<event>``, where ``<event>`` is the
+        event of interest.
+
         For example, assume fooprotocol.py makes the following call:
 
             CORE.module_send_event('join', ctx, who, where)
@@ -181,3 +182,26 @@ class Core:
             method = getattr(module.handle, f'module_on_{event}', None)
             if callable(method):
                 await method(ctx, *args, **kwargs)
+
+    async def module_delay_event(self, delay: Union[int, float], event: str,
+                                 ctx: Context, *args, **kwargs):
+        """|coro|
+
+        Push an arbitrary event to all feature modules after a delay.
+
+        Parameters
+        ----------
+        delay : float
+            The amount of time in seconds to delay the event.
+        event: str
+            The event to send to feature modules. Will try to call a function
+            matching `module_on_<event>`.
+        ctx: Context
+            The protocol context where the event originated.
+        *args, **kwargs: Any
+            Any remaining arguments are passed on to the module event handler.
+        """
+        print(f'Delaying event [{event}] for {delay} seconds...')
+        await asyncio.sleep(delay)
+        print(f'Sending delayed event [{event}]: {ctx=}, {args=}, {kwargs=}')
+        await self.module_send_event(event, ctx, *args, **kwargs)
