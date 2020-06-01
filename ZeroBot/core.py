@@ -25,10 +25,28 @@ logging.basicConfig(style='{',
 
 
 class Core:
-    """blah
+    """A class representing ZeroBot's core functionality.
+
+    The core is more or less the brain (if you could call it that) of ZeroBot;
+    it is responsible for loading and orchestrating the protocol and feature
+    modules that actually provide functionality, as well as directly handling
+    configuration.
+
+    Parameters
+    ----------
+    eventloop : asyncio.AbstractEventLoop, optional
+        The asyncio event loop to use. If unspecified, the default loop will be
+        used, i.e. `asyncio.get_event_loop()`.
 
     Attributes
     ----------
+    eventloop
+
+    Notes
+    -----
+    There should generally be only one `Core` instance, as it represents
+    ZeroBot in his entirety. However, there's nothing stopping you from running
+    multiple cores in separate threads, if for some reason you wanted to.
     """
 
     # NOTE: For post-init runtime loading of protocol/feature modules, it will
