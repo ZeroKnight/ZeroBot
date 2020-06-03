@@ -42,6 +42,14 @@ class Module:
         else:
             self._title = getattr(self.handle, 'MODULE_NAME', self._name)
 
+    def __repr__(self):
+        attrs = ['name', 'title', 'handle']
+        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
+        return f'<{self.__class__.__name__} {repr_str}>'
+
+    def __str__(self):
+        return self.name
+
     @property
     def name(self) -> str:
         """Get the name of the associated Python module."""
