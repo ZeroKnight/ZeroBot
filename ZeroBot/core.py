@@ -10,7 +10,11 @@ and feature modules to do something meaningful with that connection.
 
 import asyncio
 import logging
-from typing import Optional, Union
+from pathlib import Path
+from typing import Dict, Optional, Union
+
+import appdirs
+import toml
 
 from ZeroBot.module import Module, ProtocolModule
 from ZeroBot.protocol.context import Context
@@ -34,12 +38,19 @@ class Core:
 
     Parameters
     ----------
+    config_path : str or Path object, optional
+        Specifies the path to ZeroBot's configuration file; defaults to
+        ``<user_config_dir>/ZeroBot/ZeroBot.toml``.
     eventloop : asyncio.AbstractEventLoop, optional
         The asyncio event loop to use. If unspecified, the default loop will be
         used, i.e. `asyncio.get_event_loop()`.
 
     Attributes
     ----------
+    config : Dict[str, Any]
+        A dictionary containing the parsed configuration from ZeroBot's main
+        configuration file.
+    config_path : Path
     eventloop
 
     Notes
@@ -58,13 +69,24 @@ class Core:
     # ZeroBot, or sending a Ctrl-C. Discord should call close(), pydle should
     # disconnect(), etc.
 
-    def __init__(self, eventloop=None):
+    def __init__(self, config_path: Union[str, Path] = None,
+                 eventloop: asyncio.AbstractEventLoop = None):
         self.eventloop = eventloop if eventloop else asyncio.get_event_loop()
         self.logger = logging.getLogger('ZeroBot')
         self._protocols = {}  # maps protocol names to their ProtocolModule
         self._features = {}  # maps feature module names to their Module
 
-        # do config loading stuff
+        if config_path:
+            self._config_path = Path(config_path)
+        else:
+            self._config_path = Path(appdirs.user_config_dir(
+                'ZeroBot', appauthor=False, roaming=True), 'ZeroBot.toml')
+        try:
+            self.config = toml.load(self._config_path)
+        except (FileNotFoundError, toml.TomlDecodeError) as e:
+            self.logger.error(
+                f"Failed to load config file '{self._config_path}': {e}")
+            raise
 
         # IDEA: As part of module registration, the core could send the
         # relevant config section data structure to the module, removing the
@@ -90,24 +112,17 @@ class Core:
         """Get list of requested protocols from config and load them.
 
         Returns the number of protocols that were successfully loaded.
-
-        TEMP: Currently just a stub until config is implemented
         """
-        # normally we'd pull from the config here
-        stub_list = ['irc', 'discord']
-        for proto in stub_list:
+        for proto in self.config['Core']['Protocols']:
             self.load_protocol(proto)
         return len(self._protocols)
 
     def _load_features(self) -> int:
         """Get list of requested feature modules from config and laod them.
 
-        Returns the number of feature modules that were successfull loaded.
-
-        TEMP: Currently just a stub until config is implemented
+        Returns the number of feature modules that were successfully loaded.
         """
-        stub_list = ['chat']
-        for feature in stub_list:
+        for feature in self.config['Core']['Modules']:
             self.load_feature(feature)
         return len(self._features)
 
