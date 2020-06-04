@@ -45,6 +45,10 @@ class Core:
 
     Attributes
     ----------
+    cmdprefix : str
+        The prefix required to designate a command invokation. The prefix may
+        be any number of arbitrary characters, but must be at least one
+        character. Defaults to ``!``.
     config : Dict[str, Any]
         A dictionary containing the parsed configuration from ZeroBot's main
         configuration file.
@@ -96,6 +100,8 @@ class Core:
         # Configure logging
         self._init_logging()
 
+        self._cmdprefix = self.config['Core'].get('CmdPrefix', '!')
+
         # Load configured protocols
         protocols_loaded = self._load_protocols()
         if protocols_loaded:
@@ -111,6 +117,11 @@ class Core:
             self.logger.info(f'Loaded {features_loaded} feature modules.')
         else:
             self.logger.warning('No feature modules were loaded.')
+
+    @property
+    def cmdprefix(self) -> str:
+        """Get the command prefix."""
+        return self._cmdprefix
 
     @property
     def config_path(self) -> Path:
