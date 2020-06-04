@@ -108,6 +108,11 @@ class Core:
         else:
             self.logger.warning('No feature modules were loaded.')
 
+    @property
+    def config_path(self) -> Path:
+        """Get the path to ZeroBot's config file."""
+        return self._config_path
+
     def _load_protocols(self) -> int:
         """Get list of requested protocols from config and load them.
 
