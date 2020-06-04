@@ -90,6 +90,8 @@ class Core:
             self.logger.error(
                 f"Failed to load config file '{self._config_path}': {e}")
             raise
+        if 'Core' not in self.config:
+            self.config['Core'] = {}
 
         # IDEA: As part of module registration, the core could send the
         # relevant config section data structure to the module, removing the
@@ -176,7 +178,7 @@ class Core:
 
         Returns the number of protocols that were successfully loaded.
         """
-        for proto in self.config['Core']['Protocols']:
+        for proto in self.config['Core'].get('Protocols', []):
             self.load_protocol(proto)
         return len(self._protocols)
 
@@ -185,7 +187,7 @@ class Core:
 
         Returns the number of feature modules that were successfully loaded.
         """
-        for feature in self.config['Core']['Modules']:
+        for feature in self.config['Core'].get('Modules', []):
             self.load_feature(feature)
         return len(self._features)
 
