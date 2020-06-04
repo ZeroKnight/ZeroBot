@@ -10,6 +10,7 @@ and feature modules to do something meaningful with that connection.
 
 import asyncio
 import logging
+import logging.config
 from pathlib import Path
 from typing import Dict, Optional, Union
 
@@ -19,13 +20,10 @@ import toml
 from ZeroBot.module import Module, ProtocolModule
 from ZeroBot.protocol.context import Context
 
-# NOTE: For log configuration, use logging.config.fileConfig and pass
-# a RawConfigParser object as `fname`, this will allow selecting only the
-# relevant logging section of zerobot.cfg. Alternatively, just use dictConfig()
-# and pass a dict we pull from configparser.
-logging.basicConfig(style='{',
-                    format='{asctime} {levelname:7} [{name}] {message}',
-                    datefmt='%T', level=logging.DEBUG)
+# Minimal initial logging format for any messages before the config is read and
+# user logging configuration is applied.
+logging.basicConfig(style='{', format='{asctime} {levelname:7} {message}',
+                    datefmt='%T', level=logging.ERROR)
 
 
 class Core:
@@ -76,6 +74,7 @@ class Core:
         self._protocols = {}  # maps protocol names to their ProtocolModule
         self._features = {}  # maps feature module names to their Module
 
+        # Read config
         if config_path:
             self._config_path = Path(config_path)
         else:
@@ -94,14 +93,19 @@ class Core:
         # a reference to the data structure, both the module and the core would
         # see the most up to date changes.
 
+        # Configure logging
+        self._init_logging()
+
+        # Load configured protocols
         protocols_loaded = self._load_protocols()
         if protocols_loaded:
-            self.logger.info(f'Loaded {protocols_loaded} protocols')
+            self.logger.info(f'Loaded {protocols_loaded} protocols.')
         else:
             msg = 'Could not load any protocol modules.'
             self.logger.critical(msg)
             raise RuntimeError(msg)  # TBD: Make this a custom exception?
 
+        # Load configured features
         features_loaded = self._load_features()
         if features_loaded:
             self.logger.info(f'Loaded {features_loaded} feature modules.')
@@ -112,6 +116,49 @@ class Core:
     def config_path(self) -> Path:
         """Get the path to ZeroBot's config file."""
         return self._config_path
+
+    def _init_logging(self):
+        """Initialize logging configuration."""
+        defaults = {
+            'Level': 'INFO',
+            'Enabled': ['console'],
+            'Formatters': {
+                'default': {
+                    'style': '{',
+                    'format': '{asctime} {levelname:7} [{name}] {message}',
+                    'datefmt': '%T'
+                }
+            },
+            'Handlers': {
+                'console': {
+                    'class': 'logging.StreamHandler',
+                    'level': 'INFO',
+                    'formatter': 'default'
+                }
+            }
+        }
+
+        log_sec = self.config.get('Logging', defaults)
+        # Ensure the default formatter is always available
+        log_sec['Formatters'] = {**log_sec.get('Formatters', {}),
+                                 **defaults['Formatters']}
+        for handler in log_sec['Handlers'].values():
+            # Normalize file paths
+            if 'filename' in handler:
+                handler['filename'] = Path(handler['filename']).expanduser()
+
+        logging.config.dictConfig({
+            'version': 1,  # dictConfig schema version (required)
+            'loggers': {
+                'ZeroBot': {
+                    'level': log_sec['Level'],
+                    'handlers': log_sec['Enabled'],
+                    'propagate': False
+                }
+            },
+            'formatters': log_sec['Formatters'],
+            'handlers': log_sec['Handlers']
+        })
 
     def _load_protocols(self) -> int:
         """Get list of requested protocols from config and load them.
