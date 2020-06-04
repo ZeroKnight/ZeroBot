@@ -100,7 +100,7 @@ class Core:
         else:
             msg = 'Could not load any protocol modules.'
             self.logger.critical(msg)
-            raise RuntimeError(msg)
+            raise RuntimeError(msg)  # TBD: Make this a custom exception?
 
         features_loaded = self._load_features()
         if features_loaded:
@@ -146,7 +146,7 @@ class Core:
         try:
             module = ProtocolModule(f'ZeroBot.protocol.{name}.protocol')
         except ModuleNotFoundError:
-            self.logger.exception(f"Failed to load protocol module '{name}':")
+            self.logger.exception(f"Failed to load protocol module '{name}'")
             return None
         self.logger.debug(f'Imported protocol module {module!r}')
         self._protocols[name] = module
@@ -155,7 +155,7 @@ class Core:
             ctx, coro = module.handle.module_register(self)
         except:
             self.logger.exception(
-                f'Failed to register protocol module {module!r}:')
+                f'Failed to register protocol module {module!r}')
             return None
         self.logger.info(f"Loaded protocol module '{name}'")
         module.contexts.append(ctx)
@@ -182,7 +182,7 @@ class Core:
         try:
             module = Module(f'ZeroBot.feature.{name}')
         except ModuleNotFoundError:
-            self.logger.exception(f"Failed to load feature module '{name}':")
+            self.logger.exception(f"Failed to load feature module '{name}'")
             return None
         self.logger.debug(f'Imported feature module {module!r}')
         self._features[name] = module
@@ -191,7 +191,7 @@ class Core:
             module.handle.module_register()
         except:
             self.logger.exception(
-                f'Failed to register feature module {module!r}:')
+                f'Failed to register feature module {module!r}')
             return None
         self.logger.info(f"Loaded feature module '{name}'")
         return module
