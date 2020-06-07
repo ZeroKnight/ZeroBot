@@ -40,7 +40,12 @@ class Module:
 
     def __init__(self, import_str: str):
         self._import_name = import_str
-        self.handle = importlib.import_module(import_str)
+        try:
+            self.handle = importlib.import_module(import_str)
+        except ModuleNotFoundError:
+            # Look for newly added modules and try again
+            importlib.invalidate_caches()
+            self.handle = importlib.import_module(import_str)
         self.name = self.handle.MODULE_NAME
         self.description = self.handle.MODULE_DESC
         self.author = self.handle.MODULE_AUTHOR
