@@ -287,6 +287,49 @@ class Core:
         self.logger.info(f"Loaded feature module '{name}'")
         return module
 
+    # TODO: reload_protocol will be more complicated to pull off, as we have
+    # connections to manage.
+
+    def reload_feature(self, feature: Union[str, Module]) -> Optional[Module]:
+        """Reload a ZeroBot feature module.
+
+        Allows for changes to feature modules to be dynamically introduced at
+        runtime, without having to restart ZeroBot.
+
+        Parameters
+        ----------
+        feature : str or Module object
+            A string with the module short-name (e.g. 'chat' for features.chat)
+            or a loaded `Module` object.
+
+        Returns
+        -------
+        Module or None
+            A reference to the module if reloading was successful, else `None`.
+        """
+        if isinstance(feature, Module):
+            module = feature
+            name = module.short_name
+        elif isinstance(feature, str):
+            name = feature
+            try:
+                module = self._features[feature]
+            except KeyError:
+                self.logger.error(
+                    (f"Cannot reload feature module '{feature}' that is not ",
+                     'already loaded.'))
+                return None
+        else:
+            raise TypeError(("feature type expects 'str' or 'Module', not ",
+                             f"'{type(feature)}'"))
+        try:
+            module.reload()
+        except Exception:  # pylint: disable=broad-except
+            self.logger.exception(f"Failed to reload feature module '{name}'")
+            return None
+        self.logger.info(f"Reloaded feature module '{name}'")
+        return module
+
     def protocol_loaded(self, name: str) -> bool:
         """Return whether the given protocol is loaded or not.
 

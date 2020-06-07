@@ -71,6 +71,19 @@ class Module:
         """Get the fully qualified name of the associated Python module."""
         return self._import_name
 
+    def reload(self) -> 'Module':
+        """Reload the associated Python module.
+
+        Returns
+        -------
+        Module or None
+            If the reload was successful, returns the new module handle.
+            Otherwise, it raises an exception.
+        """
+        current_handle = self.handle
+        self.handle = importlib.reload(current_handle)
+        return self.handle
+
 
 class ProtocolModule(Module):
     """A ZeroBot Protocol module.
@@ -93,3 +106,8 @@ class ProtocolModule(Module):
     @property
     def short_name(self) -> str:
         return self.handle.__name__.split('.')[-2]
+
+    def reload(self):
+        """Not yet implemented for protocol modules!"""
+        raise NotImplementedError(
+            'Reloading protocol modules is not yet implemented.')
