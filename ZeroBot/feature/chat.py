@@ -14,10 +14,14 @@ MODULE_DESC = 'Allows ZeroBot to chat and respond to conversation in various way
 # \x203D is the interrobang
 DOTCHARS = '.!?\xA1\xBF\u203D'
 
-def module_register():
+
+def module_register(core):
+    global CORE
+    CORE = core
+
     # make database connection and initialize tables if necessary
     # check for existence of 'fortune' command in environment
-    pass
+
 
 def module_unregister():
     # close database connection

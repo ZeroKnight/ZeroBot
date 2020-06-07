@@ -279,7 +279,7 @@ class Core:
             return None
         self._features[name] = module
         try:
-            module.handle.module_register()
+            module.handle.module_register(self)
         except Exception:  # pylint: disable=broad-except
             self.logger.exception(
                 f'Failed to register feature module {module!r}')
