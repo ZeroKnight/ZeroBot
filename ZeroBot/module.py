@@ -14,51 +14,50 @@ class Module:
 
     Parameters
     ----------
-    name : str
+    import_str : str
         The name of the module to as given to `import`.
-    title : str, optional
-        A friendly name for the module. If `None`, the name specified by
-        ``MODULE_NAME`` defined in the module `name` will be used; if it isn't
-        defined, then `title` will be set equal to the module name.
 
     Attributes
     ----------
-    name
-    title
+    name : str
+        A friendly name for the module.
+    description : str
+        A description of the module.
+    author : str
+        The author of the module.
+    version : str
+        The version string of the module.
+    license : str
+        The name of the license that the module is written under.
     handle : types.ModuleType
         A reference to the loaded Python module.
 
     Raises
     ------
     ModuleNotFoundError
-        If the given module name could not be found.
+        If the specified module could not be found.
     """
 
-    def __init__(self, name: str, title: Optional[str] = None):
-        self._name = name
-        self.handle = importlib.import_module(self._name)
-        if title:
-            self._title = title
-        else:
-            self._title = getattr(self.handle, 'MODULE_NAME', self._name)
+    def __init__(self, import_str: str):
+        self._import_name = import_str
+        self.handle = importlib.import_module(import_str)
+        self.name = self.handle.MODULE_NAME
+        self.description = self.handle.MODULE_DESC
+        self.author = self.handle.MODULE_AUTHOR
+        self.version = self.handle.MODULE_VERSION
+        self.license = self.handle.MODULE_LICENSE
 
     def __repr__(self):
-        attrs = ['name', 'title', 'handle']
+        attrs = ['name', 'version', 'handle']
         repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
         return f'<{self.__class__.__name__} {repr_str}>'
 
     def __str__(self):
-        return self.name
+        return f'{self.name} v{self.version}'
 
-    @property
-    def name(self) -> str:
-        """Get the name of the associated Python module."""
-        return self._name
-
-    @property
-    def title(self) -> str:
-        """Get the title (friendly name) of this module."""
-        return self._title
+    def fq_name(self) -> str:
+        """Get the fully qualified name of the associated Python module."""
+        return self._import_name
 
 
 class ProtocolModule(Module):
@@ -74,7 +73,7 @@ class ProtocolModule(Module):
         Contains the `Context` objects associated with this protocol.
     """
 
-    def __init__(self, name: str, title: Optional[str] = None):
-        super().__init__(name, title)
+    def __init__(self, import_str: str):
+        super().__init__(import_str)
 
         self.contexts = []
