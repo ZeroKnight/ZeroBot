@@ -1,0 +1,4 @@
+appdirs
+discord.py
+pydle
+toml
