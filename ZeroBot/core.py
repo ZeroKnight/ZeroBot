@@ -13,7 +13,7 @@ import logging
 import logging.config
 from pathlib import Path
 from types import ModuleType
-from typing import Optional, Type, Union
+from typing import List, Optional, Type, Union
 
 import appdirs
 import toml
@@ -282,6 +282,24 @@ class Core:
             return None
         self.logger.info(f"Loaded feature module '{name}'")
         return module
+
+    def get_loaded_protocols(self) -> List[ProtocolModule]:
+        """Get a list of loaded protocol modules.
+
+        Returns
+        -------
+        List of `ProtocolModule` objects
+        """
+        return list(self._protocols.values())
+
+    def get_loaded_features(self) -> List[Module]:
+        """Get a list of loaded feature modules.
+
+        Returns
+        -------
+        List of `Module` objects
+        """
+        return list(self._features.values())
 
     def run(self):
         """Start ZeroBot's event loop."""
