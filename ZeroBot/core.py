@@ -244,6 +244,8 @@ class Core:
             could not be loaded.
         """
         module = self._handle_load_module(name, ProtocolModule)
+        if module is None:
+            return None
         self._protocols[name] = module
         try:
             ctx, coro = module.handle.module_register(self)
@@ -273,6 +275,8 @@ class Core:
             could not be loaded.
         """
         module = self._handle_load_module(name, Module)
+        if module is None:
+            return None
         self._features[name] = module
         try:
             module.handle.module_register()
