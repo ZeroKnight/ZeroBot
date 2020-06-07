@@ -10,6 +10,12 @@ import discord
 import ZeroBot.common.abc as abc
 from ZeroBot.protocol.context import Context
 
+MODULE_NAME = 'Discord'
+MODULE_AUTHOR = 'ZeroKnight'
+MODULE_VERSION = '0.1'
+MODULE_LICENSE = 'MIT'
+MODULE_DESC = 'Discord protocol implementation'
+
 
 def module_register(core):
     global CORE

@@ -12,6 +12,12 @@ from ZeroBot.protocol.context import Context
 
 from .classes import IRCChannel, IRCMessage, IRCServer, IRCUser
 
+MODULE_NAME = 'IRC'
+MODULE_AUTHOR = 'ZeroKnight'
+MODULE_VERSION = '0.1'
+MODULE_LICENSE = 'MIT'
+MODULE_DESC = 'IRC protocol implementation'
+
 
 def module_register(core):
     global CORE
