@@ -12,7 +12,8 @@ import asyncio
 import logging
 import logging.config
 from pathlib import Path
-from typing import Optional, Union
+from types import ModuleType
+from typing import Optional, Type, Union
 
 import appdirs
 import toml
@@ -191,6 +192,41 @@ class Core:
             self.load_feature(feature)
         return len(self._features)
 
+    def _handle_load_module(self, name: str,
+                            module_type: Type[Module]) -> ModuleType:
+        """Handle instantiation of `Module` objects.
+
+        Parameters
+        ----------
+        name : str
+            The module name as given to `import`.
+        module_type : type
+            Either `Module` or `ProtocolModule`.
+
+        Returns
+        -------
+        types.ModuleType or None
+            The module object if the import was successful, else `None`.
+        """
+        if module_type not in [Module, ProtocolModule]:
+            raise TypeError(f"Invalid type '{module_type}'")
+        type_str = 'feature' if module_type is Module else 'protocol'
+
+        try:
+            if module_type is ProtocolModule:
+                module = ProtocolModule(f'ZeroBot.protocol.{name}.protocol')
+            else:
+                module = Module(f'ZeroBot.feature.{name}')
+        except ModuleNotFoundError as ex:
+            self.logger.error(
+                f"Could not find {type_str} module '{name}': {ex}")
+            return None
+        except Exception:  # pylint: disable=broad-except
+            self.logger.exception(f"Failed to load {type_str} module '{name}'")
+            return None
+        self.logger.debug(f'Imported {type_str} module {module!r}')
+        return module
+
     def load_protocol(self, name: str) -> Optional[ProtocolModule]:
         """Load and register a protocol module.
 
@@ -207,19 +243,8 @@ class Core:
             A class representing the loaded protocol, or `None` if the module
             could not be loaded.
         """
-        # TODO: module search path?
-        try:
-            module = ProtocolModule(f'ZeroBot.protocol.{name}.protocol')
-        except ModuleNotFoundError as ex:
-            self.logger.error(
-                f"Could not find protocol module '{name}': {ex}")
-            return None
-        except Exception:  # pylint: disable=broad-except
-            self.logger.exception(f"Failed to load protocol module '{name}'")
-            return None
-        self.logger.debug(f'Imported protocol module {module!r}')
+        module = self._handle_load_module(name, ProtocolModule)
         self._protocols[name] = module
-
         try:
             ctx, coro = module.handle.module_register(self)
         except Exception:  # pylint: disable=broad-except
@@ -247,19 +272,8 @@ class Core:
             A class representing the loaded feature, or `None` if the module
             could not be loaded.
         """
-        # TODO: module search path?
-        try:
-            module = Module(f'ZeroBot.feature.{name}')
-        except ModuleNotFoundError as ex:
-            self.logger.error(
-                f"Could not find feature module '{name}': {ex}")
-            return None
-        except Exception:  # pylint: disable=broad-except
-            self.logger.exception(f"Failed to load feature module '{name}'")
-            return None
-        self.logger.debug(f'Imported feature module {module!r}')
+        module = self._handle_load_module(name, Module)
         self._features[name] = module
-
         try:
             module.handle.module_register()
         except Exception:  # pylint: disable=broad-except
