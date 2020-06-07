@@ -1,0 +1,13 @@
+[MASTER]
+
+init-hook=import sys; sys.path.append('.')
+
+[MESSAGES CONTROL]
+
+disable=logging-fstring-interpolation
+
+[LOGGING]
+
+# The type of string formatting that logging methods do. `old` means using %
+# formatting, `new` is for `{}` formatting.
+logging-format-style=new

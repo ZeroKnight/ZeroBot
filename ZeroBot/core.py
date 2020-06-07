@@ -12,7 +12,7 @@ import asyncio
 import logging
 import logging.config
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 import appdirs
 import toml
@@ -86,9 +86,9 @@ class Core:
                 'ZeroBot', appauthor=False, roaming=True), 'ZeroBot.toml')
         try:
             self.config = toml.load(self._config_path)
-        except (FileNotFoundError, toml.TomlDecodeError) as e:
+        except (FileNotFoundError, toml.TomlDecodeError) as ex:
             self.logger.error(
-                f"Failed to load config file '{self._config_path}': {e}")
+                f"Failed to load config file '{self._config_path}': {ex}")
             raise
         if 'Core' not in self.config:
             self.config['Core'] = {}
@@ -210,7 +210,11 @@ class Core:
         # TODO: module search path?
         try:
             module = ProtocolModule(f'ZeroBot.protocol.{name}.protocol')
-        except ModuleNotFoundError:
+        except ModuleNotFoundError as ex:
+            self.logger.error(
+                f"Could not find protocol module '{name}': {ex}")
+            return None
+        except Exception:  # pylint: disable=broad-except
             self.logger.exception(f"Failed to load protocol module '{name}'")
             return None
         self.logger.debug(f'Imported protocol module {module!r}')
@@ -218,7 +222,7 @@ class Core:
 
         try:
             ctx, coro = module.handle.module_register(self)
-        except:
+        except Exception:  # pylint: disable=broad-except
             self.logger.exception(
                 f'Failed to register protocol module {module!r}')
             return None
@@ -246,7 +250,11 @@ class Core:
         # TODO: module search path?
         try:
             module = Module(f'ZeroBot.feature.{name}')
-        except ModuleNotFoundError:
+        except ModuleNotFoundError as ex:
+            self.logger.error(
+                f"Could not find feature module '{name}': {ex}")
+            return None
+        except Exception:  # pylint: disable=broad-except
             self.logger.exception(f"Failed to load feature module '{name}'")
             return None
         self.logger.debug(f'Imported feature module {module!r}')
@@ -254,7 +262,7 @@ class Core:
 
         try:
             module.handle.module_register()
-        except:
+        except Exception:  # pylint: disable=broad-except
             self.logger.exception(
                 f'Failed to register feature module {module!r}')
             return None
