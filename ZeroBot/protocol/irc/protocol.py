@@ -17,8 +17,6 @@ def module_register(core):
     global CORE
     CORE = core
 
-    print('hit module_register')
-
     # TEMP: get this stuff from config later
     ctx = IRCContext('ZeroBot', eventloop=core.eventloop)
     coro = ctx.connect('wazu.info.tm')

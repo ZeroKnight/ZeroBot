@@ -15,8 +15,6 @@ def module_register(core):
     global CORE
     CORE = core
 
-    print('hit module_register in discord')
-
     # TEMP: get this stuff from config later
     ctx = DiscordContext(loop=core.eventloop)
     coro = ctx.start('')
