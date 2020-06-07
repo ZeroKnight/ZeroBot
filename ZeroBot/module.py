@@ -29,6 +29,8 @@ class Module:
         The version string of the module.
     license : str
         The name of the license that the module is written under.
+    short_name: str
+        The identifier used to initially load the module.
     handle : types.ModuleType
         A reference to the loaded Python module.
 
@@ -60,6 +62,11 @@ class Module:
     def __str__(self):
         return f'{self.name} v{self.version}'
 
+    @property
+    def short_name(self) -> str:
+        """Get the module "short-name", i.e. the identifier used to load it."""
+        return self.handle.__name__.split('.')[-1]
+
     def fq_name(self) -> str:
         """Get the fully qualified name of the associated Python module."""
         return self._import_name
@@ -82,3 +89,7 @@ class ProtocolModule(Module):
         super().__init__(import_str)
 
         self.contexts = []
+
+    @property
+    def short_name(self) -> str:
+        return self.handle.__name__.split('.')[-2]
