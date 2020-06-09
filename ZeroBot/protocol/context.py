@@ -24,7 +24,7 @@ usual way, but can still properly integrate with ZeroBot. For example:
         # Usual implementation of foo.Client ...
 """
 
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from typing import Any
 
 from ZeroBot.common.abc import Channel
@@ -33,6 +33,20 @@ from ZeroBot.common.abc import Channel
 class Context(metaclass=ABCMeta):
     """An ABC representing an individual connection over an arbitrary protocol.
 
+    A Context represents an individual connection over an arbitrary protocol.
+    There may be any number of contexts per protocol, each connection
+    representing a particular user, server, network, etc.
+
+    Attributes
+    ----------
+    server : Server
+        A `Server`  object representing the server this context is connected
+        to.
+    user : User
+        A `User`  object representing the user this context is connected as.
+
+    Notes
+    -----
     Protocol implementations should implement a Context by subclassing this
     class and their typical connection or client type class. For example:
 
@@ -42,7 +56,7 @@ class Context(metaclass=ABCMeta):
 
     @property
     def protocol(self):
-        """str: The protocol that this context belongs to.
+        """The protocol that this context belongs to.
 
         Feature modules may check against this property to implement
         protocol-specific behavior.
@@ -57,10 +71,10 @@ class Context(metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    async def module_join(self, where: Channel, password: str=None):
+    async def module_join(self, where: Channel, password: str = None):
         """Join the given channel, with optional password."""
         raise NotImplementedError
 
-    async def module_leave(self, where: Channel):
-        """Leaves the given channel."""
+    async def module_leave(self, where: Channel, reason: str = None):
+        """Leave the given channel, with optional reason."""
         raise NotImplementedError

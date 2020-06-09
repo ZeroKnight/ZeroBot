@@ -4,9 +4,6 @@ Provides abstractions for ZeroBot modules and their associated files.
 """
 
 import importlib
-from typing import Optional
-
-from ZeroBot.protocol.context import Context
 
 
 class Module:

@@ -5,6 +5,7 @@ Provides protocol-agnostic abstract base classes used throughout ZeroBot.
 
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
+from typing import Any
 
 
 class ProtocolDetails(metaclass=ABCMeta):
@@ -14,8 +15,8 @@ class ProtocolDetails(metaclass=ABCMeta):
     """
 
     @property
-    def protocol(self):
-        """str: The protocol where this protocol object originated from.
+    def protocol(self) -> str:
+        """The protocol where this protocol object originated from.
 
         Feature modules may check against this property to implement
         protocol-specific behavior.
@@ -24,8 +25,8 @@ class ProtocolDetails(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def original(self):
-        """Any: A reference to the original protocol object.
+    def original(self) -> Any:
+        """A reference to the original protocol object.
 
         This is the specialized, non-generic version created by the protocol
         itself.
@@ -41,15 +42,15 @@ class User(ProtocolDetails, metaclass=ABCMeta):
 
     Attributes
     ----------
-    name: str
+    name : str
         The name of the User; should represent the display name or nickname,
         depending on the protocol.
-    username: Optional[str]
+    username : str, optional
         The username of the User; should represent some kind of login or
-        account name associated with the User. If username is ``None``, then it
+        account name associated with the User. If username is `None`, then it
         should be equal to the nickname.
-    bot: bool
-        Whether or not this user is a bot; False by default.
+    bot : bool
+        Whether or not this user is a bot; `False` by default.
     """
 
     @abstractmethod
@@ -76,14 +77,14 @@ class Server(ProtocolDetails, metaclass=ABCMeta):
 
     Attributes
     ----------
-    hostname: str
+    hostname : str
         An address or unique identifier that is used to reach the Server.
-    port: int
+    port : int
         The port to connect on. Default ports vary between protocols.
-    name: str
+    name : str
         User-defined friendly name for this server; may be any arbitrary name.
-        If ``None``, will fall back to hostname.
-    ipv6: bool
+        If `None`, will fall back to hostname.
+    ipv6 : bool
         Whether or not the connection uses IPv6.
     """
 
@@ -106,13 +107,13 @@ class Message(ProtocolDetails, metaclass=ABCMeta):
 
     Attributes
     ----------
-    source: Union[User, Channel, Server]
+    source : User, Channel, or Server
         Where the message came from.
-    destination: Union[User, Channel, Server]
+    destination : User, Channel, or Server
         Where the message is being sent.
-    content: str
+    content : str
         The contents of the message.
-    time: datetime
+    time : datetime
         The time that the message was sent, in UTC.
     """
 
@@ -121,7 +122,7 @@ class Message(ProtocolDetails, metaclass=ABCMeta):
         raise NotImplementedError
 
     def __len__(self):
-        return len(self.contents)
+        return len(self.content)  # pylint: disable=no-member
 
 
 class Channel(ProtocolDetails, metaclass=ABCMeta):
@@ -134,10 +135,10 @@ class Channel(ProtocolDetails, metaclass=ABCMeta):
 
     Attributes
     ----------
-    name: str
+    name : str
         The name of the Channel.
-    password: Optional[str]
-        The password required to communicate on the Channel. Can be ``None`` if
+    password : str, optional
+        The password required to communicate on the Channel. Can be `None` if
         no password is required, or is not applicable.
     """
 
