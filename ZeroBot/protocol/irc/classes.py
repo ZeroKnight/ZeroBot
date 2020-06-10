@@ -55,7 +55,7 @@ class IRCUser(abc.User):
 
     def __repr__(self):
         attrs = ['name', 'username', 'realname', 'hostname', 'mask', 'bot']
-        return f"{self.__class__.__name__}({' '.join(f'{a}={getattr(self, a)}' for a in attrs)})"
+        return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
 
     def __str__(self):
         return self.name
@@ -132,7 +132,7 @@ class IRCServer(abc.Server):
 
     def __repr__(self):
         attrs = ['hostname', 'port', 'tls', 'password', 'name']
-        return f"{self.__class__.__name__}({' '.join(f'{a}={getattr(self, a)}' for a in attrs)})"
+        return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
 
     def __str__(self):
         return self.name if self.name is not None else self.hostname
@@ -171,7 +171,7 @@ class IRCChannel(abc.Channel):
 
     def __repr__(self):
         attrs = ['name', 'password']
-        return f"{self.__class__.__name__}({' '.join(f'{a}={getattr(self, a)}' for a in attrs)})"
+        return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
 
     def __str__(self):
         return self.name
@@ -221,7 +221,7 @@ class IRCMessage(abc.Message):
 
     def __repr__(self):
         attrs = ['source', 'destination', 'content', 'time']
-        return f"{self.__class__.__name__}({' '.join(f'{a}={getattr(self, a)}' for a in attrs)})"
+        return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
 
     def __str__(self):
         return self.content
