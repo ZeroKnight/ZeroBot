@@ -13,28 +13,33 @@ import ZeroBot.common.abc as abc
 class IRCUser(abc.User):
     """Represents a user connected to an IRC server.
 
-    Attributes
+    Parameters
     ----------
     name: str
         The nickname of the user.
-    username: str
+    username: str, optional
         The username of the user, typically the reported username of their host
-        device.
-    realname: str
-        The real name of the user.
-    hostname: str
-        The hostname of the user, i.e. their source address.
+        device. If `None`, defaults to a lowercase version of `name`.
+    realname: str, optional
+        The real name of the user. If `None`, defaults to `name`.
+    hostname: str, optional
+        The hostname of the user, i.e. their source address. If unspecified,
+        will be set to `None` to indicate that it is not yet known, and may be
+        set later.
+    bot: bool, optional
+        Whether or not this user is a bot; `False` by default.
+
+    Attributes
+    ----------
     mask: str
         The user/host mask of this user, in the form of `nick!user@host`.
-    bot: bool
-        Whether or not this user is a bot; False by default.
     """
 
-    def __init__(self, name: str, username: str, realname: str, hostname: str,
-                 bot: bool = False):
+    def __init__(self, name: str, username: str = None, realname: str = None,
+                 *, hostname: Optional[str] = None, bot: bool = False):
         self.name = name
-        self.username = username
-        self.realname = realname
+        self.username = username or name.lower()
+        self.realname = realname or name
         self.hostname = hostname
         self.bot = bot
         self.mask = f'{self.name}!{self.username}@{self.hostname}'
@@ -85,38 +90,44 @@ class IRCServer(abc.Server):
 
     Attributes
     ----------
-    hostname: str
+    hostname : str
         The hostname of server to connect to.
-    port: int
+    port : int
         The port to connect on, defaults to 6667 (or 6697 for TLS connections).
-    name: str
+    name : str
         User-defined friendly name for this server; may be any arbitrary name.
-        If ``None``, will fall back to hostname.
-    ipv6: bool
+        If `None`, will fall back to hostname.
+    ipv6 : bool
         Whether or not the connection uses IPv6.
-    tls: bool
+    tls : bool
         Whether or not the connection is using TLS.
-    password: Optional[str]
-        The password required to connect to the server, or ``None`` if
-        a password isn't required.
-    servername: str
+    password : str, optional
+        The password required to connect to the server, or `None` if a password
+        isn't required.
+    servername : str
         The name returned by the server. This is typically the same as the
         hostname, however a server can report whatever name it wants, which may
-        not match the hostname. Will be ``None`` until successful connection.
+        not match the hostname. Will be `None` until successful connection.
+    network : str
+        The IRC network that this server belongs to. This is the name that
+        shows up in the "Welcome to the <name> IRC Network" message on
+        connection in ``RPL_WELCOME`` and the ``NETWORK`` key in
+        ``RPL_ISUPPORT``.
     """
 
-    # TODO: Set servername on connection
-
     def __init__(self, hostname: str, port: int = None, *, name: str = None,
-                 ipv6: bool = False, tls: bool = False, password: str = None):
+                 ipv6: bool = False, tls: bool = False, password: str = None,
+                 network: str = None):
         self.hostname = hostname
         if port is None:
             self.port = 6697 if tls else 6667
         else:
             self.port = port
+        self.ipv6 = ipv6
         self.tls = tls
         self.password = password
         self.servername = None
+        self.network = None
         self.name = name if name is not None else self.hostname
 
     def __repr__(self):

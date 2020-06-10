@@ -51,7 +51,7 @@ class IRCContext(Context, pydle.Client):
         channel = IRCChannel(channel)
         # TODO: pydle only passes the nickname, so we need pull the other values
         # from the server (cache this somewhere?)
-        user = IRCUser(user, '', '', '', False)
+        user = IRCUser(user, '', '', hostname='')
         await CORE.module_send_event('join', self, channel, user)
 
     async def on_message(self, destination: str, source: str, message: str):
