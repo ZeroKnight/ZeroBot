@@ -119,5 +119,12 @@ class IRCContext(Context, pydle.Client):
         logger.info(f'Joining channel {where}')
         await self.join(where, password)
 
+    # TODO: use default part message from config, if available
+    async def module_leave(self, where, reason=None):
+        if reason is None:
+            reason = 'No reason given.'
+        logger.info(f'Leaving channel {where} ({reason})')
+        await self.part(where, reason)
+
     async def module_message(self, destination, message):
         await self.message(destination, message)
