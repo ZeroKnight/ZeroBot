@@ -4,6 +4,7 @@ IRC protocol implementation.
 """
 
 import asyncio
+import logging
 
 import pydle
 
@@ -18,14 +19,23 @@ MODULE_VERSION = '0.1'
 MODULE_LICENSE = 'MIT'
 MODULE_DESC = 'IRC protocol implementation'
 
+# TODO: get this programatically and include network name
+logger = logging.getLogger('ZeroBot.IRC')
+
 
 def module_register(core):
     global CORE
     CORE = core
 
     # TEMP: get this stuff from config later
-    ctx = IRCContext('ZeroBot', eventloop=core.eventloop)
-    coro = ctx.connect('wazu.info.tm')
+    user = IRCUser('ZeroBot__')
+    server = IRCServer('irc.freenode.net')
+
+    ctx = IRCContext(user.name, [], user.username, user.realname,
+                     eventloop=core.eventloop)
+    ctx.server = server
+    ctx.user = user
+    coro = ctx.connect(ctx.server.hostname)
     return (ctx, coro)
 
 
@@ -53,10 +63,33 @@ class IRCContext(Context, pydle.Client):
     async def on_connect(self):
         await super().on_connect()
 
-        # TODO: call something like Core.module_on_connect
+        # Get our user/host as reported by the server
+        await self.rawmsg('USERHOST', self.user.name)
 
-        print('[irc] connected to blahblah')
-        await self.join('#zerobot')
+        logger.info(
+            f'Connected to {self.server.network} at {self.server.hostname}')
+        await CORE.module_send_event('connect', self)
+
+        # TEMP: get channels from config
+        await self.join('##zerobot')
+
+    async def on_raw_302(self, message):
+        """Handle RPL_USERHOST."""
+        # Update self.users for pydle
+        for user in message.params[1].rstrip().split(' '):
+            nickname, userhost = user.split('=', 1)
+            username, hostname = userhost[1:].split('@', 1)
+            self._sync_user(nickname, {
+                'username': username,
+                'hostname': hostname
+            })
+
+            # Update user/host for ZeroBot and pydle
+            if nickname == self.user.name:
+                self.user.username = username
+                self.user.hostname = hostname
+                # pylint: disable=attribute-defined-outside-init
+                self.username = username
 
     async def on_join(self, channel, user):
         await super().on_join(channel, user)
