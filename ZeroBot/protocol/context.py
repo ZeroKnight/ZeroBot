@@ -24,7 +24,7 @@ usual way, but can still properly integrate with ZeroBot. For example:
         # Usual implementation of foo.Client ...
 """
 
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from typing import Any
 
 from ZeroBot.common.abc import Channel
@@ -53,6 +53,11 @@ class Context(metaclass=ABCMeta):
     class Context(Context, foo.Client):
         # Usual implementation of foo.Client ...
     """
+
+    @abstractmethod
+    def __init__(self):
+        self.server = None
+        self.user = None
 
     @property
     def protocol(self):
