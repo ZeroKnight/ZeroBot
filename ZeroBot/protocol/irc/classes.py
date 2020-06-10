@@ -127,7 +127,7 @@ class IRCServer(abc.Server):
         self.tls = tls
         self.password = password
         self.servername = None
-        self.network = None
+        self.network = network
         self.name = name if name is not None else self.hostname
 
     def __repr__(self):
