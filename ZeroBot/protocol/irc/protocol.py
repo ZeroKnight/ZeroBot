@@ -5,6 +5,7 @@ IRC protocol implementation.
 
 import asyncio
 import logging
+from typing import List
 
 import pydle
 
@@ -31,10 +32,7 @@ def module_register(core):
     user = IRCUser('ZeroBot__')
     server = IRCServer('irc.freenode.net')
 
-    ctx = IRCContext(user.name, [], user.username, user.realname,
-                     eventloop=core.eventloop)
-    ctx.server = server
-    ctx.user = user
+    ctx = IRCContext(user, server, eventloop=core.eventloop)
     coro = ctx.connect(ctx.server.hostname)
     return (ctx, coro)
 
@@ -46,6 +44,16 @@ def module_unregister():
 class IRCContext(Context, pydle.Client):
     """blah
     """
+
+    def __init__(self, user: IRCUser, server: IRCServer, *,
+                 eventloop: asyncio.AbstractEventLoop,
+                 fallback_nicknames: List = None):
+        self.user = user
+        self.server = server
+        super(pydle.Client, self).__init__(
+            user.name, fallback_nicknames or [], user.username, user.realname,
+            eventloop=eventloop
+        )
 
     async def on_raw_001(self, message):
         """Handle RPL_WELCOME."""
