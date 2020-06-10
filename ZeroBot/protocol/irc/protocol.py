@@ -71,7 +71,7 @@ class IRCContext(Context, pydle.Client):
         await CORE.module_send_event('connect', self)
 
         # TEMP: get channels from config
-        await self.join('##zerobot')
+        await self.module_join('##zerobot')
 
     async def on_raw_302(self, message):
         """Handle RPL_USERHOST."""
@@ -106,6 +106,10 @@ class IRCContext(Context, pydle.Client):
         # TODO: time attribute, ircv3 tags
         msg = IRCMessage(source, destination, message, None, {})
         await CORE.module_send_event('message', self, msg)
+
+    async def module_join(self, where, password=None):
+        logger.info(f'Joining channel {where}')
+        await self.join(where, password)
 
     async def module_message(self, destination, message):
         await self.message(destination, message)
