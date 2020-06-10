@@ -37,6 +37,19 @@ class IRCContext(Context, pydle.Client):
     """blah
     """
 
+    async def on_raw_001(self, message):
+        """Handle RPL_WELCOME."""
+        await super().on_raw_001(message)
+        self.server.servername = message.source
+
+    # NOTE: pydle.features.ISUPPORTSupport defines on_raw_005 to set some
+    # attributes like self.network and implement the on_isupport_* methods. Be
+    # sure to call it if extending here.
+
+    async def on_isupport_network(self, value):
+        await super().on_isupport_network(value)
+        self.server.network = value
+
     async def on_connect(self):
         await super().on_connect()
 
