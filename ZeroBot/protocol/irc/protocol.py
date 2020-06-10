@@ -99,14 +99,15 @@ class IRCContext(Context, pydle.Client):
                 # pylint: disable=attribute-defined-outside-init
                 self.username = username
 
-    async def on_join(self, channel, user):
-        await super().on_join(channel, user)
+    async def on_join(self, channel, who):
+        """Handle someone joining a channel."""
+        await super().on_join(channel, who)
 
         channel = IRCChannel(channel)
-        # TODO: pydle only passes the nickname, so we need pull the other values
-        # from the server (cache this somewhere?)
-        user = IRCUser(user, '', '', hostname='')
-        await CORE.module_send_event('join', self, channel, user)
+        user = self.users[who]
+        irc_user = IRCUser(user['nickname'], user['username'],
+                           user['realname'], hostname=user['hostname'])
+        await CORE.module_send_event('join', self, channel, irc_user)
 
     async def on_message(self, destination: str, source: str, message: str):
         await super().on_message(destination, source, message)
