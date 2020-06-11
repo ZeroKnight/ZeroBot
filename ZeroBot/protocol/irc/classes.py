@@ -15,14 +15,14 @@ class IRCUser(abc.User):
 
     Parameters
     ----------
-    name: str
+    name : str
         The nickname of the user.
-    username: str, optional
+    username : str, optional
         The username of the user, typically the reported username of their host
         device. If `None`, defaults to a lowercase version of `name`.
-    realname: str, optional
+    realname : str, optional
         The real name of the user. If `None`, defaults to `name`.
-    hostname: str, optional
+    hostname : str, optional
         The hostname of the user, i.e. their source address. If unspecified,
         will be set to `None` to indicate that it is not yet known, and may be
         set later.
@@ -155,11 +155,11 @@ class IRCChannel(abc.Channel):
 
     Attributes
     ----------
-    name: str
+    name : str
         The name of the channel, including the prefix.
-    password: Optional[str]
+    password : str, optional
         The password (or "key") used to gain access to channels with mode +k
-        enabled, or ``None`` otherwise.
+        enabled, or `None` otherwise.
     """
 
     # Match valid channel prefixes
@@ -197,17 +197,17 @@ class IRCMessage(abc.Message):
 
     Attributes
     ----------
-    source: Union[User, Channel, Server]
+    source : Union[User, Channel, Server]
         Where the message came from.
-    destination: Union[User, Channel, Server]
+    destination : Union[User, Channel, Server]
         Where the message is being sent.
-    content: str
+    content : str
         The contents of the message.
-    time: datetime
+    time : datetime
         The time that the message was sent, in UTC.
-    tags: Dict[str, Optional[str]]
+    tags : Dict[str, Optional[str]]
         A dictionary containing any IRCv3 tags present in the message, mapped to
-        their optional values. A tag with no value is assigned ``None``.
+        their optional values. A tag with no value is assigned `None`.
     """
 
     def __init__(self, source: Union[IRCUser, IRCChannel, IRCServer],
