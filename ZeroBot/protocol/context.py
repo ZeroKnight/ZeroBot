@@ -39,11 +39,19 @@ class Context(metaclass=ABCMeta):
 
     Attributes
     ----------
+    channels_zb : dict of Channel objects
+        A dict of ZeroBot `Channel`s that this context is connected to. These
+        objects are part of ZeroBot's API, and not the underlying protocol
+        implementaiton.
     server : Server
         A `Server`  object representing the server this context is connected
         to.
     user : User
         A `User`  object representing the user this context is connected as.
+    users_zb : dict of User objects
+        A dict of ZeroBot `User`s that are known on this context. These objects
+        are part of ZeroBot's API, and not the underlying protocol
+        implementaiton.
 
     Notes
     -----
@@ -56,8 +64,10 @@ class Context(metaclass=ABCMeta):
 
     @abstractmethod
     def __init__(self):
+        self.channels_zb = {}
         self.server = None
         self.user = None
+        self.users_zb = {}
 
     @property
     def protocol(self):

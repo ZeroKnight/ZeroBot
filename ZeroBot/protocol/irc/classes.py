@@ -26,6 +26,9 @@ class IRCUser(abc.User):
         The hostname of the user, i.e. their source address. If unspecified,
         will be set to `None` to indicate that it is not yet known, and may be
         set later.
+    modes : dict or None
+        The modes set on this user. **Note**: In practice, this only known for
+        ZeroBot, as you cannot see other users' modes.
     bot: bool, optional
         Whether or not this user is a bot; `False` by default.
 
@@ -36,11 +39,13 @@ class IRCUser(abc.User):
     """
 
     def __init__(self, name: str, username: str = None, realname: str = None,
-                 *, hostname: Optional[str] = None, bot: bool = False):
+                 *, hostname: Optional[str] = None, modes: dict = None,
+                 bot: bool = False):
         self.name = name
         self.username = username or name.lower()
         self.realname = realname or name
         self.hostname = hostname
+        self.modes = modes
         self.bot = bot
         self.mask = f'{self.name}!{self.username}@{self.hostname}'
 
@@ -54,7 +59,8 @@ class IRCUser(abc.User):
         return cls(nick, user, realname, host, bot)
 
     def __repr__(self):
-        attrs = ['name', 'username', 'realname', 'hostname', 'mask', 'bot']
+        attrs = ['name', 'username', 'realname',
+                 'hostname', 'mask', 'modes', 'bot']
         return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
 
     def __str__(self):
@@ -160,17 +166,20 @@ class IRCChannel(abc.Channel):
     password : str, optional
         The password (or "key") used to gain access to channels with mode +k
         enabled, or `None` otherwise.
+    modes : dict
+        The modes set on the channel.
     """
 
     # Match valid channel prefixes
     _chanprefix = r'[#&!+]#?'
 
-    def __init__(self, name: str, password: str = None):
+    def __init__(self, name: str, *, password: str = None, modes=None):
         self.name = name
         self.password = password
+        self.modes = modes or {}
 
     def __repr__(self):
-        attrs = ['name', 'password']
+        attrs = ['name', 'password', 'modes']
         return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
 
     def __str__(self):

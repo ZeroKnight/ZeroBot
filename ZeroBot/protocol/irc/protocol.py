@@ -48,12 +48,38 @@ class IRCContext(Context, pydle.Client):
     def __init__(self, user: IRCUser, server: IRCServer, *,
                  eventloop: asyncio.AbstractEventLoop,
                  fallback_nicknames: List = None):
+        self.channels_zb = {}
         self.user = user
         self.server = server
+        self.users_zb = {}
         super(pydle.Client, self).__init__(
             user.name, fallback_nicknames or [], user.username, user.realname,
             eventloop=eventloop
         )
+
+    def _create_channel(self, channel):
+        super()._create_channel(channel)
+        self.channels_zb[channel] = IRCChannel(channel)
+
+    def _sync_user(self, nick, metadata):
+        super()._sync_user(nick, metadata)
+        # Keep ZeroBot User objects in sync
+        if nick not in self.users:
+            return
+        info = self.users[nick]
+        if nick not in self.users_zb:
+            self.users_zb[nick] = IRCUser(nick, info['username'],
+                                          info['realname'],
+                                          hostname=info['hostname'])
+        else:
+            zb_user = self.users_zb[nick]
+            zb_user.name = nick
+            for attr in ['user', 'real', 'host']:
+                setattr(zb_user, f'{attr}name', info[f'{attr}name'])
+
+    def _sync_channel_modes(self, channel):
+        """Sync ZeroBot `Channel` modes with pydle."""
+        self.channels_zb[channel].modes = self.channels[channel]['modes']
 
     async def on_raw_001(self, message):
         """Handle RPL_WELCOME."""
@@ -99,15 +125,28 @@ class IRCContext(Context, pydle.Client):
                 # pylint: disable=attribute-defined-outside-init
                 self.username = username
 
+    async def on_mode_change(self, channel, modes, nick):
+        """Handle channel mode change."""
+        await super().on_mode_change(channel, modes, nick)
+        self._sync_channel_modes(channel)
+
+    async def on_user_mode_change(self, modes):
+        """Handle user mode change."""
+        await super().on_user_mode_change(modes)
+        self.user.modes = modes
+
+    async def on_raw_324(self, message):
+        """Handle RPL_CHANNELMODEIS."""
+        await super().on_raw_324(message)
+        self._sync_channel_modes(message.params[1])
+
     async def on_join(self, channel, who):
         """Handle someone joining a channel."""
         await super().on_join(channel, who)
 
-        channel = IRCChannel(channel)
-        user = self.users[who]
-        irc_user = IRCUser(user['nickname'], user['username'],
-                           user['realname'], hostname=user['hostname'])
-        await CORE.module_send_event('join', self, channel, irc_user)
+        zb_channel = self.channels_zb[channel]
+        zb_user = self.users_zb[who]
+        await CORE.module_send_event('join', self, zb_channel, zb_user)
 
     async def on_message(self, destination: str, source: str, message: str):
         await super().on_message(destination, source, message)
