@@ -236,7 +236,7 @@ class IRCMessage(abc.Message):
         elif 'time' in self.tags:
             self.time = isoparse(self.tags['time'])
         else:
-            self.time = datetime.datetime.now(tzinfo=datetime.timezone.utc)
+            self.time = datetime.datetime.now(datetime.timezone.utc)
         if 'time' not in self.tags:
             self.tags['time'] = irc_time_format(self.time)
 
