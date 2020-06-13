@@ -7,7 +7,11 @@ import datetime
 import re
 from typing import Dict, Optional, Union
 
+from dateutil.parser import isoparse
+
 import ZeroBot.common.abc as abc
+
+from .util import irc_time_format
 
 
 class IRCUser(abc.User):
@@ -56,7 +60,7 @@ class IRCUser(abc.User):
         The mask should be in the form of `nick!user@host`.
         """
         nick, user, host = re.split(r'[!@]', mask, maxsplit=2)
-        return cls(nick, user, realname, host, bot)
+        return cls(nick, user, realname, hostname=host, bot=bot)
 
     def __repr__(self):
         attrs = ['name', 'username', 'realname',
@@ -226,8 +230,15 @@ class IRCMessage(abc.Message):
         self.source = source
         self.destination = destination
         self.content = content
-        self.time = time
-        self.tags = tags
+        self.tags = tags or {}
+        if time:
+            self.time = time
+        elif 'time' in self.tags:
+            self.time = isoparse(self.tags['time'])
+        else:
+            self.time = datetime.datetime.now(tzinfo=datetime.timezone.utc)
+        if 'time' not in self.tags:
+            self.tags['time'] = irc_time_format(self.time)
 
     def __repr__(self):
         attrs = ['source', 'destination', 'content', 'tags']

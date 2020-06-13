@@ -8,6 +8,7 @@ import logging
 from typing import List
 
 import pydle
+from pydle.features.ircv3.tags import TaggedMessage
 
 from ZeroBot.protocol.context import Context
 
@@ -81,6 +82,18 @@ class IRCContext(Context, pydle.Client):
         """Sync ZeroBot `Channel` modes with pydle."""
         self.channels_zb[channel].modes = self.channels[channel]['modes']
 
+    def _create_zbmessage(self, message: TaggedMessage) -> IRCMessage:
+        """Create a `IRCMessage` based on a pydle `TaggedMessage`."""
+        name = self._parse_user(message.source)[0]
+        destination, content = message.params
+        try:
+            source = self.users_zb[name]
+        except KeyError:
+            if '.' in name:
+                source = self.server
+            else:
+                raise
+        return IRCMessage(source, destination, content, tags=message.tags)
 
     # Pydle handlers
 
@@ -166,12 +179,17 @@ class IRCContext(Context, pydle.Client):
         zb_user = self.users_zb[who]
         await CORE.module_send_event('join', self, zb_channel, zb_user)
 
-    async def on_message(self, destination: str, source: str, message: str):
-        await super().on_message(destination, source, message)
+    async def on_raw_privmsg(self, message: TaggedMessage):
+        """Handler for all messages (PRIVMSG)."""
+        await super().on_raw_privmsg(message)
+        zb_msg = self._create_zbmessage(message)
+        await CORE.module_send_event('message', self, zb_msg)
 
-        # TODO: time attribute, ircv3 tags
-        msg = IRCMessage(source, destination, message, None, {})
-        await CORE.module_send_event('message', self, msg)
+    async def on_raw_notice(self, message: TaggedMessage):
+        """Handler for all notices (NOTICE)."""
+        await super().on_raw_notice(message)
+        zb_msg = self._create_zbmessage(message)
+        await CORE.module_send_event('irc_notice', self, zb_msg)
 
     async def module_join(self, where, password=None):
         logger.info(f'Joining channel {where}')
@@ -186,3 +204,12 @@ class IRCContext(Context, pydle.Client):
 
     async def module_message(self, destination, message):
         await self.message(destination, message)
+
+        # If echo-message is unavailable, pydle works around this by explicitly
+        # calling on_*message for messages it sends. However, pydle does not
+        # (yet) send the time tag to these callbacks; it is only available in
+        # on_raw_privmsg. We'll do basically the same here. Supplying our own
+        # timestamp is not technically correct, but better than none at all.
+        if not self._capabilities.get('echo-message', False):
+            zb_msg = IRCMessage(self.user.name, destination, message)
+            await CORE.module_send_event('message', self, zb_msg)
