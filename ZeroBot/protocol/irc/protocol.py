@@ -81,6 +81,14 @@ class IRCContext(Context, pydle.Client):
         """Sync ZeroBot `Channel` modes with pydle."""
         self.channels_zb[channel].modes = self.channels[channel]['modes']
 
+
+    # Pydle handlers
+
+    async def on_raw(self, message):
+        """Handle raw IRC message."""
+        logger.debug(f"[RAW] {message}".rstrip())
+        await super().on_raw(message)
+
     async def on_raw_001(self, message):
         """Handle ``RPL_WELCOME``."""
         await super().on_raw_001(message)
@@ -94,6 +102,11 @@ class IRCContext(Context, pydle.Client):
         """Handle ``NETWORK`` key in ``ISUPPORT``."""
         await super().on_isupport_network(value)
         self.server.network = value
+
+    async def on_raw_421(self, message):
+        """Handle ERR_UNKNOWNCOMMAND."""
+        await super().on_raw_421(message)
+        logger.warning(f'Unknown command: {message.params[1]}')
 
     async def on_connect(self):
         """Handle successful connection registration.
