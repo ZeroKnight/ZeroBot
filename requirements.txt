@@ -1,4 +1,5 @@
 appdirs
+dateutil
 discord.py
 pydle
 toml
