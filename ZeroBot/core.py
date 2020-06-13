@@ -38,8 +38,8 @@ class Core:
     Parameters
     ----------
     config_path : str or Path object, optional
-        Specifies the path to ZeroBot's configuration file; defaults to
-        ``<user_config_dir>/ZeroBot/ZeroBot.toml``.
+        Specifies the path to ZeroBot's configuration directory; defaults to
+        ``<user_config_dir>/ZeroBot``.
     eventloop : asyncio.AbstractEventLoop, optional
         The asyncio event loop to use. If unspecified, the default loop will be
         used, i.e. `asyncio.get_event_loop()`.
@@ -53,7 +53,9 @@ class Core:
     config : Dict[str, Any]
         A dictionary containing the parsed configuration from ZeroBot's main
         configuration file.
-    config_path : Path
+    config_dir : Path
+    config_file : Path
+        The path to ZeroBot's main configuration file: ``ZeroBot.toml``.
     eventloop
 
     Notes
@@ -72,7 +74,7 @@ class Core:
     # ZeroBot, or sending a Ctrl-C. Discord should call close(), pydle should
     # disconnect(), etc.
 
-    def __init__(self, config_path: Union[str, Path] = None,
+    def __init__(self, config_dir: Union[str, Path] = None,
                  eventloop: asyncio.AbstractEventLoop = None):
         self.eventloop = eventloop if eventloop else asyncio.get_event_loop()
         self.logger = logging.getLogger('ZeroBot')
@@ -80,17 +82,12 @@ class Core:
         self._features = {}  # maps feature module names to their Module
 
         # Read config
-        if config_path:
-            self._config_path = Path(config_path)
+        if config_dir:
+            self._config_dir = Path(config_dir)
         else:
-            self._config_path = Path(appdirs.user_config_dir(
-                'ZeroBot', appauthor=False, roaming=True), 'ZeroBot.toml')
-        try:
-            self.config = toml.load(self._config_path)
-        except (FileNotFoundError, toml.TomlDecodeError) as ex:
-            self.logger.error(
-                f"Failed to load config file '{self._config_path}': {ex}")
-            raise
+            self._config_dir = Path(appdirs.user_config_dir(
+                'ZeroBot', appauthor=False, roaming=True))
+        self.config = self.load_config('ZeroBot')
         if 'Core' not in self.config:
             self.config['Core'] = {}
 
@@ -127,9 +124,14 @@ class Core:
         return self._cmdprefix
 
     @property
-    def config_path(self) -> Path:
+    def config_dir(self) -> Path:
+        """Get the path to ZeroBot's configuration directory."""
+        return self._config_dir
+
+    @property
+    def config_file(self) -> Path:
         """Get the path to ZeroBot's config file."""
-        return self._config_path
+        return self._config_dir / 'ZeroBot.toml'
 
     def _init_logging(self):
         """Initialize logging configuration."""
@@ -329,6 +331,31 @@ class Core:
             return None
         self.logger.info(f"Reloaded feature module '{name}'")
         return module
+
+    def load_config(self, name: str) -> dict:
+        """Load a configuration file .
+
+        Parameters
+        ----------
+        name : str
+            The name of the configuration file to load, **without** the
+            extension. Files are searched for in ZeroBot's configuration
+            directory: `self.config_dir`.
+
+        Returns
+        -------
+        dict
+            A dictionary representing a parsed TOML config file.
+        """
+        path = self._config_dir / Path(name).with_suffix('.toml')
+        try:
+            config = toml.load(path)
+        except (FileNotFoundError, toml.TomlDecodeError) as ex:
+            self.logger.error(
+                f"Failed to load config file '{path.name}': {ex}")
+            raise
+        self.logger.info(f"Loaded config file '{path.name}'")
+        return config
 
     def protocol_loaded(self, name: str) -> bool:
         """Return whether the given protocol is loaded or not.
