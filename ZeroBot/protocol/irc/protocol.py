@@ -62,21 +62,30 @@ class IRCContext(Context, pydle.Client):
         super()._create_channel(channel)
         self.channels_zb[channel] = IRCChannel(channel)
 
-    def _sync_user(self, nick, metadata):
-        super()._sync_user(nick, metadata)
+    def _sync_user(self, nickname, metadata):
+        super()._sync_user(nickname, metadata)
         # Keep ZeroBot User objects in sync
-        if nick not in self.users:
+        if nickname not in self.users:
             return
-        info = self.users[nick]
-        if nick not in self.users_zb:
-            self.users_zb[nick] = IRCUser(nick, info['username'],
-                                          info['realname'],
-                                          hostname=info['hostname'])
+        info = self.users[nickname]
+        if nickname not in self.users_zb:
+            self.users_zb[nickname] = IRCUser(nickname, info['username'],
+                                              info['realname'],
+                                              hostname=info['hostname'])
         else:
-            zb_user = self.users_zb[nick]
-            zb_user.name = nick
+            zb_user = self.users_zb[nickname]
+            zb_user.name = nickname
             for attr in ['user', 'real', 'host']:
                 setattr(zb_user, f'{attr}name', info[f'{attr}name'])
+
+    def _rename_user(self, user, new):
+        super()._rename_user(user, new)
+        # Keep ZeroBot objects in sync
+        self.users_zb[user].name = new
+        self.users_zb[new] = self.users_zb[user]
+        del self.users_zb[user]
+        for channel in self.channels_zb:
+            self._sync_channel_modes(channel)
 
     def _sync_channel_modes(self, channel):
         """Sync ZeroBot `Channel` modes with pydle."""
@@ -165,6 +174,12 @@ class IRCContext(Context, pydle.Client):
         """Handle user mode change."""
         await super().on_user_mode_change(modes)
         self.user.modes = modes
+
+    async def on_nick_change(self, old, new):
+        """Handle nickname change (NICK)."""
+        if self.is_same_nick(self.user.name, old):
+            # NOTE: on_raw_nick handles updating self.user
+            logger.info(f'Nick changed from {old} to {new}')
 
     async def on_raw_324(self, message):
         """Handle RPL_CHANNELMODEIS."""
