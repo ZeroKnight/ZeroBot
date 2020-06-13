@@ -27,6 +27,7 @@ def module_register(core):
 
 def module_unregister():
     """Prepare for shutdown."""
+    # close database connection
 
 
 async def module_on_message(ctx, message):

@@ -112,7 +112,7 @@ class IRCContext(Context, pydle.Client):
     # sure to call it if extending here.
 
     async def on_isupport_network(self, value):
-        """Handle ``NETWORK`` key in ``ISUPPORT``."""
+        """Handle ``NETWORK`` key in ``RPL_ISUPPORT``."""
         await super().on_isupport_network(value)
         self.server.network = value
 
