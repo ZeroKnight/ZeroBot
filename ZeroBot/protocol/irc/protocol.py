@@ -48,10 +48,10 @@ class IRCContext(Context, pydle.Client):
                  eventloop: asyncio.AbstractEventLoop,
                  fallback_nicknames: List = None):
         self.channels_zb = {}
-        self.user = user
         self.server = server
-        self.users_zb = {}
-        super(pydle.Client, self).__init__(
+        self.user = user
+        self.users_zb = {user.name: user}
+        super().__init__(
             user.name, fallback_nicknames or [], user.username, user.realname,
             eventloop=eventloop
         )
