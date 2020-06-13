@@ -1,10 +1,10 @@
 [MASTER]
 
-init-hook=import sys; sys.path.append('.')
+init-hook=import sys; sys.path.extend(['.', './venv/lib/python3.8/site-packages'])
 
 [MESSAGES CONTROL]
 
-disable=logging-fstring-interpolation
+disable=logging-fstring-interpolation, global-statement
 
 [LOGGING]
 
