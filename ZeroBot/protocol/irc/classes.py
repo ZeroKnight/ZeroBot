@@ -119,10 +119,12 @@ class IRCServer(abc.Server):
         hostname, however a server can report whatever name it wants, which may
         not match the hostname. Will be `None` until successful connection.
     network : str
-        The IRC network that this server belongs to. This is the name that
-        shows up in the "Welcome to the <name> IRC Network" message on
-        connection in ``RPL_WELCOME`` and the ``NETWORK`` key in
-        ``RPL_ISUPPORT``.
+        The IRC network that this server belongs to, which equals the name from
+        the ``Network`` section of the IRC configuration file.
+    reported_network : str
+        This is the name that shows up in the "Welcome to the <name> IRC
+        Network" message on connection in ``RPL_WELCOME`` and the ``NETWORK``
+        key in ``RPL_ISUPPORT``.
     """
 
     def __init__(self, hostname: str, port: int = None, *, name: str = None,

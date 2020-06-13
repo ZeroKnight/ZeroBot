@@ -5,7 +5,7 @@ IRC protocol implementation.
 
 import asyncio
 import logging
-from typing import List
+from typing import Any, List
 
 import pydle
 from pydle.features.ircv3.tags import TaggedMessage
@@ -14,27 +14,67 @@ from ZeroBot.protocol.context import Context
 
 from .classes import IRCChannel, IRCMessage, IRCServer, IRCUser
 
-CORE = None
 MODULE_NAME = 'IRC'
 MODULE_AUTHOR = 'ZeroKnight'
 MODULE_VERSION = '0.1'
 MODULE_LICENSE = 'MIT'
 MODULE_DESC = 'IRC protocol implementation'
 
+CORE = None
+CFG = None
+
 # TODO: get this programatically and include network name
 logger = logging.getLogger('ZeroBot.IRC')
 
 
-def module_register(core):
+def module_register(core, cfg):
     """Initialize module."""
-    global CORE
+    global CORE, CFG
     CORE = core
+    CFG = cfg
 
-    # TEMP: get this stuff from config later
-    user = IRCUser('ZeroBot__')
-    server = IRCServer('irc.freenode.net')
+    def network_fallback(section: dict, key: str, fallback: Any = None) -> Any:
+        try:
+            return section[key]
+        except KeyError:
+            return CFG['Network_Defaults'].get(key, fallback)
 
-    ctx = IRCContext(user, server, eventloop=core.eventloop)
+    networks = {}
+    if 'Network' in CFG:
+        for network, settings in CFG['Network'].items():
+            networks[network] = {}
+            if not settings.get('AutoConnect', False):
+                continue  # TEMP
+            if 'Servers' not in settings:
+                logger.error(f'No servers specified for network {network}!')
+                continue
+            networks[network]['servers'] = []
+            for server in settings['Servers']:
+                host, *port = server.split(':')
+                server_info = {
+                    'network': network,
+                    'hostname': host,
+                    'port': port or None,
+                    'password': settings.get('Password', None),
+                    'tls': network_fallback(settings, 'UseTLS'),
+                    'ipv6': network_fallback(settings, 'UseIPv6')
+                }
+                networks[network]['servers'].append(IRCServer(**server_info))
+            user_info = {
+                'name': network_fallback(settings, 'Nickname'),
+                'username': network_fallback(settings, 'Username'),
+                'realname': network_fallback(settings, 'Realname')
+            }
+            networks[network]['user'] = IRCUser(**user_info)
+    else:
+        # TODO: how to handle failed module init?
+        logger.warning('No networks defined in configuration.')
+        raise NotImplementedError
+
+    # TODO: Multiple connections, server rotation
+    network = list(networks.values())[0]
+    ctx = IRCContext(network['user'], network['servers'][0],
+                     eventloop=core.eventloop)
     coro = ctx.connect(ctx.server.hostname)
     return (ctx, coro)
 
@@ -117,13 +157,13 @@ class IRCContext(Context, pydle.Client):
         self.server.servername = message.source
 
     # NOTE: pydle.features.ISUPPORTSupport defines on_raw_005 to set some
-    # attributes like self.network and implement the on_isupport_* methods. Be
-    # sure to call it if extending here.
+    # attributes like self.reported_network and implement the on_isupport_*
+    # methods. Be sure to call it if extending here.
 
     async def on_isupport_network(self, value):
         """Handle ``NETWORK`` key in ``RPL_ISUPPORT``."""
         await super().on_isupport_network(value)
-        self.server.network = value
+        self.server.reported_network = value
 
     async def on_raw_421(self, message):
         """Handle ERR_UNKNOWNCOMMAND."""
@@ -144,8 +184,9 @@ class IRCContext(Context, pydle.Client):
             f'Connected to {self.server.network} at {self.server.hostname}')
         await CORE.module_send_event('connect', self)
 
-        # TEMP: get channels from config
-        await self.module_join('##zerobot')
+        to_join = CFG['Network'][self.server.network].get('Channels', [])
+        for channel in to_join:
+            await self.module_join(channel)
 
     async def on_raw_302(self, message):
         """Handle RPL_USERHOST."""
