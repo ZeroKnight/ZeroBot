@@ -171,7 +171,7 @@ class IRCChannel(abc.Channel):
     """
 
     # Match valid channel prefixes
-    _chanprefix = r'[#&!+]#?'
+    _chanprefix = re.compile(r'^[#&!+]#?')
 
     def __init__(self, name: str, *, password: str = None, modes=None):
         self.name = name
@@ -194,11 +194,11 @@ class IRCChannel(abc.Channel):
 
     def prefix(self):
         """Return the channel prefix."""
-        return _chanprefix.match(self.name).group()
+        return self._chanprefix.match(self.name).group()
 
     def unprefixed(self):
         """Return the bare channel name, i.e. with no prefix."""
-        return _chanprefix.sub('', self.name)
+        return self._chanprefix.sub('', self.name)
 
 
 class IRCMessage(abc.Message):
