@@ -9,7 +9,6 @@ from typing import List
 
 import pydle
 
-import ZeroBot.common.abc as abc
 from ZeroBot.protocol.context import Context
 
 from .classes import IRCChannel, IRCMessage, IRCServer, IRCUser

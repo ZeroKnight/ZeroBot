@@ -4,7 +4,6 @@ Provides protocol-agnostic abstract base classes used throughout ZeroBot.
 """
 
 from abc import ABCMeta, abstractmethod
-from datetime import datetime
 from typing import Any
 
 
