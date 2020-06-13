@@ -4,6 +4,7 @@ Allows ZeroBot to chat and respond to conversation in various ways. Also allows
 privileged users to puppet ZeroBot, sending arbitrary messages and actions.
 """
 
+CORE = None
 MODULE_NAME = 'Chat'
 MODULE_AUTHOR = 'ZeroKnight'
 MODULE_VERSION = '0.1'
@@ -16,6 +17,7 @@ DOTCHARS = '.!?\xA1\xBF\u203D'
 
 
 def module_register(core):
+    """Initialize mdoule."""
     global CORE
     CORE = core
 
@@ -24,11 +26,11 @@ def module_register(core):
 
 
 def module_unregister():
-    # close database connection
-    pass
+    """Prepare for shutdown."""
 
 
 async def module_on_message(ctx, message):
+    """Handle `Core` message event."""
     # This is all temporary
     if message.content.startswith('ZeroBot'):
         await ctx.module_message(message.destination, "DON'T TALK SHIT ABOUT TOTAL")
@@ -37,6 +39,7 @@ async def module_on_message(ctx, message):
 
 
 async def module_on_join(ctx, channel, user):
+    """Handle `Core` join event."""
     if user.name == 'ZeroBot':  # TODO: get nick from config
         await ctx.module_message(channel.name, f'Hello, world!')
     else:

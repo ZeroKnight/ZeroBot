@@ -13,6 +13,7 @@ from ZeroBot.protocol.context import Context
 
 from .classes import IRCChannel, IRCMessage, IRCServer, IRCUser
 
+CORE = None
 MODULE_NAME = 'IRC'
 MODULE_AUTHOR = 'ZeroKnight'
 MODULE_VERSION = '0.1'
@@ -24,6 +25,7 @@ logger = logging.getLogger('ZeroBot.IRC')
 
 
 def module_register(core):
+    """Initialize module."""
     global CORE
     CORE = core
 
@@ -37,12 +39,11 @@ def module_register(core):
 
 
 def module_unregister():
-    pass
+    """Prepare for shutdown."""
 
 
 class IRCContext(Context, pydle.Client):
-    """blah
-    """
+    """IRC implementation of a ZeroBot `Context`."""
 
     def __init__(self, user: IRCUser, server: IRCServer, *,
                  eventloop: asyncio.AbstractEventLoop,
@@ -81,7 +82,7 @@ class IRCContext(Context, pydle.Client):
         self.channels_zb[channel].modes = self.channels[channel]['modes']
 
     async def on_raw_001(self, message):
-        """Handle RPL_WELCOME."""
+        """Handle ``RPL_WELCOME``."""
         await super().on_raw_001(message)
         self.server.servername = message.source
 
@@ -90,10 +91,15 @@ class IRCContext(Context, pydle.Client):
     # sure to call it if extending here.
 
     async def on_isupport_network(self, value):
+        """Handle ``NETWORK`` key in ``ISUPPORT``."""
         await super().on_isupport_network(value)
         self.server.network = value
 
     async def on_connect(self):
+        """Handle successful connection registration.
+
+        Pydle calls this after ``RPL_ENDOFMOTD`` or ``ERR_NOMOTD``.
+        """
         await super().on_connect()
 
         # Get our user/host as reported by the server

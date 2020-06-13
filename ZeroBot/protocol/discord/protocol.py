@@ -10,6 +10,7 @@ import discord
 import ZeroBot.common.abc as abc
 from ZeroBot.protocol.context import Context
 
+CORE = None
 MODULE_NAME = 'Discord'
 MODULE_AUTHOR = 'ZeroKnight'
 MODULE_VERSION = '0.1'

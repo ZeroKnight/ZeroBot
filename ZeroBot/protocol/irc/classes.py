@@ -3,8 +3,8 @@
 IRC implementation of ZeroBot.common.abc classes.
 """
 
+import datetime
 import re
-from datetime import datetime
 from typing import Dict, Optional, Union
 
 import ZeroBot.common.abc as abc
@@ -78,7 +78,7 @@ class IRCUser(abc.User):
         """
         return f'{self.name}:'
 
-    def mentioned(self, message: 'Message'):
+    def mentioned(self, message: 'IRCMessage'):
         """Check if the user was mentioned in the given message."""
         raise NotImplementedError('Need to implement Message class')
 
@@ -206,22 +206,23 @@ class IRCMessage(abc.Message):
 
     Attributes
     ----------
-    source : Union[User, Channel, Server]
+    source : User or Server
         Where the message came from.
-    destination : Union[User, Channel, Server]
+    destination : User or Channel
         Where the message is being sent.
     content : str
         The contents of the message.
-    time : datetime
+    time : datetime.datetime
         The time that the message was sent, in UTC.
     tags : Dict[str, Optional[str]]
-        A dictionary containing any IRCv3 tags present in the message, mapped to
-        their optional values. A tag with no value is assigned `None`.
+        A dictionary containing any IRCv3 tags present in the message, mapped
+        to their optional values. A tag with no value is assigned `None`.
     """
 
-    def __init__(self, source: Union[IRCUser, IRCChannel, IRCServer],
-                 destination: Union[IRCUser, IRCChannel, IRCServer],
-                 content: str, time: datetime, tags: Dict[str, Optional[str]]):
+    def __init__(self, source: Union[IRCUser, IRCServer],
+                 destination: Union[IRCUser, IRCChannel],
+                 content: str, *, time: datetime.datetime = None,
+                 tags: Dict[str, Optional[str]] = None):
         self.source = source
         self.destination = destination
         self.content = content
@@ -229,7 +230,7 @@ class IRCMessage(abc.Message):
         self.tags = tags
 
     def __repr__(self):
-        attrs = ['source', 'destination', 'content', 'time']
+        attrs = ['source', 'destination', 'content', 'tags']
         return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
 
     def __str__(self):
