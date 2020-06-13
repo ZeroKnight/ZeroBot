@@ -91,12 +91,6 @@ class Core:
         if 'Core' not in self.config:
             self.config['Core'] = {}
 
-        # IDEA: As part of module registration, the core could send the
-        # relevant config section data structure to the module, removing the
-        # burden from them to load it themselves. Since they will be passed
-        # a reference to the data structure, both the module and the core would
-        # see the most up to date changes.
-
         # Configure logging
         self._init_logging()
 
@@ -250,7 +244,11 @@ class Core:
             return None
         self._protocols[name] = module
         try:
-            ctx, coro = module.handle.module_register(self)
+            config = self.load_config(name)
+        except toml.TomlDecodeError:
+            config = {}
+        try:
+            ctx, coro = module.handle.module_register(self, config)
         except Exception:  # pylint: disable=broad-except
             self.logger.exception(
                 f'Failed to register protocol module {module!r}')
@@ -350,11 +348,16 @@ class Core:
         path = self._config_dir / Path(name).with_suffix('.toml')
         try:
             config = toml.load(path)
-        except (FileNotFoundError, toml.TomlDecodeError) as ex:
+        except FileNotFoundError:
+            self.logger.warning(f"Config file '{path.name}' doesn't exist; "
+                                'defaults will be assumed where applicable.')
+            config = {}
+        except toml.TomlDecodeError as ex:
             self.logger.error(
                 f"Failed to load config file '{path.name}': {ex}")
             raise
-        self.logger.info(f"Loaded config file '{path.name}'")
+        else:
+            self.logger.info(f"Loaded config file '{path.name}'")
         return config
 
     def protocol_loaded(self, name: str) -> bool:
