@@ -185,8 +185,8 @@ class IRCContext(Context, pydle.Client):
         """
         await super().on_connect()
 
-        # Get our user/host as reported by the server
-        await self.rawmsg('USERHOST', self.user.name)
+        # Get our user info as reported by the server
+        await self.rawmsg('WHOIS', self.user.name)
 
         logger.info(
             f'Connected to {self.server.network} at {self.server.hostname}')
