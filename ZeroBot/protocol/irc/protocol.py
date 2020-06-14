@@ -109,9 +109,10 @@ class IRCContext(Context, pydle.Client):
             return
         info = self.users[nickname]
         if nickname not in self.users_zb:
-            self.users_zb[nickname] = IRCUser(nickname, info['username'],
-                                              info['realname'],
-                                              hostname=info['hostname'])
+            self.users_zb[nickname] = IRCUser(
+                nickname, info['username'], info['realname'],
+                hostname=info['hostname']
+            )
         else:
             zb_user = self.users_zb[nickname]
             zb_user.name = nickname
@@ -124,6 +125,8 @@ class IRCContext(Context, pydle.Client):
         self.users_zb[user].name = new
         self.users_zb[new] = self.users_zb[user]
         del self.users_zb[user]
+        if self.is_same_nick(new, self.user.name):
+            self.user = self.users_zb[new]
         for channel in self.channels_zb:
             self._sync_channel_modes(channel)
 
@@ -166,7 +169,7 @@ class IRCContext(Context, pydle.Client):
         self.server.reported_network = value
 
     async def on_raw_421(self, message):
-        """Handle ERR_UNKNOWNCOMMAND."""
+        """Handle ``ERR_UNKNOWNCOMMAND``."""
         await super().on_raw_421(message)
         logger.warning(f'Unknown command: {message.params[1]}')
 
@@ -189,7 +192,7 @@ class IRCContext(Context, pydle.Client):
             await self.module_join(channel)
 
     async def on_raw_302(self, message):
-        """Handle RPL_USERHOST."""
+        """Handle ``RPL_USERHOST``."""
         # Update self.users for pydle
         for user in message.params[1].rstrip().split(' '):
             nickname, userhost = user.split('=', 1)
@@ -198,13 +201,6 @@ class IRCContext(Context, pydle.Client):
                 'username': username,
                 'hostname': hostname
             })
-
-            # Update user/host for ZeroBot and pydle
-            if nickname == self.user.name:
-                self.user.username = username
-                self.user.hostname = hostname
-                # pylint: disable=attribute-defined-outside-init
-                self.username = username
 
     async def on_mode_change(self, channel, modes, nick):
         """Handle channel mode change."""
@@ -223,13 +219,26 @@ class IRCContext(Context, pydle.Client):
             logger.info(f'Nick changed from {old} to {new}')
 
     async def on_raw_324(self, message):
-        """Handle RPL_CHANNELMODEIS."""
+        """Handle ``RPL_CHANNELMODEIS``."""
         await super().on_raw_324(message)
         self._sync_channel_modes(message.params[1])
+
+    async def on_raw_352(self, message):
+        """Handle ``RPL_WHOREPLY``."""
+        metadata = {
+            'username': message.params[2],
+            'hostname': message.params[3],
+            'nickname': message.params[5],
+            'realname': message.params[7].split(' ', 1)[1]
+        }
+        self._sync_user(metadata['nickname'], metadata)
 
     async def on_join(self, channel, who):
         """Handle someone joining a channel."""
         await super().on_join(channel, who)
+
+        # Get user information
+        await self.rawmsg('WHO', channel)
 
         zb_channel = self.channels_zb[channel]
         zb_user = self.users_zb[who]
