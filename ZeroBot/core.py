@@ -323,7 +323,9 @@ class Core:
             raise TypeError(("feature type expects 'str' or 'Module', not ",
                              f"'{type(feature)}'"))
         try:
+            module.handle.module_unregister()
             module.reload()
+            module.handle.module_register(self)
         except Exception:  # pylint: disable=broad-except
             self.logger.exception(f"Failed to reload feature module '{name}'")
             return None
