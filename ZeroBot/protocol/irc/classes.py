@@ -33,13 +33,12 @@ class IRCUser(abc.User):
     modes : dict or None
         The modes set on this user. **Note**: In practice, this only known for
         ZeroBot, as you cannot see other users' modes.
-    bot: bool, optional
+    bot : bool, optional
         Whether or not this user is a bot; `False` by default.
 
     Attributes
     ----------
-    mask: str
-        The user/host mask of this user, in the form of `nick!user@host`.
+    mask : str
     """
 
     def __init__(self, name: str, username: str = None, realname: str = None,
@@ -51,7 +50,6 @@ class IRCUser(abc.User):
         self.hostname = hostname
         self.modes = modes
         self.bot = bot
-        self.mask = f'{self.name}!{self.username}@{self.hostname}'
 
     @classmethod
     def from_mask(cls, mask: str, realname: str, bot: bool = False):
@@ -73,6 +71,11 @@ class IRCUser(abc.User):
     @property
     def original(self):
         return self
+
+    @property
+    def mask(self):
+        """The user/host mask of this user, in the form of `nick!user@host`."""
+        return f'{self.name}!{self.username}@{self.hostname}'
 
     def mention(self):
         """Returns a string appropriate to "mention" a user.
