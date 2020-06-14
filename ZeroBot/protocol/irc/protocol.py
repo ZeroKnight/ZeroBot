@@ -48,6 +48,8 @@ def module_register(core, cfg):
             if 'Servers' not in settings:
                 logger.error(f'No servers specified for network {network}!')
                 continue
+            networks[network]['fallback_nicks'] = network_fallback(
+                settings, 'Fallback_Nicks', [])
             networks[network]['servers'] = []
             for server in settings['Servers']:
                 host, *port = server.split(':')
@@ -74,6 +76,7 @@ def module_register(core, cfg):
     # TODO: Multiple connections, server rotation
     network = list(networks.values())[0]
     ctx = IRCContext(network['user'], network['servers'][0],
+                     fallback_nicknames=network['fallback_nicks'],
                      eventloop=core.eventloop)
     coro = ctx.connect(ctx.server.hostname)
     return (ctx, coro)
@@ -206,6 +209,18 @@ class IRCContext(Context, pydle.Client):
                 'username': username,
                 'hostname': hostname
             })
+
+    async def on_raw_432(self, message):
+        """Handle ``ERR_ERRONEOUSNICKNAME``."""
+        super().on_raw_432(message)
+        logger.error(
+            f"Invalid nickname: '{message.params[1]}'. Trying next fallback.")
+
+    async def on_raw_433(self, message):
+        """Handle ``ERR_NICKNAMEINUSE``."""
+        super().on_raw_433(message)
+        logger.error(f"Nickname is already in use: '{message.params[1]}'. "
+                     'Trying next fallback.')
 
     async def on_mode_change(self, channel, modes, nick):
         """Handle channel mode change."""
