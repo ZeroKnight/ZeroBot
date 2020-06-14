@@ -38,12 +38,15 @@ class IRCUser(abc.User):
 
     Attributes
     ----------
+    away : bool
+    away_msg : str or None
     mask : str
     """
 
     def __init__(self, name: str, username: str = None, realname: str = None,
                  *, hostname: Optional[str] = None, modes: dict = None,
                  bot: bool = False):
+        self._away_msg = None
         self.name = name
         self.username = username or name.lower()
         self.realname = realname or name
@@ -61,8 +64,7 @@ class IRCUser(abc.User):
         return cls(nick, user, realname, hostname=host, bot=bot)
 
     def __repr__(self):
-        attrs = ['name', 'username', 'realname',
-                 'hostname', 'mask', 'modes', 'bot']
+        attrs = ['mask', 'realname', 'modes', 'away', 'away_msg', 'bot']
         return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
 
     def __str__(self):
@@ -71,6 +73,23 @@ class IRCUser(abc.User):
     @property
     def original(self):
         return self
+
+    @property
+    def away(self) -> bool:
+        """Whether or not this user is currently marked as away.
+
+        Pass a string to set this user as away with the string as the away
+        message.
+        """
+        return self._away_msg is not None
+
+    @property
+    def away_msg(self) -> Optional[str]:
+        """The user's away message, if they're marked as away.
+
+        If the user is not currently marked as away, returns `None` instead.
+        """
+        return self._away_msg
 
     @property
     def mask(self):
@@ -96,6 +115,14 @@ class IRCUser(abc.User):
         and server-enforced username prefixes are not standardized.
         """
         return not self.username.startswith('~')
+
+    def set_away(self, message: str):
+        """Set this user as away with the given message."""
+        self._away_msg = message
+
+    def set_back(self):
+        """Set this user as no longer away."""
+        self._away_msg = None
 
 
 class IRCServer(abc.Server):

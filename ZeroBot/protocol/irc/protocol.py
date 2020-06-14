@@ -109,15 +109,20 @@ class IRCContext(Context, pydle.Client):
             return
         info = self.users[nickname]
         if nickname not in self.users_zb:
-            self.users_zb[nickname] = IRCUser(
+            zb_user = IRCUser(
                 nickname, info['username'], info['realname'],
                 hostname=info['hostname']
             )
+            self.users_zb[nickname] = zb_user
         else:
             zb_user = self.users_zb[nickname]
             zb_user.name = nickname
             for attr in ['user', 'real', 'host']:
                 setattr(zb_user, f'{attr}name', info[f'{attr}name'])
+        if metadata.get('away', False):
+            zb_user.set_away(metadata['away_message'])
+        else:
+            zb_user.set_back()
 
     def _rename_user(self, user, new):
         super()._rename_user(user, new)
