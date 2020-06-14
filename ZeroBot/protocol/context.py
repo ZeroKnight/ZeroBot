@@ -58,7 +58,7 @@ class Context(metaclass=ABCMeta):
     Protocol implementations should implement a Context by subclassing this
     class and their typical connection or client type class. For example:
 
-    class Context(Context, foo.Client):
+    class FooContext(Context, foo.Client):
         # Usual implementation of foo.Client ...
     """
 
