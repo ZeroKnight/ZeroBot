@@ -176,11 +176,6 @@ class IRCContext(Context, pydle.Client):
         await super().on_isupport_network(value)
         self.server.reported_network = value
 
-    async def on_raw_421(self, message):
-        """Handle ``ERR_UNKNOWNCOMMAND``."""
-        await super().on_raw_421(message)
-        logger.warning(f'Unknown command: {message.params[1]}')
-
     async def on_connect(self):
         """Handle successful connection registration.
 
@@ -209,18 +204,6 @@ class IRCContext(Context, pydle.Client):
                 'username': username,
                 'hostname': hostname
             })
-
-    async def on_raw_432(self, message):
-        """Handle ``ERR_ERRONEOUSNICKNAME``."""
-        super().on_raw_432(message)
-        logger.error(
-            f"Invalid nickname: '{message.params[1]}'. Trying next fallback.")
-
-    async def on_raw_433(self, message):
-        """Handle ``ERR_NICKNAMEINUSE``."""
-        super().on_raw_433(message)
-        logger.error(f"Nickname is already in use: '{message.params[1]}'. "
-                     'Trying next fallback.')
 
     async def on_mode_change(self, channel, modes, nick):
         """Handle channel mode change."""
@@ -252,6 +235,23 @@ class IRCContext(Context, pydle.Client):
             'realname': message.params[7].split(' ', 1)[1]
         }
         self._sync_user(metadata['nickname'], metadata)
+
+    async def on_raw_421(self, message):
+        """Handle ``ERR_UNKNOWNCOMMAND``."""
+        await super().on_raw_421(message)
+        logger.warning(f'Unknown command: {message.params[1]}')
+
+    async def on_raw_432(self, message):
+        """Handle ``ERR_ERRONEOUSNICKNAME``."""
+        super().on_raw_432(message)
+        logger.error(
+            f"Invalid nickname: '{message.params[1]}'. Trying next fallback.")
+
+    async def on_raw_433(self, message):
+        """Handle ``ERR_NICKNAMEINUSE``."""
+        super().on_raw_433(message)
+        logger.error(f"Nickname is already in use: '{message.params[1]}'. "
+                     'Trying next fallback.')
 
     async def on_join(self, channel, who):
         """Handle someone joining a channel."""
