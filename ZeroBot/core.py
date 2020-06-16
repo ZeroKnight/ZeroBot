@@ -248,14 +248,15 @@ class Core:
         except toml.TomlDecodeError:
             config = {}
         try:
-            ctx, coro = module.handle.module_register(self, config)
+            connections = module.handle.module_register(self, config)
         except Exception:  # pylint: disable=broad-except
             self.logger.exception(
                 f'Failed to register protocol module {module!r}')
             return None
         self.logger.info(f"Loaded protocol module '{name}'")
-        module.contexts.append(ctx)
-        self.eventloop.create_task(coro)  # TODO: meaningful name
+        for ctx, coro in connections:
+            module.contexts.append(ctx)
+            self.eventloop.create_task(coro)  # TODO: meaningful name
         return module
 
     def load_feature(self, name) -> Optional[Module]:

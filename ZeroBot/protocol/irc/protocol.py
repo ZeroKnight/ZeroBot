@@ -73,13 +73,14 @@ def module_register(core, cfg):
         logger.warning('No networks defined in configuration.')
         raise NotImplementedError
 
-    # TODO: Multiple connections, server rotation
-    network = list(networks.values())[0]
-    ctx = IRCContext(network['user'], network['servers'][0],
-                     fallback_nicknames=network['fallback_nicks'],
-                     eventloop=core.eventloop)
-    coro = ctx.connect(ctx.server.hostname)
-    return (ctx, coro)
+    connections = set()
+    for network in networks.values():
+        ctx = IRCContext(network['user'], network['servers'][0],
+                         fallback_nicknames=network['fallback_nicks'],
+                         eventloop=core.eventloop)
+        coro = ctx.connect(ctx.server.hostname)
+        connections.add((ctx, coro))
+    return connections
 
 
 def module_unregister():
