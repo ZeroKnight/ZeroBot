@@ -42,9 +42,9 @@ def module_register(core, cfg):
     networks = {}
     if 'Network' in CFG:
         for network, settings in CFG['Network'].items():
-            networks[network] = {}
             if not settings.get('AutoConnect', False):
                 continue  # TEMP
+            networks[network] = {}
             if 'Servers' not in settings:
                 logger.error(f'No servers specified for network {network}!')
                 continue
