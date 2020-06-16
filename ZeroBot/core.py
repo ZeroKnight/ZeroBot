@@ -242,7 +242,6 @@ class Core:
         module = self._handle_load_module(name, ProtocolModule)
         if module is None:
             return None
-        self._protocols[name] = module
         try:
             config = self.load_config(name)
         except toml.TomlDecodeError:
@@ -257,6 +256,7 @@ class Core:
         for ctx, coro in connections:
             module.contexts.append(ctx)
             self.eventloop.create_task(coro)  # TODO: meaningful name
+        self._protocols[name] = module
         return module
 
     def load_feature(self, name) -> Optional[Module]:
