@@ -33,15 +33,34 @@ def module_register(core, cfg):
     CORE = core
     CFG = cfg
 
+    # TODO: server rotation if connection fails
+    networks = configure(CFG)
+    connections = set()
+    for network in networks.values():
+        ctx = IRCContext(network['user'], network['servers'][0],
+                         fallback_nicknames=network['fallback_nicks'],
+                         eventloop=core.eventloop)
+        coro = ctx.connect(ctx.server.hostname)
+        connections.add((ctx, coro))
+    return connections
+
+
+def module_unregister():
+    """Prepare for shutdown."""
+
+
+def configure(cfg: dict):
+    """Set up IRC connections based on the given parsed configuration."""
+
     def network_fallback(section: dict, key: str, fallback: Any = None) -> Any:
         try:
             return section[key]
         except KeyError:
-            return CFG['Network_Defaults'].get(key, fallback)
+            return cfg['Network_Defaults'].get(key, fallback)
 
     networks = {}
-    if 'Network' in CFG:
-        for network, settings in CFG['Network'].items():
+    if 'Network' in cfg:
+        for network, settings in cfg['Network'].items():
             if not settings.get('AutoConnect', False):
                 continue  # TEMP
             networks[network] = {}
@@ -68,23 +87,11 @@ def module_register(core, cfg):
                 'realname': network_fallback(settings, 'Realname')
             }
             networks[network]['user'] = IRCUser(**user_info)
-    else:
-        # TODO: how to handle failed module init?
-        logger.warning('No networks defined in configuration.')
-        raise NotImplementedError
-
-    connections = set()
-    for network in networks.values():
-        ctx = IRCContext(network['user'], network['servers'][0],
-                         fallback_nicknames=network['fallback_nicks'],
-                         eventloop=core.eventloop)
-        coro = ctx.connect(ctx.server.hostname)
-        connections.add((ctx, coro))
-    return connections
-
-
-def module_unregister():
-    """Prepare for shutdown."""
+    if len(networks) == 0:
+        msg = 'No networks defined in configuration.'
+        logger.error(msg)
+        raise RuntimeError(msg)
+    return networks
 
 
 class IRCContext(Context, pydle.Client):
