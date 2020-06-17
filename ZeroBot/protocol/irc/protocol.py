@@ -257,11 +257,6 @@ class IRCContext(Context, pydle.Client):
         }
         self._sync_user(metadata['nickname'], metadata)
 
-    async def on_raw_421(self, message):
-        """Handle ``ERR_UNKNOWNCOMMAND``."""
-        await super().on_raw_421(message)
-        logger.warning(f'Unknown command: {message.params[1]}')
-
     async def on_raw_432(self, message):
         """Handle ``ERR_ERRONEOUSNICKNAME``."""
         super().on_raw_432(message)
