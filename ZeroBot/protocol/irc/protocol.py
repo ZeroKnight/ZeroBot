@@ -40,7 +40,8 @@ def module_register(core, cfg):
         ctx = IRCContext(network['user'], network['servers'][0],
                          fallback_nicknames=network['fallback_nicks'],
                          eventloop=core.eventloop)
-        coro = ctx.connect(ctx.server.hostname)
+        coro = ctx.connect(ctx.server.hostname, ctx.server.port,
+                           tls=ctx.server.tls, tls_verify=False)
         connections.add((ctx, coro))
     return connections
 
@@ -71,7 +72,7 @@ def configure(cfg: dict):
                 settings, 'Fallback_Nicks', [])
             networks[network]['servers'] = []
             for server in settings['Servers']:
-                host, *port = server.split(':')
+                host, _, port = server.partition(':')
                 server_info = {
                     'network': network,
                     'hostname': host,
@@ -162,6 +163,12 @@ class IRCContext(Context, pydle.Client):
             else:
                 raise
         return IRCMessage(source, destination, content, tags=message.tags)
+
+    async def connect(self, hostname=None, port=None, tls=False, **kwargs):
+        """Connect to IRC server."""
+        addr = hostname + (f':{port}' if port else '')
+        logger.info(f'Connecting to server {addr} ...')
+        await super().connect(hostname, port, tls, **kwargs)
 
     # Pydle handlers
 
