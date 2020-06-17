@@ -101,14 +101,15 @@ class IRCContext(Context, pydle.Client):
     def __init__(self, user: IRCUser, server: IRCServer, *,
                  eventloop: asyncio.AbstractEventLoop,
                  fallback_nicknames: List = None):
-        self.channels_zb = {}
-        self.server = server
-        self.user = user
-        self.users_zb = {user.name: user}
         super().__init__(
             user.name, fallback_nicknames or [], user.username, user.realname,
             eventloop=eventloop
         )
+        self.channels_zb = {}
+        self.server = server
+        self.user = user
+        self.users_zb = {user.name: user}
+        self.logger = logging.getLogger(f'ZeroBot.IRC.{server.network}')
 
     def _create_channel(self, channel):
         super()._create_channel(channel)
@@ -167,15 +168,13 @@ class IRCContext(Context, pydle.Client):
     async def connect(self, hostname=None, port=None, tls=False, **kwargs):
         """Connect to IRC server."""
         addr = hostname + (f':{port}' if port else '')
-        logger.info(f'Connecting to server {addr} ...')
+        self.logger.info(f'Connecting to server {addr} ...')
+        # Preserve our logger so we receive pydle log records
+        logger_save = self.logger
         await super().connect(hostname, port, tls, **kwargs)
+        self.logger = logger_save
 
     # Pydle handlers
-
-    async def on_raw(self, message):
-        """Handle raw IRC message."""
-        logger.debug(f"[RAW] {message}".rstrip())
-        await super().on_raw(message)
 
     async def on_raw_001(self, message):
         """Handle ``RPL_WELCOME``."""
