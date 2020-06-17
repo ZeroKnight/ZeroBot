@@ -10,6 +10,7 @@ from typing import Dict, Optional, Union
 from dateutil.parser import isoparse
 
 import ZeroBot.common.abc as abc
+from ZeroBot.util import gen_repr
 
 from .util import irc_time_format
 
@@ -64,8 +65,8 @@ class IRCUser(abc.User):
         return cls(nick, user, realname, hostname=host, bot=bot)
 
     def __repr__(self):
-        attrs = ['mask', 'realname', 'modes', 'away', 'away_msg', 'bot']
-        return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
+        attrs = ['mask', 'realname', 'modes', 'away_msg', 'bot']
+        return gen_repr(self, attrs)
 
     def __str__(self):
         return self.name
@@ -173,8 +174,8 @@ class IRCServer(abc.Server):
         self.name = name if name is not None else self.hostname
 
     def __repr__(self):
-        attrs = ['hostname', 'port', 'tls', 'password', 'name']
-        return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
+        attrs = ['hostname', 'port', 'password', 'tls', 'ipv6', 'name']
+        return gen_repr(self, attrs)
 
     def __str__(self):
         return self.name if self.name is not None else self.hostname
@@ -216,7 +217,7 @@ class IRCChannel(abc.Channel):
 
     def __repr__(self):
         attrs = ['name', 'password', 'modes']
-        return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
+        return gen_repr(self, attrs)
 
     def __str__(self):
         return self.name
@@ -274,7 +275,7 @@ class IRCMessage(abc.Message):
 
     def __repr__(self):
         attrs = ['source', 'destination', 'content', 'tags']
-        return f"<{self.__class__.__name__} {' '.join(f'{a}={getattr(self, a)}' for a in attrs)}>"
+        return gen_repr(self, attrs)
 
     def __str__(self):
         return self.content

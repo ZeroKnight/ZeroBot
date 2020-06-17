@@ -5,6 +5,8 @@ Provides abstractions for ZeroBot modules and their associated files.
 
 import importlib
 
+from ZeroBot.util import gen_repr
+
 
 class Module:
     """Base class for ZeroBot modules.
@@ -53,8 +55,7 @@ class Module:
 
     def __repr__(self):
         attrs = ['name', 'version', 'handle']
-        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
-        return f'<{self.__class__.__name__} {repr_str}>'
+        return gen_repr(self, attrs)
 
     def __str__(self):
         return f'{self.name} v{self.version}'
