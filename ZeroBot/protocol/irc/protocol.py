@@ -39,6 +39,7 @@ def module_register(core, cfg):
     for network in networks.values():
         ctx = IRCContext(network['user'], network['servers'][0],
                          fallback_nicknames=network['fallback_nicks'],
+                         request_umodes=network['modes'],
                          eventloop=core.eventloop)
         coro = ctx.connect(ctx.server.hostname, ctx.server.port,
                            tls=ctx.server.tls, tls_verify=False)
@@ -70,6 +71,8 @@ def configure(cfg: dict):
                 continue
             networks[network]['fallback_nicks'] = network_fallback(
                 settings, 'Fallback_Nicks', [])
+            networks[network]['modes'] = network_fallback(
+                settings, 'UMode', None) or None
             networks[network]['servers'] = []
             for server in settings['Servers']:
                 host, _, port = server.partition(':')
@@ -100,11 +103,13 @@ class IRCContext(Context, pydle.Client):
 
     def __init__(self, user: IRCUser, server: IRCServer, *,
                  eventloop: asyncio.AbstractEventLoop,
+                 request_umodes=None,
                  fallback_nicknames: List = None):
         super().__init__(
             user.name, fallback_nicknames or [], user.username, user.realname,
             eventloop=eventloop
         )
+        self._request_umodes = request_umodes
         self.channels_zb = {}
         self.server = server
         self.user = user
@@ -203,6 +208,8 @@ class IRCContext(Context, pydle.Client):
         logger.info(
             f'Connected to {self.server.network} at {self.server.hostname}')
         await CORE.module_send_event('connect', self)
+        if self._request_umodes:
+            await self.rawmsg('MODE', self.user.name, self._request_umodes)
 
         to_join = CFG['Network'][self.server.network].get('Channels', [])
         for channel in to_join:
