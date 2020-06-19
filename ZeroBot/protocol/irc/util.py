@@ -4,6 +4,9 @@ IRC protocol implementation utilities and helpers.
 """
 
 import datetime
+from typing import Optional, Tuple
+
+UserTuple = Tuple[Optional[str], Optional[str], Optional[str]]
 
 
 def irc_time_format(time: datetime.datetime) -> str:

@@ -5,6 +5,7 @@ IRC implementation of ZeroBot.common.abc classes.
 
 import datetime
 import re
+from itertools import chain, islice, repeat
 from typing import Dict, Optional, Union
 
 from dateutil.parser import isoparse
@@ -12,7 +13,7 @@ from dateutil.parser import isoparse
 import ZeroBot.common.abc as abc
 from ZeroBot.util import gen_repr
 
-from .util import irc_time_format
+from .util import UserTuple, irc_time_format
 
 
 class IRCUser(abc.User):
@@ -56,12 +57,30 @@ class IRCUser(abc.User):
         self.bot = bot
 
     @classmethod
+    def parse_mask(cls, mask: str) -> UserTuple:
+        """Parse a user/host mask into a 3-tuple of its parts.
+
+        Parameters
+        ----------
+        mask : str
+            A user/host mask of the form ``nick[!user[@host]]``.
+
+        Returns
+        -------
+        UserTuple
+            A 3-tuple consisting of the nickname, username, and hostname of the
+            given mask. Each value may be `None` if not present in the mask.
+        """
+        parts = re.split(r'[!@]', mask, maxsplit=2)
+        return tuple(islice(chain(parts, repeat(None, 3)), 3))
+
+    @classmethod
     def from_mask(cls, mask: str, realname: str, bot: bool = False):
         """Constructs an User object from a user/host mask.
 
         The mask should be in the form of `nick!user@host`.
         """
-        nick, user, host = re.split(r'[!@]', mask, maxsplit=2)
+        nick, user, host = cls.parse_mask(mask)
         return cls(nick, user, realname, hostname=host, bot=bot)
 
     def __repr__(self):

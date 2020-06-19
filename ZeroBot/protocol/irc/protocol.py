@@ -211,8 +211,10 @@ class IRCContext(Context, pydle.Client):
         if self._request_umodes:
             await self.rawmsg('MODE', self.user.name, self._request_umodes)
 
-        to_join = CFG['Network'][self.server.network].get('Channels', [])
-        for channel in to_join:
+        config = CFG['Network'][self.server.network]
+        for target in config.get('Monitor', []):
+            await self.monitor(target)
+        for channel in config.get('Channels', []):
             await self.module_join(channel)
 
     async def on_raw_302(self, message):
@@ -291,6 +293,35 @@ class IRCContext(Context, pydle.Client):
         await super().on_raw_notice(message)
         zb_msg = self._create_zbmessage(message)
         await CORE.module_send_event('irc_notice', self, zb_msg)
+
+    async def on_raw_730(self, message: TaggedMessage):
+        """Handler for ``RPL_MONONLINE``."""
+        await super().on_raw_730(message)
+        for user in message.params[1].split(','):
+            nick, user, host = IRCUser.parse_mask(user)
+            if user and host:
+                self.logger.info(f'{nick} ({user}@{host}) is online.')
+            else:
+                self.logger.info(f'{nick} is online.')
+            await CORE.module_send_event(
+                'user_online', self, self.users_zb[nick])
+
+    async def on_raw_731(self, message: TaggedMessage):
+        """Handler for ``RPL_MONOFFLINE``."""
+        await super().on_raw_731(message)
+        for target in message.params[1].split(','):
+            nick, user, host = IRCUser.parse_mask(target)
+            if user and host:
+                self.logger.info(f'{nick} ({user}@{host}) is offline.')
+            else:
+                self.logger.info(f'{nick} is offline.')
+            if nick in self.users_zb:
+                zb_user = self.users_zb[nick]
+            else:
+                zb_user = IRCUser(nick, user, hostname=host)
+            await CORE.module_send_event('user_offline', self, zb_user)
+
+    # ZeroBot Interface
 
     async def module_join(self, where, password=None):
         logger.info(f'Joining channel {where}')
