@@ -23,7 +23,6 @@ MODULE_DESC = 'IRC protocol implementation'
 CORE = None
 CFG = None
 
-# TODO: get this programatically and include network name
 logger = logging.getLogger('ZeroBot.IRC')
 
 

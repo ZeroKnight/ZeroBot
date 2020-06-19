@@ -65,11 +65,6 @@ class Core:
     multiple cores in separate threads, if for some reason you wanted to.
     """
 
-    # NOTE: For post-init runtime loading of protocol/feature modules, it will
-    # be necessary to run importlib.invalidate_caches() so that in the event of
-    # a module being newly written/added while ZeroBot is running, the import
-    # mechanism will see the new file.
-
     # TODO: Need to make sure that modules are stopped correctly when quitting
     # ZeroBot, or sending a Ctrl-C. Discord should call close(), pydle should
     # disconnect(), etc.
