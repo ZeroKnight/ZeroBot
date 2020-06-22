@@ -16,8 +16,9 @@ from types import ModuleType
 from typing import List, Optional, Type, Union
 
 import appdirs
-import toml
+from toml import TomlDecodeError
 
+from ZeroBot.config import Config
 from ZeroBot.module import Module, ProtocolModule
 from ZeroBot.protocol.context import Context
 
@@ -50,12 +51,9 @@ class Core:
         The prefix required to designate a command invokation. The prefix may
         be any number of arbitrary characters, but must be at least one
         character. Defaults to ``!``.
-    config : Dict[str, Any]
-        A dictionary containing the parsed configuration from ZeroBot's main
-        configuration file.
+    config : Config
+        A `Config` object representing ZeroBot's main configuration file.
     config_dir : Path
-    config_file : Path
-        The path to ZeroBot's main configuration file: ``ZeroBot.toml``.
     eventloop
 
     Notes
@@ -117,11 +115,6 @@ class Core:
         """Get the path to ZeroBot's configuration directory."""
         return self._config_dir
 
-    @property
-    def config_file(self) -> Path:
-        """Get the path to ZeroBot's config file."""
-        return self._config_dir / 'ZeroBot.toml'
-
     def _init_logging(self):
         """Initialize logging configuration."""
         defaults = {
@@ -166,7 +159,7 @@ class Core:
         })
 
     def _load_protocols(self) -> int:
-        """Get list of requested protocols from config and load them.
+        """Load all protocols specified in ZeroBot's main config.
 
         Returns the number of protocols that were successfully loaded.
         """
@@ -175,7 +168,7 @@ class Core:
         return len(self._protocols)
 
     def _load_features(self) -> int:
-        """Get list of requested feature modules from config and laod them.
+        """Load all features specified in ZeroBot's main config.
 
         Returns the number of feature modules that were successfully loaded.
         """
@@ -237,10 +230,7 @@ class Core:
         module = self._handle_load_module(name, ProtocolModule)
         if module is None:
             return None
-        try:
-            config = self.load_config(name)
-        except toml.TomlDecodeError:
-            config = {}
+        config = self.load_config(name)
         try:
             connections = module.handle.module_register(self, config)
         except Exception:  # pylint: disable=broad-except
@@ -329,7 +319,7 @@ class Core:
         return module
 
     def load_config(self, name: str) -> dict:
-        """Load a configuration file .
+        """Load a configuration file.
 
         Parameters
         ----------
@@ -344,16 +334,15 @@ class Core:
             A dictionary representing a parsed TOML config file.
         """
         path = self._config_dir / Path(name).with_suffix('.toml')
+        config = Config(path)
         try:
-            config = toml.load(path)
+            config.load()
         except FileNotFoundError:
             self.logger.warning(f"Config file '{path.name}' doesn't exist; "
                                 'defaults will be assumed where applicable.')
-            config = {}
-        except toml.TomlDecodeError as ex:
+        except TomlDecodeError as ex:
             self.logger.error(
                 f"Failed to load config file '{path.name}': {ex}")
-            raise
         else:
             self.logger.info(f"Loaded config file '{path.name}'")
         return config

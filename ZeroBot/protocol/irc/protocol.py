@@ -5,13 +5,14 @@ IRC protocol implementation.
 
 import asyncio
 import logging
-from typing import Any, List
+from typing import List
 
 import pydle
 from pydle.features.ircv3.tags import TaggedMessage
 
-from ZeroBot.protocol.context import Context
+from ZeroBot.config import Config
 
+from ..context import Context
 from .classes import IRCChannel, IRCMessage, IRCServer, IRCUser
 
 MODULE_NAME = 'IRC'
@@ -32,13 +33,11 @@ def module_register(core, cfg):
     CORE = core
     CFG = cfg
 
-    # TODO: server rotation if connection fails
-    networks = configure(CFG)
     connections = set()
-    for network in networks.values():
-        ctx = IRCContext(network['user'], network['servers'][0],
-                         fallback_nicknames=network['fallback_nicks'],
-                         request_umodes=network['modes'],
+    for network in _configure(CFG):
+        ctx = IRCContext(network['user'], network['servers'],
+                         fallback_nicknames=network['alt_nicks'],
+                         request_umode=network['request_umode'],
                          eventloop=core.eventloop)
         coro = ctx.connect(ctx.server.hostname, ctx.server.port,
                            tls=ctx.server.tls, tls_verify=False)
@@ -50,70 +49,66 @@ def module_unregister():
     """Prepare for shutdown."""
 
 
-def configure(cfg: dict):
+def _configure(cfg: Config) -> List[dict]:
     """Set up IRC connections based on the given parsed configuration."""
 
-    def network_fallback(section: dict, key: str, fallback: Any = None) -> Any:
-        try:
-            return section[key]
-        except KeyError:
-            return cfg['Network_Defaults'].get(key, fallback)
-
-    networks = {}
-    if 'Network' in cfg:
-        for network, settings in cfg['Network'].items():
-            if not settings.get('AutoConnect', False):
-                continue  # TEMP
-            networks[network] = {}
-            if 'Servers' not in settings:
-                logger.error(f'No servers specified for network {network}!')
-                continue
-            networks[network]['fallback_nicks'] = network_fallback(
-                settings, 'Fallback_Nicks', [])
-            networks[network]['modes'] = network_fallback(
-                settings, 'UMode', None) or None
-            networks[network]['servers'] = []
-            for server in settings['Servers']:
-                host, _, port = server.partition(':')
-                server_info = {
-                    'network': network,
-                    'hostname': host,
-                    'port': port or None,
-                    'password': settings.get('Password', None),
-                    'tls': network_fallback(settings, 'UseTLS'),
-                    'ipv6': network_fallback(settings, 'UseIPv6')
-                }
-                networks[network]['servers'].append(IRCServer(**server_info))
-            user_info = {
-                'name': network_fallback(settings, 'Nickname'),
-                'username': network_fallback(settings, 'Username'),
-                'realname': network_fallback(settings, 'Realname')
-            }
-            networks[network]['user'] = IRCUser(**user_info)
-    if len(networks) == 0:
+    networks = []
+    if 'Network' not in cfg or len(cfg['Network']) == 0:
         msg = 'No networks defined in configuration.'
         logger.error(msg)
         raise RuntimeError(msg)
+    for name, settings in cfg['Network'].items():
+        settings = cfg.make_fallback(settings, cfg['Network_Defaults'])
+        if not settings.get('AutoConnect', False):
+            continue  # TEMP
+        if 'Servers' not in settings:
+            logger.error(f"No servers specified for network '{name}'!")
+            continue
+        servers = []
+        for server in settings['Servers']:
+            host, _, port = server.partition(':')
+            server_info = {
+                'network': name,
+                'hostname': host,
+                'port': port or None,
+                'password': settings.get('Password', None),
+                'tls': settings.get('UseTLS', False),
+                'ipv6': settings.get('UseIPv6', False)
+            }
+            servers.append(IRCServer(**server_info))
+        user_info = {
+            'name': settings['Nickname'],
+            'username': settings['Username'],
+            'realname': settings['Realname']
+        }
+        network = {
+            'user': IRCUser(**user_info),
+            'servers': servers,
+            'alt_nicks': settings.get('Alt_Nicks', None),
+            'request_umode': settings.get('UMode', None)
+        }
+        networks.append(network)
     return networks
 
 
 class IRCContext(Context, pydle.Client):
     """IRC implementation of a ZeroBot `Context`."""
 
-    def __init__(self, user: IRCUser, server: IRCServer, *,
+    def __init__(self, user: IRCUser, servers: List[IRCServer], *,
                  eventloop: asyncio.AbstractEventLoop,
-                 request_umodes=None,
+                 request_umode: str = None,
                  fallback_nicknames: List = None):
         super().__init__(
             user.name, fallback_nicknames or [], user.username, user.realname,
             eventloop=eventloop
         )
-        self._request_umodes = request_umodes
+        self._request_umode = request_umode
         self.channels_zb = {}
-        self.server = server
+        self.servers = servers
+        self.server = servers[0]
         self.user = user
         self.users_zb = {user.name: user}
-        self.logger = logging.getLogger(f'ZeroBot.IRC.{server.network}')
+        self.logger = logging.getLogger(f'ZeroBot.IRC.{self.server.network}')
 
     def _create_channel(self, channel):
         super()._create_channel(channel)
@@ -207,8 +202,8 @@ class IRCContext(Context, pydle.Client):
         logger.info(
             f'Connected to {self.server.network} at {self.server.hostname}')
         await CORE.module_send_event('connect', self)
-        if self._request_umodes:
-            await self.rawmsg('MODE', self.user.name, self._request_umodes)
+        if self._request_umode:
+            await self.rawmsg('MODE', self.user.name, self._request_umode)
 
         config = CFG['Network'][self.server.network]
         for target in config.get('Monitor', []):
