@@ -3,10 +3,7 @@
 Various utilities for ZeroBot
 """
 
-from reprlib import Repr
 from typing import Any, Iterable
-
-zbRepr = Repr()
 
 
 def gen_repr(obj: Any, attrs: Iterable) -> str:
@@ -29,6 +26,5 @@ def gen_repr(obj: Any, attrs: Iterable) -> str:
         A string suitable to return from the class's `__repr__` method.
     """
     name = obj.__class__.__name__
-    body = ' '.join(
-        f'{attr}={zbRepr.repr(getattr(obj, attr))}' for attr in attrs)
+    body = ' '.join(f'{attr}={getattr(obj, attr)!r}' for attr in attrs)
     return f'<{name} {body}>'
