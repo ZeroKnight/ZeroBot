@@ -5,7 +5,7 @@ IRC protocol implementation.
 
 import asyncio
 import logging
-from typing import List
+from typing import List, Optional, Union
 
 import pydle
 from pydle.features.ircv3.tags import TaggedMessage
@@ -39,8 +39,7 @@ def module_register(core, cfg):
                          fallback_nicknames=network['alt_nicks'],
                          request_umode=network['request_umode'],
                          eventloop=core.eventloop)
-        coro = ctx.connect(ctx.server.hostname, ctx.server.port,
-                           tls=ctx.server.tls, tls_verify=False)
+        coro = ctx._initial_connect()
         connections.add((ctx, coro))
     return connections
 
@@ -105,10 +104,14 @@ class IRCContext(Context, pydle.Client):
         self._request_umode = request_umode
         self.channels_zb = {}
         self.servers = servers
-        self.server = servers[0]
         self.user = user
         self.users_zb = {user.name: user}
         self.logger = logging.getLogger(f'ZeroBot.IRC.{self.server.network}')
+
+    @property
+    def server(self) -> IRCServer:
+        """Get the active `IRCServer` connection."""
+        return self.servers[0]
 
     def _create_channel(self, channel):
         super()._create_channel(channel)
@@ -164,14 +167,66 @@ class IRCContext(Context, pydle.Client):
                 raise
         return IRCMessage(source, destination, content, tags=message.tags)
 
-    async def connect(self, hostname=None, port=None, tls=False, **kwargs):
-        """Connect to IRC server."""
+    async def _initial_connect(self):
+        """Attempt to connect to configured network.
+
+        If a server connection fails, the next server in `self.servers` is
+        tried until one successfully connects, or we run out of servers to
+        try.
+        """
+        for server in self.servers:
+            established = await self.connect(
+                server.hostname, server.port, server.tls, tls_verify=False)
+            if established:
+                return
+        # TODO: Reconnection logic
+        network = self.servers[0].network
+        logger.error(
+            f'Could not connect to any servers for network {network}.')
+        # TODO: what now? destroy context, or wait for instructions somehow?
+
+    async def connect(self, hostname: Optional[str] = None,
+                      port: Optional[int] = None, tls: bool = False,
+                      timeout: Union[int, float] = 30, **kwargs) -> bool:
+        """Connect to an IRC server.
+
+        Attempts to connect to an IRC server and begin handling IRC events.
+
+        Parameters
+        ----------
+        hostname : str, optional
+            The host to connect to. If omitted and `reconnect` is `True`,
+            Pydle will try to reconnect to the current host.
+        port : int, optional
+            The port to connect on.
+        tls : bool, optional
+            Whether or not to connect securely via TLS; `False` by default.
+        timeout : int or float, optional
+            Maximum time to wait for the connection to succeed before giving
+            up; 30 seconds by default.
+        **kwargs
+            Any extra keyword arguments are passed to `pydle.Client.connect`.
+
+        Returns
+        -------
+        bool
+            Whether or not the connection succeeded.
+        """
         addr = hostname + (f':{port}' if port else '')
         self.logger.info(f'Connecting to server {addr} ...')
         # Preserve our logger so we receive pydle log records
         logger_save = self.logger
-        await super().connect(hostname, port, tls, **kwargs)
+        try:
+            await asyncio.wait_for(
+                super().connect(hostname, port, tls, **kwargs), timeout)
+        except OSError as ex:
+            self.logger.error(f'Connection to {addr} failed: {ex}')
+            return False
+        except asyncio.TimeoutError:
+            self.logger.error(f'Connection to {addr} timed out.')
+            return False
         self.logger = logger_save
+        return True
 
     # Pydle handlers
 
