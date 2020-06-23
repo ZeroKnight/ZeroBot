@@ -104,6 +104,7 @@ class IRCContext(Context, pydle.Client):
         self._request_umode = request_umode
         self.channels_zb = {}
         self.servers = servers
+        self._server = servers[0]
         self.user = user
         self.users_zb = {user.name: user}
         self.logger = logging.getLogger(f'ZeroBot.IRC.{self.server.network}')
@@ -111,7 +112,7 @@ class IRCContext(Context, pydle.Client):
     @property
     def server(self) -> IRCServer:
         """Get the active `IRCServer` connection."""
-        return self.servers[0]
+        return self._server
 
     def _create_channel(self, channel):
         super()._create_channel(channel)
@@ -178,9 +179,10 @@ class IRCContext(Context, pydle.Client):
             established = await self.connect(
                 server.hostname, server.port, server.tls, tls_verify=False)
             if established:
+                self._server = server
                 return
         # TODO: Reconnection logic
-        network = self.servers[0].network
+        network = self._server.network
         logger.error(
             f'Could not connect to any servers for network {network}.')
         # TODO: what now? destroy context, or wait for instructions somehow?
