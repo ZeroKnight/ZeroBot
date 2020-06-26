@@ -51,6 +51,21 @@ def module_unregister():
 def _configure(cfg: Config) -> List[dict]:
     """Set up IRC connections based on the given parsed configuration."""
 
+    settings_default = {
+        'Settings': {
+            'ConnectTimeout': 30,
+            'AutoReconnect': {
+                'Enabled': True,
+                'Delay': {
+                    'Seconds': 10,
+                    'GrowthFactor': 2,
+                    'MaxSeconds': 900
+                }
+            }
+        }
+    }
+    CFG['Settings'] = {**settings_default, **CFG.get('Settings', {})}
+
     networks = []
     if 'Network' not in cfg or len(cfg['Network']) == 0:
         msg = 'No networks defined in configuration.'
@@ -175,20 +190,20 @@ class IRCContext(Context, pydle.Client):
         tried until one successfully connects. If we run out of servers to
         try, then the server list is tried again after a growing delay.
         """
-        reconn_settings = CFG['Settings'].get('AutoReconnect', {})
-        delay_settings = reconn_settings.get('Delay', {})
-        delay = delay_settings.get('Seconds', 10)
-        growth = delay_settings.get('GrowthFactor', 2)
-        delay_max = delay_settings.get('MaxSeconds', 900)
+        reconn_settings = CFG['Settings']['AutoReconnect']
+        delay_settings = reconn_settings['Delay']
+        delay = delay_settings['Seconds']
+        growth = delay_settings['GrowthFactor']
+        delay_max = delay_settings['MaxSeconds']
 
         autoreconnect = True
         while autoreconnect:
-            autoreconnect = reconn_settings.get('Enabled', True)
+            autoreconnect = reconn_settings['Enabled']
             for server in self.servers:
                 established = await self.connect(
                     server.hostname, server.port, server.tls,
                     tls_verify=False,
-                    timeout=CFG['Settings'].get('ConnectTimeout', None)
+                    timeout=CFG['Settings']['ConnectTimeout']
                 )
                 if established:
                     self._server = server
