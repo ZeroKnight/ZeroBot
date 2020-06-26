@@ -39,7 +39,7 @@ def module_register(core, cfg):
                          fallback_nicknames=network['alt_nicks'],
                          request_umode=network['request_umode'],
                          eventloop=core.eventloop)
-        coro = ctx._initial_connect()
+        coro = ctx._connect_loop()
         connections.add((ctx, coro))
     return connections
 
@@ -183,12 +183,14 @@ class IRCContext(Context, pydle.Client):
                 raise
         return IRCMessage(source, destination, content, tags=message.tags)
 
-    async def _initial_connect(self):
-        """Attempt to connect to configured network.
+    # TODO: External way to stop loop
+    async def _connect_loop(self, reconnect: bool = False):
+        """Attempt to (re)connect to the configured network.
 
-        If a server connection fails, the next server in `self.servers` is
-        tried until one successfully connects. If we run out of servers to
-        try, then the server list is tried again after a growing delay.
+        If a server connection fails and ``Settings.AutoReconnect.Enabled`` is
+        `True`, the next server in `self.servers` is tried until one
+        successfully connects. If we run out of servers to try, then try the
+        server list over again with a growing delay.
         """
         reconn_settings = CFG['Settings']['AutoReconnect']
         delay_settings = reconn_settings['Delay']
@@ -202,7 +204,7 @@ class IRCContext(Context, pydle.Client):
             for server in self.servers:
                 established = await self.connect(
                     server.hostname, server.port, server.tls,
-                    tls_verify=False,
+                    tls_verify=False, reconnect=reconnect,
                     timeout=CFG['Settings']['ConnectTimeout']
                 )
                 if established:
@@ -211,10 +213,6 @@ class IRCContext(Context, pydle.Client):
             self.logger.info(f'Attempting to reconnect in {delay} seconds.')
             await asyncio.sleep(delay)
             delay = min(delay_max, delay * growth)
-        network = self._server.network
-        logger.error(
-            f'Could not connect to any servers for network {network}.')
-        # TODO: what now? destroy context, or wait for instructions somehow?
 
     async def connect(self, hostname: Optional[str] = None,
                       port: Optional[int] = None, tls: bool = False,
@@ -296,6 +294,19 @@ class IRCContext(Context, pydle.Client):
             await self.monitor(target)
         for channel in config.get('Channels', []):
             await self.module_join(channel)
+
+    async def on_disconnect(self, expected: bool):
+        """Handle disconnection from server."""
+        if not expected and CFG['Settings']['AutoReconnect']['Enabled']:
+            delay = CFG['Settings']['AutoReconnect']['Delay']['Seconds']
+            self.logger.error(
+                f'Lost connection to network {self._server.network}. '
+                f'Retrying in {delay} seconds.')
+            asyncio.sleep(delay)
+            await self._connect_loop(True)
+        else:
+            self.logger.error(
+                f'Lost connection to network {self._server.network}.')
 
     async def on_raw_302(self, message):
         """Handle ``RPL_USERHOST``."""
