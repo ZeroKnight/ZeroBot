@@ -172,16 +172,30 @@ class IRCContext(Context, pydle.Client):
         """Attempt to connect to configured network.
 
         If a server connection fails, the next server in `self.servers` is
-        tried until one successfully connects, or we run out of servers to
-        try.
+        tried until one successfully connects. If we run out of servers to
+        try, then the server list is tried again after a growing delay.
         """
-        for server in self.servers:
-            established = await self.connect(
-                server.hostname, server.port, server.tls, tls_verify=False)
-            if established:
-                self._server = server
-                return
-        # TODO: Reconnection logic
+        reconn_settings = CFG['Settings'].get('AutoReconnect', {})
+        delay_settings = reconn_settings.get('Delay', {})
+        delay = delay_settings.get('Seconds', 10)
+        growth = delay_settings.get('GrowthFactor', 2)
+        delay_max = delay_settings.get('MaxSeconds', 900)
+
+        autoreconnect = True
+        while autoreconnect:
+            autoreconnect = reconn_settings.get('Enabled', True)
+            for server in self.servers:
+                established = await self.connect(
+                    server.hostname, server.port, server.tls,
+                    tls_verify=False,
+                    timeout=CFG['Settings'].get('ConnectTimeout', None)
+                )
+                if established:
+                    self._server = server
+                    return
+            self.logger.info(f'Attempting to reconnect in {delay} seconds.')
+            await asyncio.sleep(delay)
+            delay = min(delay_max, delay * growth)
         network = self._server.network
         logger.error(
             f'Could not connect to any servers for network {network}.')
