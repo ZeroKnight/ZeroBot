@@ -425,6 +425,15 @@ class IRCContext(Context, pydle.Client):
         logger.info(f'Leaving channel {where} ({reason})')
         await self.part(where, reason)
 
+    async def module_quit(self, reason=None):
+        if reason is None:
+            cfg = CFG.make_fallback(
+                CFG['Network'][self._server.network], CFG['Network_Defaults'])
+            reason = cfg.get('QuitMsg', 'No reason given.')
+        network = self._server.network
+        logger.info(f'Quitting from network {network} ({reason})')
+        await self.quit(reason)
+
     async def module_message(self, destination, message):
         await self.message(destination, message)
 
