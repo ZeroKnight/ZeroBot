@@ -38,6 +38,7 @@ def module_register(core, cfg):
         ctx = IRCContext(network['user'], network['servers'],
                          fallback_nicknames=network['alt_nicks'],
                          request_umode=network['request_umode'],
+                         **network['sasl'],
                          eventloop=core.eventloop)
         coro = ctx._connect_loop()
         connections.add((ctx, coro))
@@ -95,11 +96,18 @@ def _configure(cfg: Config) -> List[dict]:
             'username': settings['Username'],
             'realname': settings['Realname']
         }
+        sasl_settings = cfg.make_fallback(
+            settings.get('SASL', {}), cfg['Network_Defaults'].get('SASL', {}))
         network = {
             'user': IRCUser(**user_info),
             'servers': servers,
             'alt_nicks': settings.get('Alt_Nicks', None),
-            'request_umode': settings.get('UMode', None)
+            'request_umode': settings.get('UMode', None),
+            'sasl': {
+                'sasl_username': sasl_settings.get('Username', None),
+                'sasl_password': sasl_settings.get('Password', None),
+                'sasl_mechanism': sasl_settings.get('Mechanism', None)
+            }
         }
         networks.append(network)
     return networks
@@ -111,10 +119,10 @@ class IRCContext(Context, pydle.Client):
     def __init__(self, user: IRCUser, servers: List[IRCServer], *,
                  eventloop: asyncio.AbstractEventLoop,
                  request_umode: str = None,
-                 fallback_nicknames: List = None):
+                 fallback_nicknames: List = None, **kwargs):
         super().__init__(
             user.name, fallback_nicknames or [], user.username, user.realname,
-            eventloop=eventloop
+            eventloop=eventloop, **kwargs
         )
         self._request_umode = request_umode
         self.channels_zb = {}

@@ -1,5 +1,6 @@
 appdirs
 dateutil
 discord.py
+pure-sasl
 pydle>=0.9.4
 toml
