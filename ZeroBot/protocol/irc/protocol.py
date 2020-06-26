@@ -417,10 +417,11 @@ class IRCContext(Context, pydle.Client):
         logger.info(f'Joining channel {where}')
         await self.join(where, password)
 
-    # TODO: use default part message from config, if available
     async def module_leave(self, where, reason=None):
         if reason is None:
-            reason = 'No reason given.'
+            cfg = CFG.make_fallback(
+                CFG['Network'][self._server.network], CFG['Network_Defaults'])
+            reason = cfg.get('PartMsg', 'No reason given.')
         logger.info(f'Leaving channel {where} ({reason})')
         await self.part(where, reason)
 
