@@ -297,16 +297,15 @@ class IRCContext(Context, pydle.Client):
 
     async def on_disconnect(self, expected: bool):
         """Handle disconnection from server."""
-        if not expected and CFG['Settings']['AutoReconnect']['Enabled']:
-            delay = CFG['Settings']['AutoReconnect']['Delay']['Seconds']
-            self.logger.error(
-                f'Lost connection to network {self._server.network}. '
-                f'Retrying in {delay} seconds.')
-            asyncio.sleep(delay)
-            await self._connect_loop(True)
-        else:
-            self.logger.error(
-                f'Lost connection to network {self._server.network}.')
+        if not expected:
+            msg = f'Lost connection to network {self._server.network}.'
+            if CFG['Settings']['AutoReconnect']['Enabled']:
+                delay = CFG['Settings']['AutoReconnect']['Delay']['Seconds']
+                self.logger.error(f'{msg} Retrying in {delay} seconds.')
+                asyncio.sleep(delay)
+                await self._connect_loop(True)
+            else:
+                self.logger.error(msg)
 
     async def on_raw_302(self, message):
         """Handle ``RPL_USERHOST``."""
