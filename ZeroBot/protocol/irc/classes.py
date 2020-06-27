@@ -40,6 +40,8 @@ class IRCUser(abc.User):
 
     Attributes
     ----------
+    authenticated : bool
+    auth_id : str
     away : bool
     away_msg : str or None
     mask : str
@@ -48,6 +50,7 @@ class IRCUser(abc.User):
     def __init__(self, name: str, username: str = None, realname: str = None,
                  *, hostname: Optional[str] = None, modes: dict = None,
                  bot: bool = False):
+        self._auth_id = None
         self._away_msg = None
         self.name = name
         self.username = username or name.lower()
@@ -84,7 +87,7 @@ class IRCUser(abc.User):
         return cls(nick, user, realname, hostname=host, bot=bot)
 
     def __repr__(self):
-        attrs = ['mask', 'realname', 'modes', 'away_msg', 'bot']
+        attrs = ['mask', 'realname', 'modes', 'auth_id', 'away_msg', 'bot']
         return gen_repr(self, attrs)
 
     def __str__(self):
@@ -93,6 +96,16 @@ class IRCUser(abc.User):
     @property
     def original(self):
         return self
+
+    @property
+    def authenticated(self) -> bool:
+        """Whether or not this user is authenticated with services."""
+        return self._auth_id is not None
+
+    @property
+    def auth_id(self) -> str:
+        """The account that this user is authenticated as."""
+        return self._auth_id
 
     @property
     def away(self) -> bool:
@@ -135,6 +148,10 @@ class IRCUser(abc.User):
         and server-enforced username prefixes are not standardized.
         """
         return not self.username.startswith('~')
+
+    def set_auth(self, account: Optional[str]):
+        """Set this user as authenticated with the given account name."""
+        self._auth_id = account
 
     def set_away(self, message: str):
         """Set this user as away with the given message."""

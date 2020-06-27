@@ -162,6 +162,10 @@ class IRCContext(Context, pydle.Client):
             zb_user.set_away(metadata['away_message'])
         else:
             zb_user.set_back()
+        if metadata.get('identified', False):
+            zb_user.set_auth(metadata['account'])
+        else:
+            zb_user.set_auth(None)
 
     def _rename_user(self, user, new):
         super()._rename_user(user, new)
