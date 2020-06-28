@@ -392,6 +392,26 @@ class Core:
         """Start ZeroBot's event loop."""
         try:
             self.eventloop.run_forever()
+        except KeyboardInterrupt:
+            self.logger.info('Interrupt received, shutting down.')
+            self.logger.debug('Unregistering feature modules.')
+            for feature in self._features.values():
+                try:
+                    self.eventloop.run_until_complete(
+                        feature.handle.module_unregister())
+                except Exception:  # pylint: disable=broad-except
+                    self.logger.exception(
+                        'Exception occurred while unregistering feature '
+                        f"module '{feature.name}'.")
+            self.logger.debug('Unregistering protocol modules.')
+            for protocol in self._protocols.values():
+                try:
+                    self.eventloop.run_until_complete(
+                        protocol.handle.module_unregister(protocol.contexts))
+                except Exception:  # pylint: disable=broad-except
+                    self.logger.exception(
+                        'Exception occurred while unregistering protocol '
+                        f"module '{protocol.name}'.")
         finally:
             self.logger.debug('Stopping event loop')
             self.eventloop.stop()
