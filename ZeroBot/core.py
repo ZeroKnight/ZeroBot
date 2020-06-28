@@ -90,7 +90,8 @@ class Core:
         self._cmdprefix = self.config['Core'].get('CmdPrefix', '!')
 
         # Load configured protocols
-        protocols_loaded = self._load_protocols()
+        protocols_loaded = self.eventloop.run_until_complete(
+            self._load_protocols())
         if protocols_loaded:
             self.logger.info(f'Loaded {protocols_loaded} protocols.')
         else:
@@ -99,7 +100,8 @@ class Core:
             raise RuntimeError(msg)  # TBD: Make this a custom exception?
 
         # Load configured features
-        features_loaded = self._load_features()
+        features_loaded = self.eventloop.run_until_complete(
+            self._load_features())
         if features_loaded:
             self.logger.info(f'Loaded {features_loaded} feature modules.')
         else:
@@ -158,22 +160,22 @@ class Core:
             'handlers': log_sec['Handlers']
         })
 
-    def _load_protocols(self) -> int:
+    async def _load_protocols(self) -> int:
         """Load all protocols specified in ZeroBot's main config.
 
         Returns the number of protocols that were successfully loaded.
         """
         for proto in self.config['Core'].get('Protocols', []):
-            self.load_protocol(proto)
+            await self.load_protocol(proto)
         return len(self._protocols)
 
-    def _load_features(self) -> int:
+    async def _load_features(self) -> int:
         """Load all features specified in ZeroBot's main config.
 
         Returns the number of feature modules that were successfully loaded.
         """
         for feature in self.config['Core'].get('Modules', []):
-            self.load_feature(feature)
+            await self.load_feature(feature)
         return len(self._features)
 
     def _handle_load_module(self, name: str,
@@ -211,7 +213,7 @@ class Core:
         self.logger.debug(f'Imported {type_str} module {module!r}')
         return module
 
-    def load_protocol(self, name: str) -> Optional[ProtocolModule]:
+    async def load_protocol(self, name: str) -> Optional[ProtocolModule]:
         """Load and register a protocol module.
 
         Parameters
@@ -232,7 +234,7 @@ class Core:
             return None
         config = self.load_config(name)
         try:
-            connections = module.handle.module_register(self, config)
+            connections = await module.handle.module_register(self, config)
         except Exception:  # pylint: disable=broad-except
             self.logger.exception(
                 f'Failed to register protocol module {module!r}')
@@ -244,7 +246,7 @@ class Core:
         self._protocols[name] = module
         return module
 
-    def load_feature(self, name) -> Optional[Module]:
+    async def load_feature(self, name) -> Optional[Module]:
         """Load and register a ZeroBot feature module.
 
         Parameters
@@ -265,7 +267,7 @@ class Core:
             return None
         self._features[name] = module
         try:
-            module.handle.module_register(self)
+            await module.handle.module_register(self)
         except Exception:  # pylint: disable=broad-except
             self.logger.exception(
                 f'Failed to register feature module {module!r}')
@@ -276,7 +278,8 @@ class Core:
     # TODO: reload_protocol will be more complicated to pull off, as we have
     # connections to manage.
 
-    def reload_feature(self, feature: Union[str, Module]) -> Optional[Module]:
+    async def reload_feature(self,
+                             feature: Union[str, Module]) -> Optional[Module]:
         """Reload a ZeroBot feature module.
 
         Allows for changes to feature modules to be dynamically introduced at
@@ -309,9 +312,9 @@ class Core:
             raise TypeError(("feature type expects 'str' or 'Module', not ",
                              f"'{type(feature)}'"))
         try:
-            module.handle.module_unregister()
+            await module.handle.module_unregister()
             module.reload()
-            module.handle.module_register(self)
+            await module.handle.module_register(self)
         except Exception:  # pylint: disable=broad-except
             self.logger.exception(f"Failed to reload feature module '{name}'")
             return None

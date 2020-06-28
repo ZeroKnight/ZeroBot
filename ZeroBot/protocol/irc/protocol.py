@@ -27,7 +27,7 @@ CFG = None
 logger = logging.getLogger('ZeroBot.IRC')
 
 
-def module_register(core, cfg):
+async def module_register(core, cfg):
     """Initialize module."""
     global CORE, CFG
     CORE = core
@@ -45,7 +45,7 @@ def module_register(core, cfg):
     return connections
 
 
-def module_unregister():
+async def module_unregister():
     """Prepare for shutdown."""
 
 
