@@ -139,7 +139,7 @@ class IRCUser(abc.User):
 
     def mentioned(self, message: 'IRCMessage'):
         """Check if the user was mentioned in the given message."""
-        raise NotImplementedError('Need to implement Message class')
+        return self.name in message.content
 
     def idented(self):
         """Check if the user supplied an ident response on connecting.
@@ -197,6 +197,7 @@ class IRCServer(abc.Server):
     def __init__(self, hostname: str, port: int = None, *, name: str = None,
                  ipv6: bool = False, tls: bool = False, password: str = None,
                  network: str = None):
+        self._connected = False
         self.hostname = hostname
         if port is None:
             self.port = 6697 if tls else 6667
@@ -224,9 +225,14 @@ class IRCServer(abc.Server):
     def original(self):
         return self
 
+    @property
     def connected(self) -> bool:
         """Whether or not the Server is currenlty connected."""
-        raise NotImplementedError('TODO')
+        return self._connected
+
+    @connected.setter
+    def connected(self, state: bool):
+        self._connected = state
 
 
 class IRCChannel(abc.Channel):

@@ -91,6 +91,7 @@ class Server(ProtocolDetails, metaclass=ABCMeta):
     def __eq__(self, other):
         raise NotImplementedError
 
+    @property
     @abstractmethod
     def connected(self) -> bool:
         """Whether or not the Server is currently connected."""

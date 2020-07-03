@@ -293,6 +293,7 @@ class IRCContext(Context, pydle.Client):
         Pydle calls this after ``RPL_ENDOFMOTD`` or ``ERR_NOMOTD``.
         """
         await super().on_connect()
+        self.server.connected = True
 
         # Get our user info as reported by the server
         await self.rawmsg('WHOIS', self.user.name)
