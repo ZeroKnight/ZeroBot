@@ -4,61 +4,79 @@ Discord protocol implementation.
 """
 
 import asyncio
+import logging
 
 import discord
+from discord import ChannelType
 
 import ZeroBot.common.abc as abc
 from ZeroBot.protocol.context import Context
 
-CORE = None
+from .classes import DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
+
 MODULE_NAME = 'Discord'
 MODULE_AUTHOR = 'ZeroKnight'
 MODULE_VERSION = '0.1'
 MODULE_LICENSE = 'MIT'
 MODULE_DESC = 'Discord protocol implementation'
 
+CORE = None
+CFG = None
 
-def module_register(core):
-    global CORE
+logger = logging.getLogger('ZeroBot.Discord')
+
+
+async def module_register(core, cfg):
+    """Initialize module."""
+    global CORE, CFG
     CORE = core
+    CFG = cfg
 
-    # TEMP: get this stuff from config later
-    ctx = DiscordContext(loop=core.eventloop)
-    coro = ctx.start('')
-    return (ctx, coro)
+    settings = CFG.get('Settings', {})
+
+    ctx = DiscordContext(loop=core.eventloop,
+                         max_messages=settings.get('MaxMessages', None))
+    coro = ctx.start(CFG['BotToken'])
+    return set([(ctx, coro)])
 
 
-def module_unregister():
-    pass
-
-
-class DiscordMessage(abc.Message):
-    def __init__(self, message: discord.Message):
-        self.source = message.author
-        self.destination = message.channel
-        self.content = message.content
-        self.time = message.created_at
-        self._original = message
-
-    @property
-    def original(self):
-        return self._original
-
-    def __eq__(self, other):
-        pass  # TODO
+async def module_unregister(contexts):
+    """Prepare for shutdown."""
+    for ctx in contexts:
+        await ctx.close()
 
 
 class DiscordContext(Context, discord.Client):
-    """blah
-    """
+    """Discord implementation of a ZeroBot `Context`."""
+
+    # Discord Handlers
+
+    async def on_connect(self):
+        """Established connection to Discord, but not yet ready."""
+        logger.info('Connected to Discord')
 
     async def on_ready(self):
-        print('Logged on as {0}!'.format(self.user))
+        """Connected and ready to listen for events."""
+        logger.info(f'Logged in as {self.user}')
 
-    async def on_message(self, message):
+    async def on_message(self, message: DiscordMessage):
+        """Handle messages."""
         print('Message from {0.author}: {0.content}'.format(message))
         msg = DiscordMessage(message)
         await CORE.module_send_event('message', self, msg)
 
-    async def module_message(self, destination, message):
+    # ZeroBot Interface
+
+    async def module_message(self, destination: DiscordServer,
+                             message: DiscordMessage):
         await destination.send(message)
+
+    async def module_join(self, where, password=None):
+        """Not applicable to Discord bots."""
+        CORE.logger.error("'module_join' is not applicable to Discord bots.")
+
+    async def module_leave(self, where: DiscordChannel, reason=None):
+        if where.type in any(ChannelType.private, ChannelType.group):
+            # TODO: raise exception?
+            logger.error(
+                f'Can only leave DM or Group channels, not {where.type}')
