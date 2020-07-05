@@ -1,6 +1,7 @@
 """util.py
 
-Various utilities for ZeroBot
+Various internal utilities for ZeroBot. If you're working on a feature module,
+you *probably* want `ZeroBot.common` instead.
 """
 
 from typing import Any, Iterable
