@@ -62,10 +62,10 @@ class DiscordContext(Context, discord.Client):
     async def on_disconnect(self):
         """Disconnected from Discord.
 
-        Could be any reason, including dropped connection or Discord itself
-        terminating the connection for some reason.
+        Could be any reason, including a normal disconnect, dropped connection,
+        or Discord itself terminating the connection for some reason.
         """
-        logger.warning('Disconnected from Discord')
+        logger.info('Disconnected from Discord')
 
     async def on_message(self, message: DiscordMessage):
         """Handle messages."""
