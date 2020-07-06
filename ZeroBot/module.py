@@ -28,8 +28,9 @@ class Module:
         The version string of the module.
     license : str
         The name of the license that the module is written under.
-    short_name: str
-        The identifier used to initially load the module.
+    identifier: str
+        The identifier used to initially load the module. For example, the
+        identifier for ``ZeroBot.feature.chat`` would be ``'chat'``.
     handle : types.ModuleType
         A reference to the loaded Python module.
 
@@ -61,8 +62,8 @@ class Module:
         return f'{self.name} v{self.version}'
 
     @property
-    def short_name(self) -> str:
-        """Get the module "short-name", i.e. the identifier used to load it."""
+    def identifier(self) -> str:
+        """Get the module identifier, i.e. the name used to load it."""
         return self.handle.__name__.split('.')[-1]
 
     def fq_name(self) -> str:
@@ -102,7 +103,7 @@ class ProtocolModule(Module):
         self.contexts = []
 
     @property
-    def short_name(self) -> str:
+    def identifier(self) -> str:
         return self.handle.__name__.split('.')[-2]
 
     def reload(self):

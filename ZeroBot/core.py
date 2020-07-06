@@ -374,7 +374,7 @@ class Core:
         Parameters
         ----------
         feature : str or Module object
-            A string with the module short-name (e.g. 'chat' for features.chat)
+            A string with the module identifier (e.g. 'chat' for features.chat)
             or a loaded `Module` object.
 
         Returns
@@ -384,7 +384,7 @@ class Core:
         """
         if isinstance(feature, Module):
             module = feature
-            name = module.short_name
+            name = module.identifier
         elif isinstance(feature, str):
             name = feature
             try:
