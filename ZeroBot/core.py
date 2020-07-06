@@ -20,7 +20,8 @@ import appdirs
 from toml import TomlDecodeError
 
 import ZeroBot
-from ZeroBot.common import CommandAlreadyRegistered, CommandParser
+from ZeroBot.common import (CommandAlreadyRegistered, CommandParser,
+                            ParsedCommand, abc)
 from ZeroBot.config import Config
 from ZeroBot.module import CoreModule, Module, ProtocolModule
 from ZeroBot.protocol.context import Context
@@ -618,7 +619,7 @@ class Core:
         await asyncio.sleep(delay)
         await self.module_send_event(event, ctx, *args, **kwargs)
 
-    async def module_commanded(self, cmd_str: str, ctx: Context):
+    async def module_commanded(self, cmd_msg: abc.Message, ctx: Context):
         """|coro|
 
         Parse a raw command string using a registered command parser.
@@ -629,8 +630,9 @@ class Core:
 
         Parameters
         ----------
-        cmd_str : str
-            The command string, likley sent by a user on a connected protocol.
+        cmd_msg : Message
+            A ZeroBot `Message` whose content is a command string, likley sent
+            by a user on a connected protocol.
         ctx : Context
             The protocol context where the command was sent.
 
@@ -661,6 +663,7 @@ class Core:
         module that registered ``frobnicate`` with the parsed elements of the
         command as an `argparse.Namespace` object.
         """
+        cmd_str = cmd_msg.content
         if not cmd_str.startswith(self.cmdprefix):
             # TODO: proper NotACommand exception
             raise Exception(f'Not a command string: {cmd_str}')
@@ -668,13 +671,15 @@ class Core:
             name, *args = cmd_str.split(' ')
             name = name.lstrip(self.cmdprefix)
             cmd = self._commands[name]
-            parsed = cmd.parse_args(args)
+            namespace = cmd.parse_args(args)
         except (KeyError, ArgumentError, ArgumentTypeError):
-            self.module_send_event('invalid_command', ctx, cmd_str)
+            self.module_send_event('invalid_command', ctx, cmd_msg)
             return
         method = getattr(cmd.module.handle, f'module_command_{name}', None)
         if callable(method):
-            await method(ctx, name, parsed)
+            parsed = ParsedCommand(
+                name, vars(namespace), cmd_msg.source, cmd_msg.destination)
+            await method(ctx, parsed)
 
     def _shutdown(self):
         """Unregisters all feature and protocol modules.

@@ -4,8 +4,10 @@ Classes and utility functions for working with and creating ZeroBot commands.
 """
 
 from argparse import ArgumentParser
-from typing import Optional
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Union
 
+from ZeroBot.common.abc import Channel, User
 from ZeroBot.module import Module
 from ZeroBot.util import gen_repr
 
@@ -90,3 +92,30 @@ class CommandParser(_NoExitArgumentParser):
         Will return `None` if this command has not yet been registered.
         """
         return self._module
+
+
+@dataclass
+class ParsedCommand:
+    """A successfully parsed command with invoker and destination info.
+
+    ZeroBot's `Core` will send these as the payload of `module_command_*`
+    events.
+
+    Attributes
+    ----------
+    name : str
+        The command name.
+    args : dict
+        A dictionary of the resultant parsed arguments and options and their
+        values.
+    invoker : User
+        The user that invoked the command.
+    source : User or Channel
+        Where the command was sent from, either directly from a user, or from
+        within a channel.
+    """
+
+    name: str
+    args: Dict[str, Any]
+    invoker: User
+    source: Union[User, Channel]
