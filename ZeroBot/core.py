@@ -660,7 +660,7 @@ class Core:
             # TODO: proper NotACommand exception
             raise Exception(f'Not a command string: {cmd_str}')
         try:
-            name, _, args = cmd_str.partition(' ')
+            name, *args = cmd_str.split(' ')
             name = name.lstrip(self.cmdprefix)
             cmd = self._commands[name]
         except KeyError:
