@@ -13,11 +13,12 @@ import logging
 import logging.config
 from pathlib import Path
 from types import ModuleType
-from typing import List, Optional, Type, Union
+from typing import Iterator, List, Optional, Tuple, Type, Union
 
 import appdirs
 from toml import TomlDecodeError
 
+from ZeroBot.common import CommandAlreadyRegistered, CommandParser
 from ZeroBot.config import Config
 from ZeroBot.module import Module, ProtocolModule
 from ZeroBot.protocol.context import Context
@@ -26,6 +27,90 @@ from ZeroBot.protocol.context import Context
 # user logging configuration is applied.
 logging.basicConfig(style='{', format='{asctime} {levelname:7} {message}',
                     datefmt='%T', level=logging.ERROR)
+
+
+class CommandRegistry:
+    """Registry of commands and the modules that registered them.
+
+    Supports lookup of all commands registered to a module, or what module
+    a particular command is registered to.
+    """
+
+    def __init__(self):
+        self._registry = {'by_name': {}, 'by_module': {}}
+
+    def __getitem__(self, name: str) -> CommandParser:
+        return self._registry['by_name'][name]
+
+    def __iter__(self):
+        return iter(self._registry['by_name'])
+
+    def iter_by_module(self, module_id: str) -> Iterator[CommandParser]:
+        """Generator that yields all commands registered to a module.
+
+        Parameters
+        ----------
+        module_id : str
+            The identifier of the module.
+
+        Raises
+        ------
+        KeyError
+            The requested module has no registered commands.
+        """
+        yield from self._registry['by_module'][module_id]
+
+    def pairs(self) -> Iterator[Tuple[str, CommandParser]]:
+        """Generator that yields pairs of module identifiers and commands."""
+        for module, cmds in self._registry['by_module'].items():
+            yield from ((module, cmd) for cmd in cmds)
+
+    def add(self, module_id: str, command: CommandParser):
+        """Add a command to the registry.
+
+        Parameters
+        ----------
+        module_id : str
+            The module identifier to register the command to.
+        command : CommandParser
+            The command to add.
+
+        Raises
+        ------
+        CommandAlreadyRegistered
+            The command has already been registered.
+        """
+        if command.name in self:
+            raise CommandAlreadyRegistered(command.name, command.module)
+        self._registry['by_name'][command.name] = command
+        self._registry['by_module'].get(module_id, []).append(command)
+
+    def remove(self, command: str):
+        """Remove a command from the registry.
+
+        Parameters
+        ----------
+        command : str
+            The name of the command to remove.
+
+        Raises
+        ------
+        KeyError
+            The given command is not registered.
+        """
+        try:
+            del self._registry['by_name'][command]
+            for module, cmd in self.pairs():
+                if cmd.name == command:
+                    self._registry['by_registry'][module].remove(cmd)
+                    return
+        except KeyError:
+            raise KeyError(f"Command '{command}' is not registered")
+
+    def modules_registered(self) -> List[Module]:
+        """Return a list of `Module`s that have registered commands."""
+        return [cmds[0].module
+                for cmds in self._registry['by_module'].values()]
 
 
 class Core:
@@ -63,16 +148,13 @@ class Core:
     multiple cores in separate threads, if for some reason you wanted to.
     """
 
-    # TODO: Need to make sure that modules are stopped correctly when quitting
-    # ZeroBot, or sending a Ctrl-C. Discord should call close(), pydle should
-    # disconnect(), etc.
-
     def __init__(self, config_dir: Union[str, Path] = None,
                  eventloop: asyncio.AbstractEventLoop = None):
         self.eventloop = eventloop if eventloop else asyncio.get_event_loop()
         self.logger = logging.getLogger('ZeroBot')
         self._protocols = {}  # maps protocol names to their ProtocolModule
         self._features = {}  # maps feature module names to their Module
+        self._commands = CommandRegistry()
 
         # Read config
         if config_dir:
@@ -400,6 +482,76 @@ class Core:
             self._shutdown()
             self.logger.debug('Stopping event loop')
             self.eventloop.stop()
+
+    def command_register(self, module_id: str, *cmds: CommandParser):
+        """Register requested commands from a module.
+
+        Consecutive calls with the same module will add commands to the
+        registry.
+
+        Parameters
+        ----------
+        module_id : str
+            The module identifier to register commands to, e.g. ``'chat'``.
+        cmds : One or more `argparse.ArgumentParser` objects
+            The commands to register.
+
+        Raises
+        ------
+        CommandAlreadyRegistered
+            The given command has already been registered.
+        TypeError
+            No commands were given.
+        ValueError
+            The specified module isn't loaded or currently being loaded.
+        """
+        if len(cmds) == 0:
+            raise TypeError('Must provide at least one command')
+        try:
+            module = self._features[module_id]
+        except KeyError:
+            raise ValueError(
+                f"Module '{module}' is not loaded or being loaded.")
+        for cmd in cmds:
+            cmd._module = module  # pylint: disable=protected-access
+        self._commands.add(module_id, cmd)
+
+    def command_unregister(self, command: str):
+        """Unregister the given command.
+
+        Parameters
+        ----------
+        command : str
+            The name of the command to unregister.
+
+        Raises
+        ------
+        KeyError
+            The given command is not registered.
+        """
+        self._commands.remove(command)
+
+    def command_unregister_module(self, module_id: str):
+        """Unregister all commands registered to a module.
+
+        Parameters
+        ----------
+        module_id : str
+            The identifier of the module whose commands are to be unregistered.
+        """
+        # TODO: raise ModuleNotLoaded if needed
+        for cmd in self._commands.iter_by_module(module_id):
+            self.command_unregister(cmd.name)
+
+    def command_registered(self, command: str) -> bool:
+        """Return whether the given command is registered or not.
+
+        Parameters
+        ----------
+        command : str
+            The name of the command.
+        """
+        return command in self._commands
 
     async def module_send_event(self, event: str, ctx, *args, **kwargs):
         """|coro|
