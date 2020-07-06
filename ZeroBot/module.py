@@ -41,7 +41,6 @@ class Module:
     """
 
     def __init__(self, import_str: str):
-        self._import_name = import_str
         try:
             self.handle = importlib.import_module(import_str)
         except ModuleNotFoundError:
@@ -66,9 +65,10 @@ class Module:
         """Get the module identifier, i.e. the name used to load it."""
         return self.handle.__name__.split('.')[-1]
 
+    @property
     def fq_name(self) -> str:
         """Get the fully qualified name of the associated Python module."""
-        return self._import_name
+        return self.handle.__name__
 
     def reload(self) -> 'Module':
         """Reload the associated Python module.
