@@ -515,7 +515,7 @@ class Core:
                 f"Module '{module}' is not loaded or being loaded.")
         for cmd in cmds:
             cmd._module = module  # pylint: disable=protected-access
-        self._commands.add(module_id, cmd)
+            self._commands.add(module_id, cmd)
 
     def command_unregister(self, command: str):
         """Unregister the given command.
