@@ -23,6 +23,28 @@ class _NoExitArgumentParser(ArgumentParser):
         raise Exception(f'{self.prog}: {message}')
 
 
+class CommandAlreadyRegistered(Exception):
+    """Command is already registered.
+
+    Raised by `ZeroBot.Core` when attempting to register a command that has
+    already been registered.
+
+    Attributes
+    ----------
+    cmd_name : str
+        The name of the command.
+    module_id : str
+        The the identifier of the module that has registered the command.
+    """
+
+    def __init__(self, cmd_name: str, module_id: str):
+        msg = (f"Command '{cmd_name}' has already been registered by "
+               f"module '{module_id}'")
+        super().__init__(msg)
+        self.cmd_name = cmd_name
+        self.module_id = module_id
+
+
 class CommandParser(_NoExitArgumentParser):
     """Definition and parser for ZeroBot commands.
 
