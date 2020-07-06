@@ -19,9 +19,10 @@ from typing import Iterator, List, Optional, Tuple, Type, Union
 import appdirs
 from toml import TomlDecodeError
 
+import ZeroBot
 from ZeroBot.common import CommandAlreadyRegistered, CommandParser
 from ZeroBot.config import Config
-from ZeroBot.module import Module, ProtocolModule
+from ZeroBot.module import CoreModule, Module, ProtocolModule
 from ZeroBot.protocol.context import Context
 
 # Minimal initial logging format for any messages before the config is read and
@@ -155,6 +156,7 @@ class Core:
         self.logger = logging.getLogger('ZeroBot')
         self._protocols = {}  # maps protocol names to their ProtocolModule
         self._features = {}  # maps feature module names to their Module
+        self._dummy_module = CoreModule(self, ZeroBot.__version__)
         self._commands = CommandRegistry()
 
         # Read config
@@ -508,11 +510,14 @@ class Core:
         """
         if len(cmds) == 0:
             raise TypeError('Must provide at least one command')
-        try:
-            module = self._features[module_id]
-        except KeyError:
-            raise ValueError(
-                f"Module '{module}' is not loaded or being loaded.")
+        if module_id == 'core':
+            module = self._dummy_module
+        else:
+            try:
+                module = self._features[module_id]
+            except KeyError:
+                raise ValueError(
+                    f"Module '{module}' is not loaded or being loaded.")
         for cmd in cmds:
             cmd._module = module  # pylint: disable=protected-access
             self._commands.add(module_id, cmd)

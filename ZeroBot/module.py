@@ -109,3 +109,16 @@ class ProtocolModule(Module):
         """Not yet implemented for protocol modules!"""
         raise NotImplementedError(
             'Reloading protocol modules is not yet implemented.')
+
+
+class CoreModule(Module):
+    """Dummy module representing ZeroBot's Core."""
+
+    # pylint: disable=super-init-not-called
+    def __init__(self, core, version: str):
+        self.handle = core
+        self.name = 'Core'
+        self.description = 'ZeroBot Core'
+        self.author = 'ZeroKnight'
+        self.version = version
+        self.license = 'MIT'
