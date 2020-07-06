@@ -668,12 +668,10 @@ class Core:
             name, *args = cmd_str.split(' ')
             name = name.lstrip(self.cmdprefix)
             cmd = self._commands[name]
-        except KeyError:
-            self.module_send_event('invalid_command', ctx, cmd_str)
-        try:
             parsed = cmd.parse_args(args)
-        except (ArgumentError, ArgumentTypeError):
+        except (KeyError, ArgumentError, ArgumentTypeError):
             self.module_send_event('invalid_command', ctx, cmd_str)
+            return
         method = getattr(cmd.module.handle, f'module_command_{name}', None)
         if callable(method):
             await method(ctx, name, parsed)
