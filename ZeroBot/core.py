@@ -11,6 +11,7 @@ and feature modules to do something meaningful with that connection.
 import asyncio
 import logging
 import logging.config
+from argparse import ArgumentError, ArgumentTypeError
 from pathlib import Path
 from types import ModuleType
 from typing import Iterator, List, Optional, Tuple, Type, Union
@@ -611,6 +612,66 @@ class Core:
         self.logger.debug(f'Delaying event {event} for {delay} seconds')
         await asyncio.sleep(delay)
         await self.module_send_event(event, ctx, *args, **kwargs)
+
+    async def module_commanded(self, cmd_str: str, ctx: Context):
+        """|coro|
+
+        Parse a raw command string using a registered command parser.
+
+        If the command is valid, a `command_<name>` event is sent to the module
+        that registered the command. If the command fails to parse, or is not
+        registered, an `invalid_command` event is sent to all modules.
+
+        Parameters
+        ----------
+        cmd_str : str
+            The command string, likley sent by a user on a connected protocol.
+        ctx : Context
+            The protocol context where the command was sent.
+
+        Notes
+        -----
+        To receive the parsed command, modules must have a coroutine defined
+        following the pattern: ``module_command_<name>``, where ``<name>`` is
+        the name of the command.
+
+        The coroutine acts as the command handler. It is passed the name of the
+        command, a dictionary of options and any values, and a list of
+        positional arguments.
+
+        Example
+        -------
+        Assume a user on FooProtocol sends the following message::
+
+            !frobnicate --color green baz biz
+
+        Then in ``fooprotocol``'s message handler, it has something like this::
+
+            if message.content.startswith(CORE.cmdprefix):
+                CORE.module_commanded(message.content, self)
+
+        This passes the command string to ZeroBot's core, which will check if
+        ``frobnicate`` has been registered, and attempt to parse it. Assuming
+        it succeeds, it then makes a call to the appropriate handler in the
+        module that registered ``frobnicate`` with the parsed elements of the
+        command as an `argparse.Namespace` object.
+        """
+        if not cmd_str.startswith(self.cmdprefix):
+            # TODO: proper NotACommand exception
+            raise Exception(f'Not a command string: {cmd_str}')
+        try:
+            name, _, args = cmd_str.partition(' ')
+            name = name.lstrip(self.cmdprefix)
+            cmd = self._commands[name]
+        except KeyError:
+            self.module_send_event('invalid_command', ctx, cmd_str)
+        try:
+            parsed = cmd.parse_args(args)
+        except (ArgumentError, ArgumentTypeError):
+            self.module_send_event('invalid_command', ctx, cmd_str)
+        method = getattr(cmd.module.handle, f'module_command_{name}', None)
+        if callable(method):
+            await method(ctx, name, parsed)
 
     def _shutdown(self):
         """Unregisters all feature and protocol modules.
