@@ -67,7 +67,7 @@ class DiscordContext(Context, discord.Client):
         """
         logger.info('Disconnected from Discord')
 
-    async def on_message(self, message: DiscordMessage):
+    async def on_message(self, message: discord.Message):
         """Handle messages."""
         if message.channel.type == ChannelType.private:
             log_msg = '[{0.author}] {0.content}'.format(message)
