@@ -32,7 +32,5 @@ def gen_repr(obj: Any, attrs: Iterable, **kwargs) -> str:
     body = ' '.join(f'{attr}={getattr(obj, attr)!r}' for attr in attrs)
     if kwargs:
         extras = ' '.join(f'{attr}={val!r}' for attr, val in kwargs.items())
-    else:
-        extras = ''
-    body += ' ' + extras
+        body += ' ' + extras
     return f'<{name} {body}>'
