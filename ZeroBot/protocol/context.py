@@ -27,6 +27,7 @@ usual way, but can still properly integrate with ZeroBot. For example:
 from abc import ABCMeta
 from typing import Any
 
+from ZeroBot.common import ParsedCommand
 from ZeroBot.common.abc import Channel
 
 
@@ -85,4 +86,14 @@ class Context(metaclass=ABCMeta):
 
     async def module_leave(self, where: Channel, reason: str = None):
         """Leave the given channel, with optional reason."""
+        raise NotImplementedError
+
+    async def reply_command_result(self, command: ParsedCommand, result: str):
+        """Called by feature modules to display command output.
+
+        This method should handle formatting the result best suited for the
+        protocol, i.e. some protocols support various markup and formatting
+        features that others don't; this interface allows command output
+        formatting on a per-protocol basis.
+        """
         raise NotImplementedError
