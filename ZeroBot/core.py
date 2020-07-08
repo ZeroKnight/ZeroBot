@@ -63,10 +63,10 @@ class CommandRegistry:
         """
         yield from self._registry['by_module'][module_id]
 
-    def pairs(self) -> Iterator[Tuple[str, CommandParser]]:
-        """Generator that yields pairs of module identifiers and commands."""
+    def pairs(self) -> Iterator[Tuple[str, List[CommandParser]]]:
+        """Generator that yields pairs of module identifiers their parsers."""
         for module, cmds in self._registry['by_module'].items():
-            yield from ((module, cmd) for cmd in cmds)
+            yield (module, cmds)
 
     def add(self, module_id: str, command: CommandParser):
         """Add a command to the registry.
