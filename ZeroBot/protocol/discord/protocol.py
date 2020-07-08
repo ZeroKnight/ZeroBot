@@ -77,7 +77,11 @@ class DiscordContext(Context, discord.Client):
                                        message.channel)
             log_msg = '{0} <{1.author}> {1.content}'.format(source, message)
         logger.info(log_msg)
-        await CORE.module_send_event('message', self, DiscordMessage(message))
+        if message.content.startswith(CORE.cmdprefix):
+            await CORE.module_commanded(DiscordMessage(message), self)
+        else:
+            await CORE.module_send_event('message', self,
+                                         DiscordMessage(message))
 
     # ZeroBot Interface
 
@@ -96,3 +100,34 @@ class DiscordContext(Context, discord.Client):
         sad :(
         """
         CORE.logger.error("'module_leave' is not applicable to Discord bots.")
+
+    async def reply_command_result(self, command, result):
+        mention_str = command.invoker.mention
+        await command.source.send(f"{mention_str}\n{result}")
+
+    # TODO: Help output class with attrs for cmd/module, options, no such
+    # command/module, etc to avoid all the string manipulation here
+    async def core_command_help(self, help_cmd, help_str, request_cmd=None):
+        embed = discord.Embed(title='Help', color=discord.Color.teal())
+        if request_cmd:
+            usage, desc, *opts = help_str.split('\n\n')
+            usage = usage.partition(' ')[2]
+            desc = desc.rstrip()
+            opts = '\n'.join(opts)
+            embed.title += f' — {request_cmd.name}'
+            embed.description = f'**Usage**: `{usage}`\n\n{desc}'
+            if opts:
+                embed.description += f'\n\n**Arguments**:\n```\n{opts}```'
+        elif help_cmd.args['module']:
+            mod_desc, _, cmds = help_str.partition('\n\n')
+            module, desc = mod_desc.split('\n')
+            embed.title += f" — {help_cmd.args['module']}"
+            embed.description = (f'**{module}**\n\n{desc}\n\n'
+                                 f'**Commands**:\n```\n{cmds}```')
+        else:
+            body = help_str.partition('\n')[2]
+            for section in body.split('\n\n'):
+                module, cmds = section.split('\n')
+                embed.add_field(name=module, value=cmds)
+            embed.description = '**Available Commands**'
+        await help_cmd.source.send(embed=embed)

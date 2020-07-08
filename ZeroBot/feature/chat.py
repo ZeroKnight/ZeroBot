@@ -4,6 +4,8 @@ Allows ZeroBot to chat and respond to conversation in various ways. Also allows
 privileged users to puppet ZeroBot, sending arbitrary messages and actions.
 """
 
+from ZeroBot.common import CommandParser
+
 CORE = None
 MODULE_NAME = 'Chat'
 MODULE_AUTHOR = 'ZeroKnight'
@@ -16,7 +18,7 @@ MODULE_DESC = 'Allows ZeroBot to chat and respond to conversation in various way
 DOTCHARS = '.!?\xA1\xBF\u203D'
 
 
-def module_register(core):
+async def module_register(core):
     """Initialize mdoule."""
     global CORE
     CORE = core
@@ -24,10 +26,37 @@ def module_register(core):
     # make database connection and initialize tables if necessary
     # check for existence of 'fortune' command in environment
 
+    _register_commands()
 
-def module_unregister():
+
+async def module_unregister():
     """Prepare for shutdown."""
     # close database connection
+
+
+def _register_commands():
+    """Create and register our commands."""
+    cmds = []
+    cmd_say = CommandParser('say', 'Force ZeroBot to say something')
+    cmd_say.add_argument('msg', nargs='+', help='The message to send')
+    cmd_say.add_argument(
+        '-t', '--to', action='append', metavar='target',
+        help=('Where to send the message. Can be given more than once to '
+              'include multiple targets. The default target is the channel '
+              'where the command was sent.')
+    )
+    cmd_say.add_argument(
+        '-a', '--action', action='store_true',
+        help=('If specified, the message will be sent as an "action" instead '
+              'of a normal message.')
+    )
+    cmds.append(cmd_say)
+
+    cmd_fortune = CommandParser(
+        'fortune', "Read a fortune from the *nix 'fortune' command")
+    cmds.append(cmd_fortune)
+
+    CORE.command_register('chat', *cmds)
 
 
 async def module_on_message(ctx, message):

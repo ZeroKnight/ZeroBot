@@ -175,6 +175,9 @@ class Core:
 
         self._cmdprefix = self.config['Core'].get('CmdPrefix', '!')
 
+        # Register core commands
+        self._register_commands()
+
         # Load configured protocols
         protocols_loaded = self.eventloop.run_until_complete(
             self._load_protocols())
@@ -245,6 +248,30 @@ class Core:
             'formatters': log_sec['Formatters'],
             'handlers': log_sec['Handlers']
         })
+
+    def _register_commands(self):
+        """Create and register core commands."""
+        cmds = []
+        cmd_help = CommandParser('help', 'Show help for a command.')
+        group = cmd_help.add_mutually_exclusive_group()
+        group.add_argument(
+            'command', nargs='?', help='The command to get help for.')
+        group.add_argument(
+            '-m', '--module', help='List all commands from this module')
+        cmds.append(cmd_help)
+
+        cmd_version = CommandParser('version', 'Show version information')
+        cmds.append(cmd_version)
+
+        cmd_quit = CommandParser('quit', 'Shut down ZeroBot.')
+        cmd_quit.add_argument(
+            'msg', nargs='*', help='Message sent to modules as a reason')
+        cmds.append(cmd_quit)
+
+        # TODO: WeeChat wait command
+        # TODO: restart command
+
+        self.command_register('core', *cmds)
 
     async def _load_protocols(self) -> int:
         """Load all protocols specified in ZeroBot's main config.
@@ -705,3 +732,42 @@ class Core:
                 self.logger.exception(
                     'Exception occurred while unregistering protocol '
                     f"module '{protocol.name}'.")
+
+    # Core command implementations
+
+    async def module_command_help(self, ctx, parsed):
+        """Implementation for Core `help` command."""
+        if parsed.args['module']:
+            mod_id = parsed.args['module']
+            if mod_id not in self._features:
+                await ctx.reply_command_result(
+                    parsed, f"No such module: '{mod_id}'")
+                return
+            try:
+                parsers = [parser for parser in
+                           self._commands.iter_by_module(mod_id)]
+                desc = parsers[0].module.description
+                output = f'Module [{mod_id}]\n{desc}\n\n'
+                for parser in parsers:
+                    output += f'{parser.name} - {parser.description}\n'
+                output = output.rstrip()
+                await ctx.core_command_help(parsed, output)
+            except KeyError:
+                await ctx.reply_command_result(
+                    parsed, f"Module '{mod_id}' has no registered commands.")
+        elif parsed.args['command']:
+            try:
+                request = self._commands[parsed.args['command']]
+                help_str = request.format_help()
+                await ctx.core_command_help(parsed, help_str, request)
+            except KeyError:
+                await ctx.reply_command_result(
+                    parsed, f"No such command: '{parsed.args['command']}'")
+        else:
+            output = 'Available Commands:\n'
+            for module_id, cmds in self._commands.pairs():
+                section = f'Module [{module_id}]\n    '
+                section += ', '.join(cmd.name for cmd in cmds)
+                output += f'{section}\n\n'
+            output = output.rstrip()
+            await ctx.core_command_help(parsed, output)
