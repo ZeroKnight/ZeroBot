@@ -678,7 +678,8 @@ class Core:
         method = getattr(cmd.module.handle, f'module_command_{name}', None)
         if callable(method):
             parsed = ParsedCommand(
-                name, vars(namespace), cmd_msg.source, cmd_msg.destination)
+                name, vars(namespace), cmd, cmd_msg.source,
+                cmd_msg.destination)
             await method(ctx, parsed)
 
     def _shutdown(self):

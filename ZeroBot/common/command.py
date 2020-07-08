@@ -113,6 +113,8 @@ class ParsedCommand:
     args : dict
         A dictionary of the resultant parsed arguments and options and their
         values.
+    parser : CommandParser
+        The parser that created this instance.
     invoker : User
         The user that invoked the command.
     source : User or Channel
@@ -122,5 +124,6 @@ class ParsedCommand:
 
     name: str
     args: Dict[str, Any]
+    parser: CommandParser
     invoker: User
     source: Union[User, Channel]
