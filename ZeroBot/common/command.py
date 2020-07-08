@@ -78,6 +78,11 @@ class CommandParser(_NoExitArgumentParser):
         self.name = name
         self._module = None
 
+        # More minimal default argument grouping
+        blank_group = self.add_argument_group()
+        self._optionals = blank_group
+        self._positionals = blank_group
+
     def __repr__(self):
         attrs = ['name', 'description', 'module']
         return gen_repr(self, attrs)
