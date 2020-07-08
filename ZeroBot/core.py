@@ -771,3 +771,10 @@ class Core:
                 output += f'{section}\n\n'
             output = output.rstrip()
             await ctx.core_command_help(parsed, output)
+
+    async def module_command_version(self, ctx, parsed):
+        """Implementation for Core `version` command."""
+        # TODO: release info
+        version = ZeroBot.__version__
+        date = 'N/A'
+        await ctx.core_command_version(parsed, version, date)

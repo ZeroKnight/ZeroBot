@@ -131,3 +131,10 @@ class DiscordContext(Context, discord.Client):
                 embed.add_field(name=module, value=cmds)
             embed.description = '**Available Commands**'
         await help_cmd.source.send(embed=embed)
+
+    async def core_command_version(self, cmd, version, date):
+        embed = discord.Embed(title='Version Info', color=discord.Color.gold())
+        embed.description = f'**ZeroBot v{version}**'
+        embed.add_field(name='Release Date', value=date)
+        # TODO: Set thumbnail to whatever avatar we come up with for ZeroBot
+        await cmd.source.send(embed=embed)
