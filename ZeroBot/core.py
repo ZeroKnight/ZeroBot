@@ -86,7 +86,7 @@ class CommandRegistry:
         if command.name in self:
             raise CommandAlreadyRegistered(command.name, command.module)
         self._registry['by_name'][command.name] = command
-        self._registry['by_module'].get(module_id, []).append(command)
+        self._registry['by_module'].setdefault(module_id, []).append(command)
 
     def remove(self, command: str):
         """Remove a command from the registry.
