@@ -737,7 +737,15 @@ class Core:
 
     async def module_command_help(self, ctx, parsed):
         """Implementation for Core `help` command."""
-        if parsed.args['module']:
+        if parsed.args['command']:
+            try:
+                request = self._commands[parsed.args['command']]
+                help_str = request.format_help()
+                await ctx.core_command_help(parsed, help_str, request)
+            except KeyError:
+                await ctx.reply_command_result(
+                    parsed, f"No such command: '{parsed.args['command']}'")
+        elif parsed.args['module']:
             mod_id = parsed.args['module']
             if mod_id not in self._features:
                 await ctx.reply_command_result(
@@ -755,14 +763,6 @@ class Core:
             except KeyError:
                 await ctx.reply_command_result(
                     parsed, f"Module '{mod_id}' has no registered commands.")
-        elif parsed.args['command']:
-            try:
-                request = self._commands[parsed.args['command']]
-                help_str = request.format_help()
-                await ctx.core_command_help(parsed, help_str, request)
-            except KeyError:
-                await ctx.reply_command_result(
-                    parsed, f"No such command: '{parsed.args['command']}'")
         else:
             output = 'Available Commands:\n'
             for module_id, cmds in self._commands.pairs():
