@@ -4,8 +4,9 @@ Classes and utility functions for working with and creating ZeroBot commands.
 """
 
 from argparse import ArgumentParser, _SubParsersAction
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass, field
+from enum import Enum, unique
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ZeroBot.common.abc import Channel, User
 from ZeroBot.module import Module
@@ -164,3 +165,74 @@ class ParsedCommand:
     parser: CommandParser
     invoker: User
     source: Union[User, Channel]
+
+
+@dataclass
+class CommandHelp:
+    """Encapsulates the result of a command help request.
+
+    ZeroBot's `Core` will create and pass these to `core_command_help`
+    callbacks.
+
+    Attributes
+    ----------
+    name : str
+        The command or module name that the help is about.
+    description : str
+        The command or module description
+    valid : bool
+        Whether or not the requested command or module exists. If `False`, all
+        attributes except name will be `None`.
+    type : CommandHelp.Type
+        An enum type representing the type of help request.
+    usage : str, optional
+        The "usage" string for the command
+    args : dict, optional
+        A dictionary of each positional argument name and their help strings.
+        Only set when `type` is `CMD`.
+    opts : dict, optional
+        A dictionary mapping a tuple of option names representing a particular
+        option to a tuple of the option's value name and its help strings.
+    cmds : dict, optional
+        A dictionary mapping module names to another dictionary of command
+        names and their help strings. Only set when `type` is `MOD` or `ALL`.
+    subcmds : dict, optional
+        If applicable, a dictionary of subcommand names and their own
+        `CommandHelp` objects.
+    """
+
+    @unique
+    class Type(Enum):
+        """Enumeration representing the type of help request.
+
+        A help request is for a specific command, module, or for an overview of
+        available modules and commands.
+        """
+
+        CMD = 1
+        MOD = 2
+        ALL = 3
+
+    name: str
+    description: str
+    valid: bool
+    type: Type
+    usage: str = None
+    args: Dict[str, Optional[str]] = field(default_factory=dict)
+    opts: Dict[Tuple[str, ...],
+               Optional[Tuple[str, str]]] = field(default_factory=dict)
+    cmds: Dict[str, Dict[str, str]] = field(default_factory=dict)
+    subcmds: Dict[str, 'CommandHelp'] = field(default_factory=dict)
+
+    @classmethod
+    def make_invalid(cls, name: str, type_: Type):
+        """Convenience constructor for invalid help requests.
+
+        Parameters
+        ----------
+        name : str
+            The name of the command or module.
+        type_ : Type
+            An enum type representing the type of help request.
+        """
+        return cls(name, description=None, valid=False, type=type_)
