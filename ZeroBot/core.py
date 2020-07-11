@@ -263,6 +263,34 @@ class Core:
             help='Include descriptions in the "all" help output.')
         cmds.append(cmd_help)
 
+        target_mod = CommandParser()
+        target_mod.add_argument('module', nargs='+', help='Target module(s)')
+        target_mod.add_argument(
+            '-p', '--protocol', action='store_true',
+            help='Target is a protocol module')
+        cmd_module = CommandParser('module',
+                                   'Manage and query ZeroBot modules')
+        subp = cmd_module.add_subparsers(metavar='OPERATION', required=True)
+        add_subcmd = cmd_module.add_subcommand
+        add_subcmd(subp, 'load', description='Load a module',
+                   parents=[target_mod])
+        add_subcmd(subp, 'reload', description='Reload a module',
+                   parents=[target_mod])
+        subcmd_list = add_subcmd(subp, 'list',
+                                 description='List available modules')
+        subcmd_list.add_argument(
+            '-l', '--loaded', action='store_true', help='Only loaded modules')
+        group = subcmd_list.add_mutually_exclusive_group()
+        group.add_argument(
+            '-f', '--feature', action='store_true',
+            help='Only feature modules')
+        group.add_argument(
+            '-p', '--protocol', action='store_true',
+            help='Only protocol modules')
+        add_subcmd(subp, 'info', description='Show module information',
+                   parents=[target_mod])
+        cmds.append(cmd_module)
+
         cmd_version = CommandParser('version', 'Show version information')
         cmds.append(cmd_version)
 
