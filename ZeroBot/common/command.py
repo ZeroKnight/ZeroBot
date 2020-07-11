@@ -176,12 +176,12 @@ class CommandHelp:
 
     Attributes
     ----------
-    name : str
-        The command or module name that the help is about.
-    description : str
-        The command or module description
     type : CommandHelp.Type
         An enum type representing the type of help request.
+    name : str, optional
+        The command or module name that the help is about.
+    description : str, optional
+        The command or module description
     usage : str, optional
         The "usage" string for the command
     args : dict, optional
@@ -212,25 +212,12 @@ class CommandHelp:
         NO_SUCH_MOD = 4
         NO_SUCH_CMD = 5
 
-    name: str
-    description: str
     type: Type
+    name: str = None
+    description: str = None
     usage: str = None
     args: Dict[str, Optional[str]] = field(default_factory=dict)
     opts: Dict[Tuple[str, ...],
                Optional[Tuple[str, str]]] = field(default_factory=dict)
     cmds: Dict[str, Dict[str, str]] = field(default_factory=dict)
     subcmds: Dict[str, 'CommandHelp'] = field(default_factory=dict)
-
-    @classmethod
-    def make_invalid(cls, name: str, type_: Type):
-        """Convenience constructor for invalid help requests.
-
-        Parameters
-        ----------
-        name : str
-            The name of the command or module.
-        type_ : Type
-            An enum type representing the type of help request.
-        """
-        return cls(name, description=None, type=type_)
