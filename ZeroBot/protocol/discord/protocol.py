@@ -10,6 +10,7 @@ import discord
 from discord import ChannelType
 
 import ZeroBot.common.abc as abc
+from ZeroBot.common import HelpType
 from ZeroBot.protocol.context import Context
 
 from .classes import DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
@@ -105,35 +106,58 @@ class DiscordContext(Context, discord.Client):
         mention_str = command.invoker.mention
         await command.source.send(f"{mention_str}\n{result}")
 
-    # TODO: Help output class with attrs for cmd/module, options, no such
-    # command/module, etc to avoid all the string manipulation here
-    async def core_command_help(self, help_cmd, help_str, request_cmd=None):
+    async def core_command_help(self, help_cmd, result):
         embed = discord.Embed(title='Help', color=discord.Color.teal())
-        if request_cmd:
-            usage, desc, *opts = help_str.split('\n\n')
-            usage = usage.partition(' ')[2]
-            desc = desc.rstrip()
-            opts = '\n'.join(opts)
-            embed.title += f' — {request_cmd.name}'
-            embed.description = f'**Usage**: `{usage}`\n\n{desc}'
-            if opts:
-                embed.description += f'\n\n**Arguments**:\n```\n{opts}```'
-        elif help_cmd.args['module']:
-            mod_desc, _, cmds = help_str.partition('\n\n')
-            module, desc = mod_desc.split('\n')
-            embed.title += f" — {help_cmd.args['module']}"
-            embed.description = (f'**{module}**\n\n{desc}\n\n'
-                                 f'**Commands**:\n```\n{cmds}```')
-        else:
-            body = help_str.partition('\n')[2]
-            for section in body.split('\n\n'):
-                module, cmds = section.split('\n')
-                embed.add_field(name=module, value=cmds)
-            embed.description = '**Available Commands**'
+        handler = getattr(self, f'_format_help_{result.type.name}')
+        handler(embed, help_cmd, result)
         await help_cmd.source.send(embed=embed)
 
+    def _format_help_CMD(self, embed, help_cmd, result):
+        embed.title += f' — {result.name}'
+        embed.description = (f'**Usage**: `{result.usage}`\n\n'
+                             f'{result.description}')
+        if result.args or result.opts:
+            embed.description += '\n\n**Arguments**:'
+            for arg, help_str in result.args.items():
+                embed.description += (f'\n> **{arg}**\n> ```\n> {help_str}```')
+            for names, info in result.opts.items():
+                opts = ', '.join(f'**{name}**' for name in names)
+                embed.description += (f'\n> {opts} {info[0]}'
+                                      f'\n> ```\n> {info[1]}```')
+
+    def _format_help_MOD(self, embed, help_cmd, result):
+        embed.title += f" — {result.name}"
+        embed.description = f'**Module**\n{result.description}'
+        if result.cmds:
+            embed.description += '\n\n**Commands**:'
+            for cmd, help_str in result.cmds[result.name].items():
+                embed.description += (f'\n> **{cmd}**\n> ```'
+                                      f'\n> {help_str}```')
+        else:
+            embed.description += '*\n\n*No commands available*'
+
+    def _format_help_ALL(self, embed, help_cmd, result):
+        embed.description = '**Available Commands**:'
+        for mod_id, cmds in result.cmds.items():
+            section = f'\n\nModule [**{mod_id}**]'
+            if help_cmd.args['full']:
+                for cmd, desc in cmds.items():
+                    section += f'\n> **{cmd}** - {desc}'
+            else:
+                section += '\n> ' + ', '.join(cmd for cmd in cmds.keys())
+            embed.description += section
+
+    def _format_help_NO_SUCH_CMD(self, embed, help_cmd, result):
+        embed.color = discord.Color.red()
+        embed.description = f'No such command: **{result.name}**'
+
+    def _format_help_NO_SUCH_MOD(self, embed, help_cmd, result):
+        embed.color = discord.Color.red()
+        embed.description = f'No such module: **{result.name}**'
+
     async def core_command_version(self, cmd, version, date):
-        embed = discord.Embed(title='Version Info', color=discord.Color.gold())
+        embed = discord.Embed(title='Version Info',
+                              color=discord.Color.gold())
         embed.description = f'**ZeroBot v{version}**'
         embed.add_field(name='Release Date', value=date)
         # TODO: Set thumbnail to whatever avatar we come up with for ZeroBot

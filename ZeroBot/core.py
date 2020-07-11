@@ -11,7 +11,7 @@ and feature modules to do something meaningful with that connection.
 import asyncio
 import logging
 import logging.config
-from argparse import ArgumentError, ArgumentTypeError
+from argparse import ArgumentError, ArgumentTypeError, _SubParsersAction
 from pathlib import Path
 from types import ModuleType
 from typing import Iterator, List, Optional, Tuple, Type, Union
@@ -20,8 +20,8 @@ import appdirs
 from toml import TomlDecodeError
 
 import ZeroBot
-from ZeroBot.common import (CommandAlreadyRegistered, CommandParser,
-                            ParsedCommand, abc)
+from ZeroBot.common import (CommandAlreadyRegistered, CommandHelp,
+                            CommandParser, HelpType, ParsedCommand, abc)
 from ZeroBot.config import Config
 from ZeroBot.module import CoreModule, Module, ProtocolModule
 from ZeroBot.protocol.context import Context
@@ -257,7 +257,10 @@ class Core:
         group.add_argument(
             'command', nargs='?', help='The command to get help for.')
         group.add_argument(
-            '-m', '--module', help='List all commands from this module')
+            '-m', '--module', help='List all commands from the given module')
+        cmd_help.add_argument(
+            '-f', '--full', action='store_true',
+            help='Include descriptions in the "all" help output.')
         cmds.append(cmd_help)
 
         cmd_version = CommandParser('version', 'Show version information')
@@ -738,39 +741,54 @@ class Core:
     async def module_command_help(self, ctx, parsed):
         """Implementation for Core `help` command."""
         if parsed.args['command']:
+            name = parsed.args['command']
             try:
-                request = self._commands[parsed.args['command']]
-                help_str = request.format_help()
-                await ctx.core_command_help(parsed, help_str, request)
+                request = self._commands[name]
             except KeyError:
-                await ctx.reply_command_result(
-                    parsed, f"No such command: '{parsed.args['command']}'")
+                cmd_help = CommandHelp(HelpType.NO_SUCH_CMD, name)
+            else:
+                usage, desc = request.format_help().split('\n\n')[:2]
+                usage = usage.partition(' ')[2]
+                desc = desc.rstrip()
+                args, opts = {}, {}
+                for arg in request._get_positional_actions():
+                    if isinstance(arg, _SubParsersAction):
+                        # TODO: need to break this overall block into a sub
+                        # method in order to do this recursively
+                        pass
+                    else:
+                        name = arg.metavar or arg.dest
+                        args[name] = arg.help
+                for opt in request._get_optional_actions():
+                    names = tuple(opt.option_strings)
+                    metavar = opt.metavar or opt.dest
+                    opts[names] = (metavar, opt.help)
+                cmd_help = CommandHelp(HelpType.CMD, request.name, desc, usage,
+                                       args=args, opts=opts)
         elif parsed.args['module']:
             mod_id = parsed.args['module']
-            if mod_id not in self._features:
-                await ctx.reply_command_result(
-                    parsed, f"No such module: '{mod_id}'")
-                return
-            try:
-                parsers = [parser for parser in
-                           self._commands.iter_by_module(mod_id)]
+            if mod_id not in self._features and mod_id != 'core':
+                cmd_help = CommandHelp(HelpType.NO_SUCH_MOD, mod_id)
+            else:
+                try:
+                    parsers = [parser for parser in
+                               self._commands.iter_by_module(mod_id)]
+                except KeyError:
+                    parsers = []
                 desc = parsers[0].module.description
-                output = f'Module [{mod_id}]\n{desc}\n\n'
+                cmds = {}
                 for parser in parsers:
-                    output += f'{parser.name} - {parser.description}\n'
-                output = output.rstrip()
-                await ctx.core_command_help(parsed, output)
-            except KeyError:
-                await ctx.reply_command_result(
-                    parsed, f"Module '{mod_id}' has no registered commands.")
+                    mod = cmds.setdefault(mod_id, {})
+                    mod[parser.name] = parser.description
+                cmd_help = CommandHelp(HelpType.MOD, mod_id, desc, cmds=cmds)
         else:
-            output = 'Available Commands:\n'
-            for module_id, cmds in self._commands.pairs():
-                section = f'Module [{module_id}]\n    '
-                section += ', '.join(cmd.name for cmd in cmds)
-                output += f'{section}\n\n'
-            output = output.rstrip()
-            await ctx.core_command_help(parsed, output)
+            cmds = {}
+            for mod_id, parsers in self._commands.pairs():
+                for parser in parsers:
+                    mod = cmds.setdefault(mod_id, {})
+                    mod[parser.name] = parser.description
+            cmd_help = CommandHelp(HelpType.ALL, cmds=cmds)
+        await ctx.core_command_help(parsed, cmd_help)
 
     async def module_command_version(self, ctx, parsed):
         """Implementation for Core `version` command."""
