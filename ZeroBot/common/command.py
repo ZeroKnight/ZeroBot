@@ -212,6 +212,7 @@ class CommandHelp:
         CMD = 1
         MOD = 2
         ALL = 3
+        NO_SUCH_MOD = 4
 
     name: str
     description: str
