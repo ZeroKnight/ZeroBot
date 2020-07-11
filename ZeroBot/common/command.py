@@ -180,9 +180,6 @@ class CommandHelp:
         The command or module name that the help is about.
     description : str
         The command or module description
-    valid : bool
-        Whether or not the requested command or module exists. If `False`, all
-        attributes except name will be `None`.
     type : CommandHelp.Type
         An enum type representing the type of help request.
     usage : str, optional
@@ -213,10 +210,10 @@ class CommandHelp:
         MOD = 2
         ALL = 3
         NO_SUCH_MOD = 4
+        NO_SUCH_CMD = 5
 
     name: str
     description: str
-    valid: bool
     type: Type
     usage: str = None
     args: Dict[str, Optional[str]] = field(default_factory=dict)
@@ -236,4 +233,4 @@ class CommandHelp:
         type_ : Type
             An enum type representing the type of help request.
         """
-        return cls(name, description=None, valid=False, type=type_)
+        return cls(name, description=None, type=type_)
