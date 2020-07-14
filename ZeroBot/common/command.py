@@ -220,4 +220,4 @@ class CommandHelp:
     opts: Dict[Tuple[str, ...],
                Optional[Tuple[str, str]]] = field(default_factory=dict)
     cmds: Dict[str, Dict[str, str]] = field(default_factory=dict)
-    subcmds: Dict[str, 'CommandHelp'] = field(default_factory=dict)
+    subcmds: Dict[str, 'CommandHelp'] = field(default_factory=dict, repr=False)
