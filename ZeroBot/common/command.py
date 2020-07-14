@@ -196,6 +196,9 @@ class CommandHelp:
     subcmds : dict, optional
         If applicable, a dictionary of subcommand names and their own
         `CommandHelp` objects.
+    parent : CommandHelp
+        Only set when `type` is `NO_SUCH_SUBCMD`, and refers to the parent
+        `CommandHelp` object.
     """
 
     @unique
@@ -211,6 +214,7 @@ class CommandHelp:
         ALL = 3
         NO_SUCH_MOD = 4
         NO_SUCH_CMD = 5
+        NO_SUCH_SUBCMD = 6
 
     type: Type
     name: str = None
@@ -221,3 +225,4 @@ class CommandHelp:
                Optional[Tuple[str, str]]] = field(default_factory=dict)
     cmds: Dict[str, Dict[str, str]] = field(default_factory=dict)
     subcmds: Dict[str, 'CommandHelp'] = field(default_factory=dict, repr=False)
+    parent: 'CommandHelp' = None
