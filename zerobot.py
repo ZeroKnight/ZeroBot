@@ -11,7 +11,7 @@ import asyncio
 import logging
 import sys
 
-from ZeroBot.core import Core
+from ZeroBot import Core
 
 
 def main():
