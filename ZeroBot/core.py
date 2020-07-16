@@ -253,10 +253,11 @@ class Core:
         """Create and register core commands."""
         cmds = []
         cmd_help = CommandParser('help', 'Show help for a command.')
-        group = cmd_help.add_mutually_exclusive_group()
-        group.add_argument(
-            'command', nargs='?', help='The command to get help for.')
-        group.add_argument(
+        cmd_help.add_argument(
+            'command', nargs='*',
+            help=('The command to get help for. Specify multiple names to get '
+                  'help for subcommands.'))
+        cmd_help.add_argument(
             '-m', '--module', help='List all commands from the given module')
         cmd_help.add_argument(
             '-f', '--full', action='store_true',
@@ -280,11 +281,11 @@ class Core:
                                  description='List available modules')
         subcmd_list.add_argument(
             '-l', '--loaded', action='store_true', help='Only loaded modules')
-        group = subcmd_list.add_mutually_exclusive_group()
-        group.add_argument(
+        cmd_help = subcmd_list.add_mutually_exclusive_group()
+        cmd_help.add_argument(
             '-f', '--feature', action='store_true',
             help='Only feature modules')
-        group.add_argument(
+        cmd_help.add_argument(
             '-p', '--protocol', action='store_true',
             help='Only protocol modules')
         add_subcmd(subp, 'info', description='Show module information',
@@ -768,31 +769,48 @@ class Core:
 
     async def module_command_help(self, ctx, parsed):
         """Implementation for Core `help` command."""
+        def _create_commandhelp(request):
+            usage, desc = request.format_help().split('\n\n')[:2]
+            usage = usage.partition(' ')[2]
+            desc = desc.rstrip()
+            args, opts, subcmds = {}, {}, {}
+            for arg in request._get_positional_actions():
+                name = arg.metavar or arg.dest
+                if isinstance(arg, _SubParsersAction):
+                    args[name] = (arg.help, True)
+                    for subname, subparser in arg.choices.items():
+                        subcmds[subname] = _create_commandhelp(subparser)
+                        # Don't include parent command in subcommand name
+                        subcmds[subname].name = subname
+                else:
+                    args[name] = (arg.help, False)
+            for opt in request._get_optional_actions():
+                names = tuple(opt.option_strings)
+                metavar = opt.metavar or opt.dest
+                opts[names] = (metavar, opt.help)
+            return CommandHelp(HelpType.CMD, request.name, desc, usage,
+                               args=args, opts=opts, subcmds=subcmds)
+
         if parsed.args['command']:
-            name = parsed.args['command']
+            help_args = parsed.args['command']
             try:
-                request = self._commands[name]
+                request = self._commands[help_args[0]]
             except KeyError:
-                cmd_help = CommandHelp(HelpType.NO_SUCH_CMD, name)
+                cmd_help = CommandHelp(HelpType.NO_SUCH_CMD, help_args[0])
             else:
-                usage, desc = request.format_help().split('\n\n')[:2]
-                usage = usage.partition(' ')[2]
-                desc = desc.rstrip()
-                args, opts = {}, {}
-                for arg in request._get_positional_actions():
-                    if isinstance(arg, _SubParsersAction):
-                        # TODO: need to break this overall block into a sub
-                        # method in order to do this recursively
-                        pass
-                    else:
-                        name = arg.metavar or arg.dest
-                        args[name] = arg.help
-                for opt in request._get_optional_actions():
-                    names = tuple(opt.option_strings)
-                    metavar = opt.metavar or opt.dest
-                    opts[names] = (metavar, opt.help)
-                cmd_help = CommandHelp(HelpType.CMD, request.name, desc, usage,
-                                       args=args, opts=opts)
+                cmd_help = _create_commandhelp(request)
+                help_args.pop(0)
+                subcmd = cmd_help
+                for sub_request in help_args:
+                    try:
+                        parent = subcmd
+                        subcmd = cmd_help.subcmds[sub_request]
+                    except KeyError:
+                        cmd_help = CommandHelp(HelpType.NO_SUCH_SUBCMD,
+                                               sub_request, parent=parent)
+                        break
+                else:
+                    cmd_help = subcmd
         elif parsed.args['module']:
             mod_id = parsed.args['module']
             if mod_id not in self._features and mod_id != 'core':
