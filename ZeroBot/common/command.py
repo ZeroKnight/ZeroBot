@@ -78,7 +78,7 @@ class CommandParser(_NoExitArgumentParser):
 
     def __init__(self, name: Optional[str] = None,
                  description: Optional[str] = None,
-                 usage: Optional[str] = None, *args, **kwargs):
+                 usage: Optional[str] = None, **kwargs):
         # NOTE: Might be able to make use of formatter_class if need be
         if not name:
             name = kwargs.get('name', kwargs.get('prog'))
