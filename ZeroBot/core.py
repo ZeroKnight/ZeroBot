@@ -731,7 +731,7 @@ class Core:
             cmd = self._commands[name]
             namespace = cmd.parse_args(args)
         except (KeyError, ArgumentError, ArgumentTypeError):
-            self.module_send_event('invalid_command', ctx, cmd_msg)
+            await self.module_send_event('invalid_command', ctx, cmd_msg)
             return
         method = getattr(cmd.module.handle, f'module_command_{name}', None)
         if callable(method):
