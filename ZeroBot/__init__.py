@@ -13,4 +13,4 @@ __license__ = 'MIT'
 __copyright__ = 'Copyright 2011-2020 Alex "ZeroKnight" George'
 __version__ = '0.6.0'
 
-from .core import Core
+from .core import Core, VersionInfo

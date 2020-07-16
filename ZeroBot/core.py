@@ -9,9 +9,11 @@ and feature modules to do something meaningful with that connection.
 """
 
 import asyncio
+import datetime
 import logging
 import logging.config
 from argparse import ArgumentError, ArgumentTypeError, _SubParsersAction
+from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
 from typing import Iterator, List, Optional, Tuple, Type, Union
@@ -114,6 +116,15 @@ class CommandRegistry:
         """Return a list of `Module`s that have registered commands."""
         return [cmds[0].module
                 for cmds in self._registry['by_module'].values()]
+
+
+@dataclass
+class VersionInfo:
+    """Version and miscellaneous build information for ZeroBot."""
+
+    version: str
+    release_date: datetime.date
+    author: str
 
 
 class Core:
@@ -838,7 +849,5 @@ class Core:
 
     async def module_command_version(self, ctx, parsed):
         """Implementation for Core `version` command."""
-        # TODO: release info
-        version = ZeroBot.__version__
-        date = 'N/A'
-        await ctx.core_command_version(parsed, version, date)
+        info = VersionInfo(ZeroBot.__version__, 'N/A', ZeroBot.__author__)
+        await ctx.core_command_version(parsed, info)

@@ -176,10 +176,12 @@ class DiscordContext(Context, discord.Client):
         else:
             embed.description = f'**{result.parent.name}** has no subcommands.'
 
-    async def core_command_version(self, cmd, version, date):
+    async def core_command_version(self, command, info):
         embed = discord.Embed(title='Version Info',
                               color=discord.Color.gold())
-        embed.description = f'**ZeroBot v{version}**'
-        embed.add_field(name='Release Date', value=date)
+        embed.description = f'**ZeroBot v{info.version}**'
+        embed.add_field(name='Release Date', value=info.release_date)
+        embed.set_footer(text='Hacked together over the years by '
+                         f'{info.author} with love.')
         # TODO: Set thumbnail to whatever avatar we come up with for ZeroBot
-        await cmd.source.send(embed=embed)
+        await command.source.send(embed=embed)
