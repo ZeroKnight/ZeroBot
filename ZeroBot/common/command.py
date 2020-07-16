@@ -185,7 +185,9 @@ class CommandHelp:
     usage : str, optional
         The "usage" string for the command
     args : dict, optional
-        A dictionary of each positional argument name and their help strings.
+        A dictionary mapping each positional argument name and a tuple of their
+        help strings and a boolean flag denoting whether or not the argument
+        represents a subcommand.
         Only set when `type` is `CMD`.
     opts : dict, optional
         A dictionary mapping a tuple of option names representing a particular
@@ -220,7 +222,7 @@ class CommandHelp:
     name: str = None
     description: str = None
     usage: str = None
-    args: Dict[str, Optional[str]] = field(default_factory=dict)
+    args: Dict[str, Tuple[Optional[str], bool]] = field(default_factory=dict)
     opts: Dict[Tuple[str, ...],
                Optional[Tuple[str, str]]] = field(default_factory=dict)
     cmds: Dict[str, Dict[str, str]] = field(default_factory=dict)
