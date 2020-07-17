@@ -22,9 +22,8 @@ import appdirs
 from toml import TomlDecodeError
 
 import ZeroBot
-from ZeroBot.common import (CommandAlreadyRegistered, CommandHelp,
-                            CommandParseError, CommandParser, HelpType,
-                            ParsedCommand, abc)
+from ZeroBot.common import HelpType, abc
+from ZeroBot.common.command import *
 from ZeroBot.config import Config
 from ZeroBot.module import CoreModule, Module, ProtocolModule
 from ZeroBot.protocol.context import Context

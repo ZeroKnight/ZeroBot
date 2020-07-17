@@ -12,6 +12,14 @@ from ZeroBot.common.abc import Channel, User
 from ZeroBot.module import Module
 from ZeroBot.util import gen_repr
 
+__all__ = [
+    'CommandAlreadyRegistered',
+    'CommandHelp',
+    'CommandParseError',
+    'CommandParser',
+    'ParsedCommand'
+]
+
 
 class CommandParseError(Exception):
     """The given command could not be parsed.
