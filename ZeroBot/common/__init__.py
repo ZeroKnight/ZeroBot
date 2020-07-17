@@ -3,5 +3,4 @@
 from . import abc
 from .command import (CommandAlreadyRegistered, CommandHelp, CommandParseError,
                       CommandParser, ParsedCommand)
-
-HelpType = CommandHelp.Type
+from .enums import HelpType, ModuleCmdStatus

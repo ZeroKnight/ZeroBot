@@ -5,10 +5,10 @@ Classes and utility functions for working with and creating ZeroBot commands.
 
 from argparse import ArgumentParser, _SubParsersAction
 from dataclasses import dataclass, field
-from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ZeroBot.common.abc import Channel, User
+from ZeroBot.common.enums import HelpType
 from ZeroBot.module import Module
 from ZeroBot.util import gen_repr
 
@@ -203,7 +203,7 @@ class CommandHelp:
 
     Attributes
     ----------
-    type : CommandHelp.Type
+    type : HelpType
         An enum type representing the type of help request.
     name : str, optional
         The command or module name that the help is about.
@@ -229,21 +229,6 @@ class CommandHelp:
         Only set when `type` is `NO_SUCH_SUBCMD`, and refers to the parent
         `CommandHelp` object.
     """
-
-    @unique
-    class Type(Enum):
-        """Enumeration representing the type of help request.
-
-        A help request is for a specific command, module, or for an overview of
-        available modules and commands.
-        """
-
-        CMD = 1
-        MOD = 2
-        ALL = 3
-        NO_SUCH_MOD = 4
-        NO_SUCH_CMD = 5
-        NO_SUCH_SUBCMD = 6
 
     type: Type
     name: str = None
