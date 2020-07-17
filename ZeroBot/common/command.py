@@ -230,7 +230,7 @@ class CommandHelp:
         `CommandHelp` object.
     """
 
-    type: Type
+    type: HelpType
     name: str = None
     description: str = None
     usage: str = None
