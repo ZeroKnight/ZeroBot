@@ -286,7 +286,8 @@ class Core:
             help='Target is a protocol module')
         cmd_module = CommandParser('module',
                                    'Manage and query ZeroBot modules')
-        subp = cmd_module.add_subparsers(metavar='OPERATION', required=True)
+        subp = cmd_module.add_subparsers(metavar='OPERATION', dest='subcmd',
+                                         required=True)
         add_subcmd = cmd_module.add_subcommand
         add_subcmd(subp, 'load', description='Load a module',
                    parents=[target_mod])
@@ -882,6 +883,40 @@ class Core:
                     mod[parser.name] = parser.description
             cmd_help = CommandHelp(HelpType.ALL, cmds=cmds)
         await ctx.core_command_help(parsed, cmd_help)
+
+    async def module_command_module(self, ctx, parsed):
+        """Implementation for Core `module` command."""
+        # TODO: aggregate failed/success messages when giving multiple modules
+        subcmd = parsed.args['subcmd']
+        mod_id = parsed.args['module'][0]  # TODO: handle multiple modules
+        if subcmd == 'load':
+            try:
+                if parsed.args['protocol']:
+                    module = await self.load_protocol(mod_id)
+                else:
+                    module = await self.load_feature(mod_id)
+            except Exception:
+                status = ModuleCmdStatus.ALREADY_LOADED
+                module = None
+            else:
+                if module is None:
+                    status = ModuleCmdStatus.LOAD_FAIL
+                else:
+                    status = ModuleCmdStatus.LOAD_OK
+        elif subcmd == 'reload':
+            if parsed.args['protocol']:
+                ctx.reply_command_result(parsed, 'Reloading protocol '
+                                         'modules is not yet implemented.')
+                return
+            module = await self.reload_feature(mod_id)
+            if module is None:
+                # TODO: add exceptions(?) to differentiate between reload fail
+                # and attempt to reload a module that isn't loaded
+                status = ModuleCmdStatus.RELOAD_FAIL
+                module = None
+            else:
+                status = ModuleCmdStatus.RELOAD_OK
+        await ctx.core_command_module(parsed, status)
 
     async def module_command_version(self, ctx, parsed):
         """Implementation for Core `version` command."""

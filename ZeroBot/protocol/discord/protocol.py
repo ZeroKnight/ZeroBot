@@ -10,7 +10,7 @@ import discord
 from discord import ChannelType
 
 import ZeroBot.common.abc as abc
-from ZeroBot.common import HelpType
+from ZeroBot.common import HelpType, ModuleCmdStatus
 from ZeroBot.protocol.context import Context
 
 from .classes import DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
@@ -175,6 +175,33 @@ class DiscordContext(Context, discord.Client):
                                  + ', '.join(subcmds))
         else:
             embed.description = f'**{result.parent.name}** has no subcommands.'
+
+    async def core_command_module(self, command, status):
+        mcs = ModuleCmdStatus
+        mod_id = command.args['module'][0]  # TODO: handle multiple modules
+        mtype = 'protocol' if command.args['protocol'] else 'feature'
+        verb = '{0}load'.format('re' if mcs.is_reload(status) else '')
+        embed = discord.Embed(title='Module')
+        if mcs.is_ok(status):
+            embed.color = discord.Color.green()
+            embed.description = (
+                f'Successfully {verb}ed {mtype} module **{mod_id}**.')
+        else:
+            embed.color = discord.Color.red()
+            if status in (mcs.LOAD_FAIL, mcs.RELOAD_FAIL):
+                embed.description = (
+                    f'Failed to {verb} {mtype} module **{mod_id}**.')
+            elif status is mcs.NO_SUCH_MOD:
+                embed.description = f'No such {mtype} module: **{mod_id}**'
+            elif status is mcs.ALREADY_LOADED:
+                embed.description = (
+                    f'{mtype.capitalize()} module **{mod_id}** is already '
+                    'loaded. Use `module reload` if you wish to reload it.')
+            elif status is mcs.NOT_YET_LOADED:
+                embed.description = (
+                    f'{mtype.capitalize()} module **{mod_id}** is not yet '
+                    'loaded. Use `module load` if you wish to load it.')
+        await command.source.send(embed=embed)
 
     async def core_command_version(self, command, info):
         embed = discord.Embed(title='Version Info',
