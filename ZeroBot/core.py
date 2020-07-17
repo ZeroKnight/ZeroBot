@@ -554,8 +554,8 @@ class Core:
             self.logger.exception('Unhandled exception raised, shutting down.')
         finally:
             self._shutdown()
-            self.logger.debug('Stopping event loop')
-            self.eventloop.stop()
+            self.logger.debug('Closing event loop')
+            self.eventloop.close()
 
     def command_register(self, module_id: str, *cmds: CommandParser):
         """Register requested commands from a module.
