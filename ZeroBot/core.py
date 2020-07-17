@@ -482,8 +482,8 @@ class Core:
                 module = self._features[feature]
             except KeyError:
                 self.logger.error(
-                    (f"Cannot reload feature module '{feature}' that is not ",
-                     'already loaded.'))
+                    f"Cannot reload feature module '{feature}' that is not "
+                    'already loaded.')
                 return None
         else:
             raise TypeError(("feature type expects 'str' or 'Module', not ",
