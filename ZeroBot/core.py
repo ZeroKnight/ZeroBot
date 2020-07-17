@@ -23,7 +23,8 @@ from toml import TomlDecodeError
 
 import ZeroBot
 from ZeroBot.common import (CommandAlreadyRegistered, CommandHelp,
-                            CommandParser, HelpType, ParsedCommand, abc)
+                            CommandParseError, CommandParser, HelpType,
+                            ParsedCommand, abc)
 from ZeroBot.config import Config
 from ZeroBot.module import CoreModule, Module, ProtocolModule
 from ZeroBot.protocol.context import Context
@@ -744,7 +745,7 @@ class Core:
             name = name.lstrip(self.cmdprefix)
             cmd = self._commands[name]
             namespace = cmd.parse_args(args)
-        except (KeyError, ArgumentError, ArgumentTypeError):
+        except (KeyError, ArgumentError, ArgumentTypeError, CommandParseError):
             await self.module_send_event('invalid_command', ctx, cmd_msg)
             return
         method = getattr(cmd.module.handle, f'module_command_{name}', None)

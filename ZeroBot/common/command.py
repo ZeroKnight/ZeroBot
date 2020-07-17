@@ -13,17 +13,23 @@ from ZeroBot.module import Module
 from ZeroBot.util import gen_repr
 
 
-class _NoExitArgumentParser(ArgumentParser):
-    """Modified `argparse.ArgumentParser` that doesn't exit on errors."""
+class CommandParseError(Exception):
+    """The given command could not be parsed.
 
-    # NOTE: Python 3.9 will add an `exit_on_error` parameter that will stop
-    # argparse from exiting instead of having to override exit and error.
+    Malformed commands, or commands with missing required parameters will cause
+    this exception.
 
-    def exit(self, status=0, message=None):
-        pass
+    Attributes
+    ----------
+    cmd_name : str
+        The name of the command.
+    args
+        Arguments to pass to the Exception constructor.
+    """
 
-    def error(self, message):
-        raise Exception(f'{self.prog}: {message}')
+    def __init__(self, *args, cmd_name: str):
+        super().__init__(*args)
+        self.cmd_name = cmd_name
 
 
 class CommandAlreadyRegistered(Exception):
@@ -46,6 +52,19 @@ class CommandAlreadyRegistered(Exception):
         super().__init__(msg)
         self.cmd_name = cmd_name
         self.module_id = module_id
+
+
+class _NoExitArgumentParser(ArgumentParser):
+    """Modified `argparse.ArgumentParser` that doesn't exit on errors."""
+
+    # NOTE: Python 3.9 will add an `exit_on_error` parameter that will stop
+    # argparse from exiting instead of having to override exit and error.
+
+    def exit(self, status=0, message=None):
+        pass
+
+    def error(self, message):
+        raise CommandParseError(message, cmd_name=self.prog)
 
 
 class CommandParser(_NoExitArgumentParser):
