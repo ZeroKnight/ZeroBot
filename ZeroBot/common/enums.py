@@ -35,9 +35,9 @@ class ModuleCmdStatus(Enum):
     RELOAD_OK = 2
     LOAD_FAIL = 3
     RELOAD_FAIL = 4
-    NO_SUCH_MOD = 6
-    ALREADY_LOADED = 5
-    NOT_YET_LOADED = 6
+    NO_SUCH_MOD = 5
+    ALREADY_LOADED = 6
+    NOT_YET_LOADED = 7
 
     @classmethod
     def is_ok(cls, status: 'ModuleCmdStatus') -> bool:
