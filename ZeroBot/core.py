@@ -490,6 +490,7 @@ class Core:
                              f"'{type(feature)}'"))
         try:
             await module.handle.module_unregister()
+            self.command_unregister_module(name)
             module.reload()
             await module.handle.module_register(self)
         except Exception:  # pylint: disable=broad-except
