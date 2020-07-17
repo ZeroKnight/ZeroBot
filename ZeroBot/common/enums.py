@@ -38,3 +38,8 @@ class ModuleCmdStatus(Enum):
     NO_SUCH_MOD = 6
     ALREADY_LOADED = 5
     NOT_YET_LOADED = 6
+
+    @classmethod
+    def is_ok(cls, status: 'ModuleCmdStatus') -> bool:
+        """Return whether the given status is an "OK" type."""
+        return status is cls.LOAD_OK or status is cls.RELOAD_OK
