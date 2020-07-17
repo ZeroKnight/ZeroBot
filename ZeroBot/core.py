@@ -170,6 +170,7 @@ class Core:
         self._features = {}  # maps feature module names to their Module
         self._dummy_module = CoreModule(self, ZeroBot.__version__)
         self._commands = CommandRegistry()
+        self._shutdown_reason = None
 
         # Read config
         if config_dir:
@@ -308,7 +309,8 @@ class Core:
 
         cmd_quit = CommandParser('quit', 'Shut down ZeroBot.')
         cmd_quit.add_argument(
-            'msg', nargs='*', help='Message sent to modules as a reason')
+            'msg', nargs='*',
+            help='Message sent to protocol modules as a reason')
         cmds.append(cmd_quit)
 
         # TODO: WeeChat wait command
@@ -752,6 +754,19 @@ class Core:
                 cmd_msg.destination)
             await method(ctx, parsed)
 
+    def quit(self, reason: str = None):
+        """Shut down ZeroBot.
+
+        Automatically handles unregistering all protocol and feature modules.
+        If `reason` is given, it is passed along to protocol modules as the
+        quit reason.
+        """
+        self.logger.debug('Stopping event loop')
+        self.eventloop.stop()
+        self.logger.info('Shutting down ZeroBot'
+                         + f' with reason "{reason}"' if reason else '')
+        self._shutdown_reason = reason
+
     def _shutdown(self):
         """Unregisters all feature and protocol modules.
 
@@ -770,7 +785,8 @@ class Core:
         for protocol in self._protocols.values():
             try:
                 self.eventloop.run_until_complete(
-                    protocol.handle.module_unregister(protocol.contexts))
+                    protocol.handle.module_unregister(protocol.contexts,
+                                                      self._shutdown_reason))
             except Exception:  # pylint: disable=broad-except
                 self.logger.exception(
                     'Exception occurred while unregistering protocol '
@@ -851,3 +867,8 @@ class Core:
         """Implementation for Core `version` command."""
         info = VersionInfo(ZeroBot.__version__, 'N/A', ZeroBot.__author__)
         await ctx.core_command_version(parsed, info)
+
+    async def module_command_quit(self, ctx, parsed):
+        """Implementation for Core `quit` command."""
+        reason = ' '.join(parsed.args['msg'] or []) or 'Shutting down'
+        self.quit(reason)

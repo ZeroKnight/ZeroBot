@@ -41,7 +41,7 @@ async def module_register(core, cfg):
     return set([(ctx, coro)])
 
 
-async def module_unregister(contexts):
+async def module_unregister(contexts, reason: str = None):
     """Prepare for shutdown."""
     for ctx in contexts:
         await ctx.close()

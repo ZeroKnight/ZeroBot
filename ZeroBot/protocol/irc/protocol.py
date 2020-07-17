@@ -45,10 +45,10 @@ async def module_register(core, cfg):
     return connections
 
 
-async def module_unregister(contexts):
+async def module_unregister(contexts, reason: str = None):
     """Prepare for shutdown."""
     for ctx in contexts:
-        await ctx.quit('Shutting down')
+        await ctx.quit(reason)
 
 
 def _configure(cfg: Config) -> List[dict]:
