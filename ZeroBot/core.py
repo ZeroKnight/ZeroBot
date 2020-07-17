@@ -387,7 +387,15 @@ class Core:
         ProtocolModule or None
             A class representing the loaded protocol, or `None` if the module
             could not be loaded.
+
+        Raises
+        ------
+        Exception
+            The requested protocol module is already loaded.
         """
+        if name in self._protocols:
+            # TODO: proper exception
+            raise Exception(f"Protocol module '{name}' is already loaded.")
         module = self._handle_load_module(name, ProtocolModule)
         if module is None:
             return None
@@ -420,7 +428,15 @@ class Core:
         Module or None
             A class representing the loaded feature, or `None` if the module
             could not be loaded.
+
+        Raises
+        ------
+        Exception
+            The requested feature module is already loaded.
         """
+        if name in self._features:
+            # TODO: proper exception
+            raise Exception(f"Feature module '{name}' is already loaded.")
         module = self._handle_load_module(name, Module)
         if module is None:
             return None
