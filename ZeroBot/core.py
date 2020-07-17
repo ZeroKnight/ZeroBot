@@ -104,10 +104,13 @@ class CommandRegistry:
             The given command is not registered.
         """
         try:
-            del self._registry['by_name'][command]
-            for module, cmd in self.pairs():
-                if cmd.name == command:
-                    self._registry['by_registry'][module].remove(cmd)
+            cmd = self._registry['by_name'].pop(command)
+            for module in self._registry['by_module'].keys():
+                try:
+                    self._registry['by_module'][module].remove(cmd)
+                except ValueError:
+                    continue
+                else:
                     return
         except KeyError:
             raise KeyError(f"Command '{command}' is not registered")
@@ -635,7 +638,7 @@ class Core:
             The identifier of the module whose commands are to be unregistered.
         """
         # TODO: raise ModuleNotLoaded if needed
-        for cmd in self._commands.iter_by_module(module_id):
+        for cmd in list(self._commands.iter_by_module(module_id)):
             self.command_unregister(cmd.name)
 
     def command_registered(self, command: str) -> bool:
