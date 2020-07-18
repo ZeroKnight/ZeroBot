@@ -38,6 +38,7 @@ class ModuleCmdStatus(Enum):
     NO_SUCH_MOD = 5
     ALREADY_LOADED = 6
     NOT_YET_LOADED = 7
+    QUERY = 8
 
     @classmethod
     def is_ok(cls, status: 'ModuleCmdStatus') -> bool:
