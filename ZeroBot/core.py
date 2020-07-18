@@ -297,11 +297,11 @@ class Core:
                                  description='List available modules')
         subcmd_list.add_argument(
             '-l', '--loaded', action='store_true', help='Only loaded modules')
-        cmd_help = subcmd_list.add_mutually_exclusive_group()
-        cmd_help.add_argument(
+        list_group = subcmd_list.add_mutually_exclusive_group()
+        list_group.add_argument(
             '-f', '--feature', action='store_true',
             help='Only feature modules')
-        cmd_help.add_argument(
+        list_group.add_argument(
             '-p', '--protocol', action='store_true',
             help='Only protocol modules')
         add_subcmd(subp, 'info', description='Show module information',
