@@ -176,13 +176,34 @@ class DiscordContext(Context, discord.Client):
         else:
             embed.description = f'**{result.parent.name}** has no subcommands.'
 
-    async def core_command_module(self, command, status):
+    async def core_command_module(self, command, status, modules=None,
+                                  info=None):
         mcs = ModuleCmdStatus
-        mod_id = command.args['module'][0]  # TODO: handle multiple modules
+        if command.args['subcmd'] != 'list':
+            # TODO: handle multiple modules
+            mod_id = command.args['module'][0]
         mtype = 'protocol' if command.args['protocol'] else 'feature'
         verb = '{0}load'.format('re' if mcs.is_reload(status) else '')
         embed = discord.Embed(title='Module')
-        if mcs.is_ok(status):
+        if status is mcs.QUERY:
+            embed.color = discord.Color.teal()
+            if modules:
+                if command.args['loaded']:
+                    embed.description = '**Currently loaded modules**:\n\n'
+                else:
+                    embed.description = '**Available modules**:\n\n'
+                categories = ['protocol', 'feature']
+                if command.args['protocol']:
+                    categories.remove('feature')
+                elif command.args['feature']:
+                    categories.remove('protocol')
+                for category in categories:
+                    mod_list = ', '.join(modules[category]) or '*None loaded*'
+                    embed.add_field(name=f'{category.capitalize()} Modules',
+                                    value=mod_list)
+            elif info:
+                pass
+        elif mcs.is_ok(status):
             embed.color = discord.Color.green()
             embed.description = (
                 f'Successfully {verb}ed {mtype} module **{mod_id}**.')

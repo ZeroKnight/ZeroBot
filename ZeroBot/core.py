@@ -886,9 +886,12 @@ class Core:
 
     async def module_command_module(self, ctx, parsed):
         """Implementation for Core `module` command."""
+        # TODO: handle multiple modules
         # TODO: aggregate failed/success messages when giving multiple modules
+        modules = {}
         subcmd = parsed.args['subcmd']
-        mod_id = parsed.args['module'][0]  # TODO: handle multiple modules
+        if subcmd != 'list':
+            mod_id = parsed.args['module'][0]
         if subcmd == 'load':
             try:
                 if parsed.args['protocol']:
@@ -916,7 +919,23 @@ class Core:
                 module = None
             else:
                 status = ModuleCmdStatus.RELOAD_OK
-        await ctx.core_command_module(parsed, status)
+        elif subcmd == 'list':
+            status = ModuleCmdStatus.QUERY
+            categories = ['protocol', 'feature']
+            if parsed.args['protocol']:
+                categories.remove('feature')
+            elif parsed.args['feature']:
+                categories.remove('protocol')
+            for category in categories:
+                if parsed.args['loaded']:
+                    method = getattr(self, f'get_loaded_{category}s')
+                    modules[category] = [mod.identifier for mod in method()]
+                else:
+                    attr = getattr(self, f'_{category}s')
+                    modules[category] = [mod for mod in attr.keys()]
+        elif subcmd == 'info':
+            pass
+        await ctx.core_command_module(parsed, status, modules=modules)
 
     async def module_command_version(self, ctx, parsed):
         """Implementation for Core `version` command."""
