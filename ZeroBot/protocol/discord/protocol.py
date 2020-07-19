@@ -182,7 +182,8 @@ class DiscordContext(Context, discord.Client):
         if command.args['subcmd'] != 'list':
             # TODO: handle multiple modules
             mod_id = command.args['module'][0]
-        mtype = 'protocol' if command.args['protocol'] else 'feature'
+        categories = command.args['category']
+        mtype = categories[0] if len(categories) > 1 else 'feature'
         verb = '{0}load'.format('re' if mcs.is_reload(status) else '')
         embed = discord.Embed(title='Module')
         if status is mcs.QUERY:
@@ -192,11 +193,6 @@ class DiscordContext(Context, discord.Client):
                     embed.description = '**Currently loaded modules**:\n\n'
                 else:
                     embed.description = '**Available modules**:\n\n'
-                categories = ['protocol', 'feature']
-                if command.args['protocol']:
-                    categories.remove('feature')
-                elif command.args['feature']:
-                    categories.remove('protocol')
                 for category in categories:
                     mod_list = ', '.join(modules[category]) or '*None loaded*'
                     embed.add_field(name=f'{category.capitalize()} Modules',

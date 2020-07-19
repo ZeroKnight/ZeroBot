@@ -298,11 +298,14 @@ class Core:
         subcmd_list.add_argument(
             '-l', '--loaded', action='store_true', help='Only loaded modules')
         list_group = subcmd_list.add_mutually_exclusive_group()
+        default_categories = ['protocol', 'feature']
         list_group.add_argument(
-            '-f', '--feature', action='store_true',
+            '-f', '--feature', action='store_const', const=['feature'],
+            dest='category', default=default_categories,
             help='Only feature modules')
         list_group.add_argument(
-            '-p', '--protocol', action='store_true',
+            '-p', '--protocol', action='store_const', const=['protocol'],
+            dest='category', default=default_categories,
             help='Only protocol modules')
         add_subcmd(subp, 'info', description='Show module information',
                    parents=[target_mod])
@@ -921,12 +924,7 @@ class Core:
                 status = ModuleCmdStatus.RELOAD_OK
         elif subcmd == 'list':
             status = ModuleCmdStatus.QUERY
-            categories = ['protocol', 'feature']
-            if parsed.args['protocol']:
-                categories.remove('feature')
-            elif parsed.args['feature']:
-                categories.remove('protocol')
-            for category in categories:
+            for category in parsed.args['category']:
                 if parsed.args['loaded']:
                     method = getattr(self, f'get_loaded_{category}s')
                     modules[category] = [mod.identifier for mod in method()]
