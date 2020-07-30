@@ -932,7 +932,7 @@ class Core:
                     modules[category] = [mod.identifier for mod in method()]
                 else:
                     attr = getattr(self, f'_{category}s')
-                    modules[category] = [mod for mod in attr.keys()]
+                    modules[category] = list(attr.keys())
         elif subcmd == 'info':
             status = ModuleCmdStatus.QUERY
             category = 'protocol' if parsed.args['protocol'] else 'feature'
