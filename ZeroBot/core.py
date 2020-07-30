@@ -763,9 +763,13 @@ class Core:
         if not cmd_str.startswith(self.cmdprefix):
             # TODO: proper NotACommand exception
             raise Exception(f'Not a command string: {cmd_str}')
+        name, *args = cmd_str.split(' ')
+        name = name.lstrip(self.cmdprefix)
+        invoker = cmd_msg.source
+        dest = cmd_msg.destination
+        self.logger.debug(
+            f"Received command from '{invoker}' at '{dest}': {name=}, {args=}")
         try:
-            name, *args = cmd_str.split(' ')
-            name = name.lstrip(self.cmdprefix)
             cmd = self._commands[name]
             namespace = cmd.parse_args(args)
         except (KeyError, ArgumentError, ArgumentTypeError, CommandParseError):
@@ -773,9 +777,7 @@ class Core:
             return
         method = getattr(cmd.module.handle, f'module_command_{name}', None)
         if callable(method):
-            parsed = ParsedCommand(
-                name, vars(namespace), cmd, cmd_msg.source,
-                cmd_msg.destination)
+            parsed = ParsedCommand(name, vars(namespace), cmd, invoker, dest)
             await method(ctx, parsed)
 
     def quit(self, reason: str = None):
