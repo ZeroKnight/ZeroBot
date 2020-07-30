@@ -282,7 +282,8 @@ class Core:
         target_mod = CommandParser()
         target_mod.add_argument('module', nargs='+', help='Target module(s)')
         target_mod.add_argument(
-            '-p', '--protocol', action='store_true',
+            '-p', '--protocol', action='store_const', const='protocol',
+            default='feature', dest='mtype',
             help='Target is a protocol module')
         cmd_module = CommandParser('module',
                                    'Manage and query ZeroBot modules')
@@ -900,10 +901,8 @@ class Core:
             mod_id = parsed.args['module'][0]
         if subcmd == 'load':
             try:
-                if parsed.args['protocol']:
-                    module = await self.load_protocol(mod_id)
-                else:
-                    module = await self.load_feature(mod_id)
+                mtype = parsed.args['mtype']
+                module = await getattr(self, f"load_{mtype}")(mod_id)
             except Exception:
                 status = ModuleCmdStatus.ALREADY_LOADED
                 module = None
@@ -913,7 +912,7 @@ class Core:
                 else:
                     status = ModuleCmdStatus.LOAD_OK
         elif subcmd == 'reload':
-            if parsed.args['protocol']:
+            if parsed.args['mtype'] == 'protocol':
                 ctx.reply_command_result(parsed, 'Reloading protocol '
                                          'modules is not yet implemented.')
                 return
@@ -935,9 +934,9 @@ class Core:
                     modules[category] = list(attr.keys())
         elif subcmd == 'info':
             status = ModuleCmdStatus.QUERY
-            category = 'protocol' if parsed.args['protocol'] else 'feature'
             try:
-                module = getattr(self, f'_{category}s')[mod_id]
+                mtype = parsed.args['mtype']
+                module = getattr(self, f'_{mtype}s')[mod_id]
             except KeyError:
                 status = ModuleCmdStatus.NO_SUCH_MOD
             else:

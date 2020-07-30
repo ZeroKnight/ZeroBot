@@ -123,7 +123,7 @@ class DiscordContext(Context, discord.Client):
 
         # TODO: handle multiple modules
         mod_id = command.args['module'][0]
-        mtype = 'protocol' if command.args['protocol'] else 'feature'
+        mtype = command.args['mtype']
         verb = '{0}load'.format('re' if mcs.is_reload(status) else '')
         if mcs.is_ok(status):
             embed.color = discord.Color.green()
@@ -240,6 +240,7 @@ def _handle_module_query(embed, command, modules, info):
             embed.add_field(name=f'{category.capitalize()} Modules',
                             value=mod_list)
     elif info:
+        embed.title = f"{command.args['mtype'].capitalize()} {embed.title}"
         embed.description = f"**{info['name']}**\n{info['description']}"
         embed.add_field(name='Author', value=info['author'])
         embed.add_field(name='Version', value=info['version'])
