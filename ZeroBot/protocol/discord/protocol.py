@@ -108,73 +108,9 @@ class DiscordContext(Context, discord.Client):
 
     async def core_command_help(self, help_cmd, result):
         embed = discord.Embed(title='Help', color=discord.Color.teal())
-        handler = getattr(self, f'_format_help_{result.type.name}')
+        handler = globals()[f'_format_help_{result.type.name}']
         handler(embed, help_cmd, result)
         await help_cmd.source.send(embed=embed)
-
-    def _format_help_CMD(self, embed, help_cmd, result):
-        embed.title += f' — {result.name}'
-        embed.description = (f'**Usage**: `{result.usage}`\n\n'
-                             f'{result.description}')
-        if result.args or result.opts:
-            embed.description += '\n\n**Arguments**:'
-            for arg, (help_str, is_sub) in result.args.items():
-                embed.description += f'\n> **{arg}**'
-                if help_str:
-                    embed.description += f'\n> ```\n> {help_str}```'
-                else:
-                    embed.description += '\n> '
-                if is_sub:
-                    embed.description += '\n> *Subcommand*\n> ```'
-                    for name, sub_help in result.subcmds.items():
-                        desc = sub_help.description
-                        embed.description += f'\n> {name} - {desc}'
-                    embed.description += '```'
-            for names, info in result.opts.items():
-                opts = ', '.join(f'**{name}**' for name in names)
-                embed.description += (f'\n> {opts} {info[0]}'
-                                      f'\n> ```\n> {info[1]}```')
-
-    def _format_help_MOD(self, embed, help_cmd, result):
-        embed.title += f" — {result.name}"
-        embed.description = f'**Module**\n{result.description}'
-        if result.cmds:
-            embed.description += '\n\n**Commands**:'
-            for cmd, help_str in result.cmds[result.name].items():
-                embed.description += f'\n> **{cmd}**\n> '
-                if help_str:
-                    embed.description += f'```\n> {help_str}```'
-        else:
-            embed.description += '*\n\n*No commands available*'
-
-    def _format_help_ALL(self, embed, help_cmd, result):
-        embed.description = '**Available Commands**:'
-        for mod_id, cmds in result.cmds.items():
-            section = f'\n\nModule [**{mod_id}**]'
-            if help_cmd.args['full']:
-                for cmd, desc in cmds.items():
-                    section += f'\n> **{cmd}**' + f' - {desc}' if desc else ''
-            else:
-                section += '\n> ' + ', '.join(cmd for cmd in cmds.keys())
-            embed.description += section
-
-    def _format_help_NO_SUCH_CMD(self, embed, help_cmd, result):
-        embed.color = discord.Color.red()
-        embed.description = f'No such command: **{result.name}**'
-
-    def _format_help_NO_SUCH_MOD(self, embed, help_cmd, result):
-        embed.color = discord.Color.red()
-        embed.description = f'No such module: **{result.name}**'
-
-    def _format_help_NO_SUCH_SUBCMD(self, embed, help_cmd, result):
-        embed.color = discord.Color.red()
-        subcmds = list(result.parent.subcmds.keys())
-        if subcmds:
-            embed.description = (f'**{result.parent.name}** has no subcommand '
-                                 f'**{result.name}**. Valid subcommands:\n> '
-                                 + ', '.join(subcmds))
-        else:
-            embed.description = f'**{result.parent.name}** has no subcommands.'
 
     async def core_command_module(self, command, status, modules=None,
                                   info=None):
@@ -219,6 +155,76 @@ class DiscordContext(Context, discord.Client):
                          f'{info.author} with love.')
         # TODO: Set thumbnail to whatever avatar we come up with for ZeroBot
         await command.source.send(embed=embed)
+
+
+def _format_help_CMD(embed, help_cmd, result):
+    embed.title += f' — {result.name}'
+    embed.description = (f'**Usage**: `{result.usage}`\n\n'
+                         f'{result.description}')
+    if result.args or result.opts:
+        embed.description += '\n\n**Arguments**:'
+        for arg, (help_str, is_sub) in result.args.items():
+            embed.description += f'\n> **{arg}**'
+            if help_str:
+                embed.description += f'\n> ```\n> {help_str}```'
+            else:
+                embed.description += '\n> '
+            if is_sub:
+                embed.description += '\n> *Subcommand*\n> ```'
+                for name, sub_help in result.subcmds.items():
+                    desc = sub_help.description
+                    embed.description += f'\n> {name} - {desc}'
+                embed.description += '```'
+        for names, info in result.opts.items():
+            opts = ', '.join(f'**{name}**' for name in names)
+            embed.description += (f'\n> {opts} {info[0]}'
+                                  f'\n> ```\n> {info[1]}```')
+
+
+def _format_help_MOD(embed, help_cmd, result):
+    embed.title += f" — {result.name}"
+    embed.description = f'**Module**\n{result.description}'
+    if result.cmds:
+        embed.description += '\n\n**Commands**:'
+        for cmd, help_str in result.cmds[result.name].items():
+            embed.description += f'\n> **{cmd}**\n> '
+            if help_str:
+                embed.description += f'```\n> {help_str}```'
+    else:
+        embed.description += '*\n\n*No commands available*'
+
+
+def _format_help_ALL(embed, help_cmd, result):
+    embed.description = '**Available Commands**:'
+    for mod_id, cmds in result.cmds.items():
+        section = f'\n\nModule [**{mod_id}**]'
+        if help_cmd.args['full']:
+            for cmd, desc in cmds.items():
+                section += f'\n> **{cmd}**' + f' - {desc}' if desc else ''
+        else:
+            section += '\n> ' + ', '.join(cmd for cmd in cmds.keys())
+        embed.description += section
+
+
+def _format_help_NO_SUCH_CMD(embed, help_cmd, result):
+    embed.color = discord.Color.red()
+    embed.description = f'No such command: **{result.name}**'
+
+
+def _format_help_NO_SUCH_MOD(embed, help_cmd, result):
+    embed.color = discord.Color.red()
+    embed.description = f'No such module: **{result.name}**'
+
+
+def _format_help_NO_SUCH_SUBCMD(embed, help_cmd, result):
+    embed.color = discord.Color.red()
+    subcmds = list(result.parent.subcmds.keys())
+    if subcmds:
+        embed.description = (f'**{result.parent.name}** has no subcommand '
+                             f'**{result.name}**. Valid subcommands:\n> '
+                             + ', '.join(subcmds))
+    else:
+        embed.description = f'**{result.parent.name}** has no subcommands.'
 
 
 def _handle_module_query(embed, command, modules, info):
