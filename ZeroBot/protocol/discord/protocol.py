@@ -228,9 +228,9 @@ def _format_help_NO_SUCH_SUBCMD(embed, help_cmd, result):
 
 
 def _handle_module_query(embed, command, modules, info):
-    categories = command.args['category']
     embed.color = discord.Color.teal()
     if modules:
+        categories = command.args['category']
         if command.args['loaded']:
             embed.description = 'Currently loaded modules:\n\n'
         else:
@@ -240,4 +240,7 @@ def _handle_module_query(embed, command, modules, info):
             embed.add_field(name=f'{category.capitalize()} Modules',
                             value=mod_list)
     elif info:
-        pass
+        embed.description = f"**{info['name']}**\n{info['description']}"
+        embed.add_field(name='Author', value=info['author'])
+        embed.add_field(name='Version', value=info['version'])
+        embed.add_field(name='License', value=info['license'])

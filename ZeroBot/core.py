@@ -889,11 +889,12 @@ class Core:
             cmd_help = CommandHelp(HelpType.ALL, cmds=cmds)
         await ctx.core_command_help(parsed, cmd_help)
 
+    # TODO: Do module handle lookup in one place
     async def module_command_module(self, ctx, parsed):
         """Implementation for Core `module` command."""
         # TODO: handle multiple modules
         # TODO: aggregate failed/success messages when giving multiple modules
-        modules = {}
+        modules, info = {}, {}
         subcmd = parsed.args['subcmd']
         if subcmd != 'list':
             mod_id = parsed.args['module'][0]
@@ -933,8 +934,18 @@ class Core:
                     attr = getattr(self, f'_{category}s')
                     modules[category] = [mod for mod in attr.keys()]
         elif subcmd == 'info':
-            pass
-        await ctx.core_command_module(parsed, status, modules=modules)
+            status = ModuleCmdStatus.QUERY
+            category = 'protocol' if parsed.args['protocol'] else 'feature'
+            try:
+                module = getattr(self, f'_{category}s')[mod_id]
+            except KeyError:
+                status = ModuleCmdStatus.NO_SUCH_MOD
+            else:
+                for attr in ('name', 'description', 'author', 'version',
+                             'license'):
+                    info[attr] = getattr(module, attr)
+        await ctx.core_command_module(parsed, status, modules=modules,
+                                      info=info)
 
     async def module_command_version(self, ctx, parsed):
         """Implementation for Core `version` command."""
