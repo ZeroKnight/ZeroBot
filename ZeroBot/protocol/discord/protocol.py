@@ -179,27 +179,17 @@ class DiscordContext(Context, discord.Client):
     async def core_command_module(self, command, status, modules=None,
                                   info=None):
         mcs = ModuleCmdStatus
-        if command.args['subcmd'] != 'list':
-            # TODO: handle multiple modules
-            mod_id = command.args['module'][0]
-        categories = command.args['category']
-        mtype = categories[0] if len(categories) > 1 else 'feature'
-        verb = '{0}load'.format('re' if mcs.is_reload(status) else '')
         embed = discord.Embed(title='Module')
         if status is mcs.QUERY:
-            embed.color = discord.Color.teal()
-            if modules:
-                if command.args['loaded']:
-                    embed.description = '**Currently loaded modules**:\n\n'
-                else:
-                    embed.description = '**Available modules**:\n\n'
-                for category in categories:
-                    mod_list = ', '.join(modules[category]) or '*None loaded*'
-                    embed.add_field(name=f'{category.capitalize()} Modules',
-                                    value=mod_list)
-            elif info:
-                pass
-        elif mcs.is_ok(status):
+            _handle_module_query(embed, command, modules, info)
+            await command.source.send(embed=embed)
+            return
+
+        # TODO: handle multiple modules
+        mod_id = command.args['module'][0]
+        mtype = 'protocol' if command.args['protocol'] else 'feature'
+        verb = '{0}load'.format('re' if mcs.is_reload(status) else '')
+        if mcs.is_ok(status):
             embed.color = discord.Color.green()
             embed.description = (
                 f'Successfully {verb}ed {mtype} module **{mod_id}**.')
@@ -229,3 +219,19 @@ class DiscordContext(Context, discord.Client):
                          f'{info.author} with love.')
         # TODO: Set thumbnail to whatever avatar we come up with for ZeroBot
         await command.source.send(embed=embed)
+
+
+def _handle_module_query(embed, command, modules, info):
+    categories = command.args['category']
+    embed.color = discord.Color.teal()
+    if modules:
+        if command.args['loaded']:
+            embed.description = 'Currently loaded modules:\n\n'
+        else:
+            embed.description = 'Available modules:\n\n'
+        for category in categories:
+            mod_list = ', '.join(modules[category]) or '*None loaded*'
+            embed.add_field(name=f'{category.capitalize()} Modules',
+                            value=mod_list)
+    elif info:
+        pass
