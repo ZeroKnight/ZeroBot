@@ -919,7 +919,6 @@ class Core:
                 # TODO: add exceptions(?) to differentiate between reload fail
                 # and attempt to reload a module that isn't loaded
                 status = ModuleCmdStatus.RELOAD_FAIL
-                module = None
             else:
                 status = ModuleCmdStatus.RELOAD_OK
         elif subcmd == 'list':
