@@ -62,10 +62,6 @@ def _register_commands():
 async def module_on_message(ctx, message):
     """Handle `Core` message event."""
     # This is all temporary
-    if message.content.startswith('ZeroBot'):
-        await ctx.module_message(message.destination, "DON'T TALK SHIT ABOUT TOTAL")
-    if message.content == 'reload':
-        CORE.reload_feature('chat')
 
 
 async def module_on_join(ctx, channel, user):
