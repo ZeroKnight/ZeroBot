@@ -214,9 +214,7 @@ class Core:
         if protocols_loaded:
             self.logger.info(f'Loaded {protocols_loaded} protocols.')
         else:
-            msg = 'Could not load any protocol modules.'
-            self.logger.critical(msg)
-            raise RuntimeError(msg)  # TBD: Make this a custom exception?
+            self.logger.warning('No protocol modules were loaded.')
 
         # Load configured features
         features_loaded = self.eventloop.run_until_complete(
