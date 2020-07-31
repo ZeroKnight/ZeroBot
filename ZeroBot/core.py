@@ -14,6 +14,7 @@ import logging
 import logging.config
 from argparse import ArgumentError, ArgumentTypeError, _SubParsersAction
 from dataclasses import dataclass
+from itertools import chain
 from pathlib import Path
 from types import ModuleType
 from typing import Iterator, List, Optional, Tuple, Type, Union
@@ -23,7 +24,12 @@ from toml import TomlDecodeError
 
 import ZeroBot
 from ZeroBot.common import HelpType, ModuleCmdStatus, abc
-from ZeroBot.common.command import *
+from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
+from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
+                                       CommandNotRegistered, CommandParseError,
+                                       ModuleAlreadyLoaded,
+                                       ModuleHasNoCommands, ModuleNotLoaded,
+                                       NotACommand)
 from ZeroBot.config import Config
 from ZeroBot.module import CoreModule, Module, ProtocolModule
 from ZeroBot.protocol.context import Context
@@ -60,10 +66,15 @@ class CommandRegistry:
 
         Raises
         ------
-        KeyError
+        ModuleHasNoCommands
             The requested module has no registered commands.
         """
-        yield from self._registry['by_module'][module_id]
+        try:
+            yield from self._registry['by_module'][module_id]
+        except KeyError:
+            raise ModuleHasNoCommands(
+                f"Module '{module_id}' does not have any registered commands.",
+                mod_id=module_id)
 
     def pairs(self) -> Iterator[Tuple[str, List[CommandParser]]]:
         """Generator that yields pairs of module identifiers their parsers."""
@@ -86,7 +97,10 @@ class CommandRegistry:
             The command has already been registered.
         """
         if command.name in self:
-            raise CommandAlreadyRegistered(command.name, command.module)
+            raise CommandAlreadyRegistered(
+                f"Command '{command.name}' has already been registered by "
+                f"module '{module_id}'",
+                cmd_name=command.name, mod_id=module_id)
         self._registry['by_name'][command.name] = command
         self._registry['by_module'].setdefault(module_id, []).append(command)
 
@@ -113,7 +127,8 @@ class CommandRegistry:
                 else:
                     return
         except KeyError:
-            raise KeyError(f"Command '{command}' is not registered")
+            raise CommandNotRegistered(
+                f"Command '{command}' is not registered", cmd_name=command)
 
     def modules_registered(self) -> List[Module]:
         """Return a list of `Module`s that have registered commands."""
@@ -397,12 +412,12 @@ class Core:
 
         Raises
         ------
-        Exception
+        ModuleAlreadyLoaded
             The requested protocol module is already loaded.
         """
         if name in self._protocols:
-            # TODO: proper exception
-            raise Exception(f"Protocol module '{name}' is already loaded.")
+            raise ModuleAlreadyLoaded(
+                f"Protocol module '{name}' is already loaded.", mod_id=name)
         module = self._handle_load_module(name, ProtocolModule)
         if module is None:
             return None
@@ -438,12 +453,13 @@ class Core:
 
         Raises
         ------
-        Exception
+        ModuleAlreadyLoaded
             The requested feature module is already loaded.
         """
         if name in self._features:
             # TODO: proper exception
-            raise Exception(f"Feature module '{name}' is already loaded.")
+            raise ModuleAlreadyLoaded(
+                f"Feature module '{name}' is already loaded.", mod_id=name)
         module = self._handle_load_module(name, Module)
         if module is None:
             return None
@@ -491,8 +507,8 @@ class Core:
                     'already loaded.')
                 return None
         else:
-            raise TypeError(("feature type expects 'str' or 'Module', not ",
-                             f"'{type(feature)}'"))
+            raise TypeError("feature type expects 'str' or 'Module', not "
+                            f"'{type(feature)}'")
         try:
             await module.handle.module_unregister()
             self.command_unregister_module(name)
@@ -603,7 +619,7 @@ class Core:
             The given command has already been registered.
         TypeError
             No commands were given.
-        ValueError
+        ModuleNotLoaded
             The specified module isn't loaded or currently being loaded.
         """
         if len(cmds) == 0:
@@ -614,8 +630,9 @@ class Core:
             try:
                 module = self._features[module_id]
             except KeyError:
-                raise ValueError(
-                    f"Module '{module}' is not loaded or being loaded.")
+                raise ModuleNotLoaded(
+                    f"Module '{module}' is not loaded or being loaded.",
+                    mod_id=module)
         for cmd in cmds:
             cmd._module = module  # pylint: disable=protected-access
             self._commands.add(module_id, cmd)
@@ -630,7 +647,7 @@ class Core:
 
         Raises
         ------
-        KeyError
+        CommandNotRegistered
             The given command is not registered.
         """
         self._commands.remove(command)
@@ -642,8 +659,17 @@ class Core:
         ----------
         module_id : str
             The identifier of the module whose commands are to be unregistered.
+
+        Raises
+        ------
+        ModuleNotLoaded
+            The given module is not loaded.
+        ModuleHasNoCommands
+            The requested module has no registered commands.
         """
-        # TODO: raise ModuleNotLoaded if needed
+        if module_id not in chain(self._protocols, self._features):
+            raise ModuleNotLoaded(f"Module '{module_id}' is not loaded.",
+                                  mod_id=module_id)
         for cmd in list(self._commands.iter_by_module(module_id)):
             self.command_unregister(cmd.name)
 
@@ -762,8 +788,7 @@ class Core:
         """
         cmd_str = cmd_msg.content
         if not cmd_str.startswith(self.cmdprefix):
-            # TODO: proper NotACommand exception
-            raise Exception(f'Not a command string: {cmd_str}')
+            raise NotACommand(f'Not a command string: {cmd_str}')
         name, *args = cmd_str.split(' ')
         name = name.lstrip(self.cmdprefix)
         invoker = cmd_msg.source

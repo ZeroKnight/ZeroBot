@@ -9,57 +9,16 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ZeroBot.common.abc import Channel, User
 from ZeroBot.common.enums import HelpType
+from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
+                                       CommandParseError)
 from ZeroBot.module import Module
 from ZeroBot.util import gen_repr
 
 __all__ = [
-    'CommandAlreadyRegistered',
     'CommandHelp',
-    'CommandParseError',
     'CommandParser',
     'ParsedCommand'
 ]
-
-
-class CommandParseError(Exception):
-    """The given command could not be parsed.
-
-    Malformed commands, or commands with missing required parameters will cause
-    this exception.
-
-    Attributes
-    ----------
-    cmd_name : str
-        The name of the command.
-    args
-        Arguments to pass to the Exception constructor.
-    """
-
-    def __init__(self, *args, cmd_name: str):
-        super().__init__(*args)
-        self.cmd_name = cmd_name
-
-
-class CommandAlreadyRegistered(Exception):
-    """Command is already registered.
-
-    Raised by `ZeroBot.Core` when attempting to register a command that has
-    already been registered.
-
-    Attributes
-    ----------
-    cmd_name : str
-        The name of the command.
-    module_id : str
-        The the identifier of the module that has registered the command.
-    """
-
-    def __init__(self, cmd_name: str, module_id: str):
-        msg = (f"Command '{cmd_name}' has already been registered by "
-               f"module '{module_id}'")
-        super().__init__(msg)
-        self.cmd_name = cmd_name
-        self.module_id = module_id
 
 
 class _NoExitArgumentParser(ArgumentParser):
