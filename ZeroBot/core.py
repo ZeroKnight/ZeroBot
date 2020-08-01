@@ -946,13 +946,13 @@ class Core:
             except NoSuchModule:
                 status = mcs.NO_SUCH_MOD
             except (ModuleLoadError, ModuleRegisterError):
-                status = getattr(mcs, f'{subcmd.upper}_FAIL')
+                status = getattr(mcs, f'{subcmd.upper()}_FAIL')
             except ModuleAlreadyLoaded:
                 status = mcs.ALREADY_LOADED
             except ModuleNotLoaded:
                 status = mcs.NOT_YET_LOADED
             else:
-                status = getattr(mcs, f'{subcmd.upper}_OK')
+                status = getattr(mcs, f'{subcmd.upper()}_OK')
         elif subcmd == 'list':
             status = mcs.QUERY
             for category in parsed.args['category']:
