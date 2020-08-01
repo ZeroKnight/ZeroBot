@@ -937,7 +937,7 @@ class Core:
         if subcmd.endswith('load'):  # load, reload
             mtype = parsed.args['mtype']
             try:
-                if parsed.args['mtype'] == 'protocol':
+                if parsed.args['mtype'] == 'protocol' and subcmd == 'reload':
                     await ctx.reply_command_result(
                         parsed,
                         'Reloading protocol modules is not yet implemented.')
