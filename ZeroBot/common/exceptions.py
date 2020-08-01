@@ -33,15 +33,31 @@ class ModuleLoadError(ZeroBotModuleError, ImportError):
     Extension of `ImportError`.
     """
 
-    def __init__(self, *args, mod_id: str, name: str = None, path: str = None):
+    def __init__(self, *args, mod_id: str, name: str = None, path: str = None,
+                 exc: ImportError = None):
+        if exc:
+            name, path = exc.name, exc.path
+        super().__init__(*args, mod_id=mod_id)
         ImportError.__init__(self, *args, name=name, path=path)
-        ZeroBotModuleError.__init__(self, mod_id=mod_id)
 
 
-class NoSuchModule(ZeroBotModuleError, ModuleNotFoundError):
+class NoSuchModule(ModuleLoadError, ModuleNotFoundError):
     """Raised when a requested module could not be found.
 
-    Extension of `ModuleNotFoundError`.
+    Subclass of `ModuleLoadError`. Extension of `ModuleNotFoundError`.
+    """
+
+    def __init__(self, *args, mod_id: str, name: str = None, path: str = None,
+                 exc: ModuleNotFoundError = None):
+        if exc:
+            name, path = exc.name, exc.path
+        super().__init__(*args, mod_id=mod_id, name=name, path=path)
+
+
+class ModuleRegisterError(ZeroBotModuleError):
+    """Raised when a module fails to register.
+
+    Usually, this means something in its `module_register` raised an exception.
     """
 
 
