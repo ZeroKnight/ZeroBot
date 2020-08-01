@@ -28,8 +28,9 @@ from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
 from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
                                        CommandNotRegistered, CommandParseError,
                                        ModuleAlreadyLoaded,
-                                       ModuleHasNoCommands, ModuleNotLoaded,
-                                       NotACommand)
+                                       ModuleHasNoCommands, ModuleLoadError,
+                                       ModuleNotLoaded, ModuleRegisterError,
+                                       NoSuchModule, NotACommand)
 from ZeroBot.config import Config
 from ZeroBot.module import CoreModule, Module, ProtocolModule
 from ZeroBot.protocol.context import Context
@@ -370,8 +371,8 @@ class Core:
 
         Returns
         -------
-        types.ModuleType or None
-            The module object if the import was successful, else `None`.
+        types.ModuleType
+            The module object if the import was successful.
         """
         if module_type not in [Module, ProtocolModule]:
             raise TypeError(f"Invalid type '{module_type}'")
@@ -383,16 +384,16 @@ class Core:
             else:
                 module = Module(f'ZeroBot.feature.{name}')
         except ModuleNotFoundError as ex:
-            self.logger.error(
-                f"Could not find {type_str} module '{name}': {ex}")
-            return None
+            raise NoSuchModule(
+                f"Could not find {type_str} module '{name}': {ex}",
+                mod_id=name, exc=ex)
         except Exception:  # pylint: disable=broad-except
-            self.logger.exception(f"Failed to load {type_str} module '{name}'")
-            return None
+            raise ModuleLoadError(f"Failed to load {type_str} module '{name}'",
+                                  mod_id=name)
         self.logger.debug(f'Imported {type_str} module {module!r}')
         return module
 
-    async def load_protocol(self, name: str) -> Optional[ProtocolModule]:
+    async def load_protocol(self, name: str) -> ProtocolModule:
         """Load and register a protocol module.
 
         Parameters
@@ -404,28 +405,33 @@ class Core:
 
         Returns
         -------
-        ProtocolModule or None
-            A class representing the loaded protocol, or `None` if the module
-            could not be loaded.
+        ProtocolModule
+            Represents the loaded protocol if it was loaded successfully.
 
         Raises
         ------
+        ModuleLoadError
+            The module could not be loaded.
         ModuleAlreadyLoaded
-            The requested protocol module is already loaded.
+            The module is already loaded.
+        NoSuchModule
+            The module could not be found.
         """
         if name in self._protocols:
             raise ModuleAlreadyLoaded(
                 f"Protocol module '{name}' is already loaded.", mod_id=name)
-        module = self._handle_load_module(name, ProtocolModule)
-        if module is None:
-            return None
+        try:
+            module = self._handle_load_module(name, ProtocolModule)
+        except (ModuleLoadError, NoSuchModule) as ex:
+            self.logger.error(ex)
+            raise
         config = self.load_config(name)
         try:
             connections = await module.handle.module_register(self, config)
-        except Exception:  # pylint: disable=broad-except
-            self.logger.exception(
-                f'Failed to register protocol module {module!r}')
-            return None
+        except Exception as ex:  # pylint: disable=broad-except
+            msg = f'Failed to register protocol module {module!r}: {ex}'
+            self.logger.error(msg)
+            raise ModuleRegisterError(msg, mod_id=name) from ex
         self.logger.info(f"Loaded protocol module '{name}'")
         for ctx, coro in connections:
             module.contexts.append(ctx)
@@ -433,7 +439,7 @@ class Core:
         self._protocols[name] = module
         return module
 
-    async def load_feature(self, name) -> Optional[Module]:
+    async def load_feature(self, name) -> Module:
         """Load and register a ZeroBot feature module.
 
         Parameters
@@ -445,37 +451,41 @@ class Core:
 
         Returns
         -------
-        Module or None
-            A class representing the loaded feature, or `None` if the module
-            could not be loaded.
+        Module
+            Represents the loaded protocol if it was loaded successfully.
 
         Raises
         ------
+        ModuleLoadError
+            The module could not be loaded.
         ModuleAlreadyLoaded
-            The requested feature module is already loaded.
+            The module is already loaded.
+        NoSuchModule
+            The module could not be found.
         """
         if name in self._features:
-            # TODO: proper exception
             raise ModuleAlreadyLoaded(
                 f"Feature module '{name}' is already loaded.", mod_id=name)
-        module = self._handle_load_module(name, Module)
-        if module is None:
-            return None
+        try:
+            module = self._handle_load_module(name, Module)
+        except (ModuleLoadError, NoSuchModule) as ex:
+            self.logger.error(ex)
+            raise
         self._features[name] = module
         try:
             await module.handle.module_register(self)
-        except Exception:  # pylint: disable=broad-except
-            self.logger.exception(
-                f'Failed to register feature module {module!r}')
-            return None
+        except Exception as ex:  # pylint: disable=broad-except
+            del self._features[name]
+            msg = f'Failed to register feature module {module!r}: {ex}'
+            self.logger.error(msg)
+            raise ModuleRegisterError(msg, mod_id=name) from ex
         self.logger.info(f"Loaded feature module '{name}'")
         return module
 
     # TODO: reload_protocol will be more complicated to pull off, as we have
     # connections to manage.
 
-    async def reload_feature(self,
-                             feature: Union[str, Module]) -> Optional[Module]:
+    async def reload_feature(self, feature: Union[str, Module]) -> Module:
         """Reload a ZeroBot feature module.
 
         Allows for changes to feature modules to be dynamically introduced at
@@ -489,8 +499,8 @@ class Core:
 
         Returns
         -------
-        Module or None
-            A reference to the module if reloading was successful, else `None`.
+        Module
+            A reference to the module if reloading was successful.
         """
         if isinstance(feature, Module):
             module = feature
@@ -500,10 +510,10 @@ class Core:
             try:
                 module = self._features[feature]
             except KeyError:
-                self.logger.error(
-                    f"Cannot reload feature module '{feature}' that is not "
-                    'already loaded.')
-                return None
+                msg = (f"Cannot reload feature module '{feature}' that is not "
+                       'already loaded.')
+                self.logger.error(msg)
+                raise ModuleNotLoaded(msg, mod_id=name)
         else:
             raise TypeError("feature type expects 'str' or 'Module', not "
                             f"'{type(feature)}'")
@@ -513,8 +523,9 @@ class Core:
             module.reload()
             await module.handle.module_register(self)
         except Exception:  # pylint: disable=broad-except
-            self.logger.exception(f"Failed to reload feature module '{name}'")
-            return None
+            msg = f"Failed to reload feature module '{name}'"
+            self.logger.error(msg)
+            raise ModuleLoadError(msg, mod_id=name)
         self.logger.info(f"Reloaded feature module '{name}'")
         return module
 
@@ -629,8 +640,8 @@ class Core:
                 module = self._features[module_id]
             except KeyError:
                 raise ModuleNotLoaded(
-                    f"Module '{module}' is not loaded or being loaded.",
-                    mod_id=module)
+                    f"Module '{module_id}' is not loaded or being loaded.",
+                    mod_id=module_id)
         for cmd in cmds:
             cmd._module = module  # pylint: disable=protected-access
             self._commands.add(module_id, cmd)
