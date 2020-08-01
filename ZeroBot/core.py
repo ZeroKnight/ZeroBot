@@ -937,24 +937,27 @@ class Core:
             try:
                 mtype = parsed.args['mtype']
                 module = await getattr(self, f"load_{mtype}")(mod_id)
-            except Exception:
+            except NoSuchModule:
+                status = ModuleCmdStatus.NO_SUCH_MOD
+            except (ModuleLoadError, ModuleRegisterError):
+                status = ModuleCmdStatus.LOAD_FAIL
+            except ModuleAlreadyLoaded:
                 status = ModuleCmdStatus.ALREADY_LOADED
-                module = None
             else:
-                if module is None:
-                    status = ModuleCmdStatus.LOAD_FAIL
-                else:
-                    status = ModuleCmdStatus.LOAD_OK
+                status = ModuleCmdStatus.LOAD_OK
         elif subcmd == 'reload':
             if parsed.args['mtype'] == 'protocol':
                 ctx.reply_command_result(parsed, 'Reloading protocol '
                                          'modules is not yet implemented.')
                 return
-            module = await self.reload_feature(mod_id)
-            if module is None:
-                # TODO: add exceptions(?) to differentiate between reload fail
-                # and attempt to reload a module that isn't loaded
+            try:
+                module = await self.reload_feature(mod_id)
+            except NoSuchModule:
+                status = ModuleCmdStatus.NO_SUCH_MOD
+            except ModuleLoadError:
                 status = ModuleCmdStatus.RELOAD_FAIL
+            except ModuleNotLoaded:
+                status = ModuleCmdStatus.NOT_YET_LOADED
             else:
                 status = ModuleCmdStatus.RELOAD_OK
         elif subcmd == 'list':
