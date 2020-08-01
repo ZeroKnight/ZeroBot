@@ -112,39 +112,13 @@ class DiscordContext(Context, discord.Client):
         handler(embed, help_cmd, result)
         await help_cmd.source.send(embed=embed)
 
-    async def core_command_module(self, command, status, modules=None,
-                                  info=None):
-        mcs = ModuleCmdStatus
+    async def core_command_module(self, command, results):
         embed = discord.Embed(title='Module')
-        if status is mcs.QUERY:
-            _handle_module_query(embed, command, modules, info)
-            await command.source.send(embed=embed)
-            return
-
-        # TODO: handle multiple modules
-        mod_id = command.args['module'][0]
-        mtype = command.args['mtype']
-        verb = '{0}load'.format('re' if mcs.is_reload(status) else '')
-        if mcs.is_ok(status):
-            embed.color = discord.Color.green()
-            embed.description = (
-                f'Successfully {verb}ed {mtype} module **{mod_id}**.')
+        subcmd = command.args['subcmd']
+        if subcmd.endswith('load'):
+            await _handle_module_load(embed, command, results)
         else:
-            embed.color = discord.Color.red()
-            if status in (mcs.LOAD_FAIL, mcs.RELOAD_FAIL):
-                embed.description = (
-                    f'Failed to {verb} {mtype} module **{mod_id}**.')
-            elif status is mcs.NO_SUCH_MOD:
-                embed.description = f'No such {mtype} module: **{mod_id}**'
-            elif status is mcs.ALREADY_LOADED:
-                embed.description = (
-                    f'{mtype.capitalize()} module **{mod_id}** is already '
-                    'loaded. Use `module reload` if you wish to reload it.')
-            elif status is mcs.NOT_YET_LOADED:
-                embed.description = (
-                    f'{mtype.capitalize()} module **{mod_id}** is not yet '
-                    'loaded. Use `module load` if you wish to load it.')
-        await command.source.send(embed=embed)
+            await _handle_module_query(embed, command, results)
 
     async def core_command_version(self, command, info):
         embed = discord.Embed(title='Version Info',
@@ -227,21 +201,73 @@ def _format_help_NO_SUCH_SUBCMD(embed, help_cmd, result):
         embed.description = f'**{result.parent.name}** has no subcommands.'
 
 
-def _handle_module_query(embed, command, modules, info):
+async def _handle_module_load(embed, command, results):
+    mcs = ModuleCmdStatus
+    subcmd = command.args['subcmd']
+    lines = []
+    had_ok, had_fail = False, False
+    for res in results:
+        mod_id = res.module
+        mtype = res.mtype
+        if mcs.is_ok(res.status):
+            had_ok = True
+            lines.append(
+                f'\u2705 Successfully {subcmd}ed {mtype} module **{mod_id}**.')
+        else:
+            had_fail = True
+            if res.status in (mcs.LOAD_FAIL, mcs.RELOAD_FAIL):
+                lines.append(
+                    f'Failed to {subcmd} {mtype} module **{mod_id}**.')
+            elif res.status is mcs.NO_SUCH_MOD:
+                lines.append(f'No such {mtype} module: **{mod_id}**')
+            elif res.status is mcs.ALREADY_LOADED:
+                lines.append(
+                    f'{mtype.capitalize()} module **{mod_id}** is already '
+                    'loaded. Use `module reload` if you wish to reload it.')
+            elif res.status is mcs.NOT_YET_LOADED:
+                lines.append(
+                    f'{mtype.capitalize()} module **{mod_id}** is not yet '
+                    'loaded. Use `module load` if you wish to load it.')
+            lines[-1] = '\u274C ' + lines[-1]
+    if had_ok and had_fail:
+        embed.color = discord.Color.gold()
+    elif had_ok:
+        embed.color = discord.Color.green()
+    elif had_fail:
+        embed.color = discord.Color.red()
+    embed.description = '\n'.join(lines)
+    await command.source.send(embed=embed)
+
+
+async def _handle_module_query(embed, command, results):
+    subcmd = command.args['subcmd']
     embed.color = discord.Color.teal()
-    if modules:
+    if subcmd == 'list':
         categories = command.args['category']
         if command.args['loaded']:
             embed.description = 'Currently loaded modules:\n\n'
         else:
             embed.description = 'Available modules:\n\n'
         for category in categories:
-            mod_list = ', '.join(modules[category]) or '*None loaded*'
+            mod_list = ', '.join(
+                res.module for res in results if res.mtype == category)
+            if not mod_list:
+                mod_list = '*None loaded*'
             embed.add_field(name=f'{category.capitalize()} Modules',
                             value=mod_list)
-    elif info:
-        embed.title = f"{command.args['mtype'].capitalize()} {embed.title}"
-        embed.description = f"**{info['name']}**\n{info['description']}"
-        embed.add_field(name='Author', value=info['author'])
-        embed.add_field(name='Version', value=info['version'])
-        embed.add_field(name='License', value=info['license'])
+        await command.source.send(embed=embed)
+    elif subcmd == 'info':
+        for res in results:
+            mtype = res.mtype
+            info = res.info
+            embed = discord.Embed(title=f"{mtype.capitalize()} Module")
+            if res.status is ModuleCmdStatus.NO_SUCH_MOD:
+                embed.color = discord.Color.red()
+                embed.description = f'No such {mtype} module: **{res.module}**'
+            else:
+                name, desc = info['name'], info['description']
+                embed.description = f"**{name}**\n{desc}"
+                embed.add_field(name='Author', value=info['author'])
+                embed.add_field(name='Version', value=info['version'])
+                embed.add_field(name='License', value=info['license'])
+            await command.source.send(embed=embed)

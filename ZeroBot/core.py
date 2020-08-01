@@ -13,6 +13,7 @@ import datetime
 import logging
 import logging.config
 from argparse import ArgumentError, ArgumentTypeError, _SubParsersAction
+from collections import namedtuple
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
@@ -144,6 +145,11 @@ class VersionInfo:
     version: str
     release_date: datetime.date
     author: str
+
+
+ModuleCmdResult = namedtuple('ModuleCmdResult',
+                             ('module', 'status', 'mtype', 'info'),
+                             defaults=[None])
 
 
 class Core:
@@ -924,57 +930,58 @@ class Core:
             cmd_help = CommandHelp(HelpType.ALL, cmds=cmds)
         await ctx.core_command_help(parsed, cmd_help)
 
-    # TODO: Do module handle lookup in one place
     async def module_command_module(self, ctx, parsed):
         """Implementation for Core `module` command."""
-        # TODO: handle multiple modules
-        # TODO: aggregate failed/success messages when giving multiple modules
         mcs = ModuleCmdStatus
-        modules, info = {}, {}
+        results = []
         subcmd = parsed.args['subcmd']
-        if subcmd != 'list':
-            mod_id = parsed.args['module'][0]
         if subcmd.endswith('load'):  # load, reload
             mtype = parsed.args['mtype']
-            try:
-                if parsed.args['mtype'] == 'protocol' and subcmd == 'reload':
-                    await ctx.reply_command_result(
-                        parsed,
-                        'Reloading protocol modules is not yet implemented.')
-                    return
-                module = await getattr(self, f"{subcmd}_{mtype}")(mod_id)
-            except NoSuchModule:
-                status = mcs.NO_SUCH_MOD
-            except (ModuleLoadError, ModuleRegisterError):
-                status = getattr(mcs, f'{subcmd.upper()}_FAIL')
-            except ModuleAlreadyLoaded:
-                status = mcs.ALREADY_LOADED
-            except ModuleNotLoaded:
-                status = mcs.NOT_YET_LOADED
-            else:
-                status = getattr(mcs, f'{subcmd.upper()}_OK')
+            if parsed.args['mtype'] == 'protocol' and subcmd == 'reload':
+                await ctx.reply_command_result(
+                    parsed,
+                    'Reloading protocol modules is not yet implemented.')
+                return
+            for mod_id in parsed.args['module']:
+                try:
+                    module = await getattr(self, f"{subcmd}_{mtype}")(mod_id)
+                except NoSuchModule:
+                    status = mcs.NO_SUCH_MOD
+                except (ModuleLoadError, ModuleRegisterError):
+                    status = getattr(mcs, f'{subcmd.upper()}_FAIL')
+                except ModuleAlreadyLoaded:
+                    status = mcs.ALREADY_LOADED
+                except ModuleNotLoaded:
+                    status = mcs.NOT_YET_LOADED
+                else:
+                    status = getattr(mcs, f'{subcmd.upper()}_OK')
+                results.append(ModuleCmdResult(mod_id, status, mtype))
         elif subcmd == 'list':
             status = mcs.QUERY
             for category in parsed.args['category']:
                 if parsed.args['loaded']:
-                    method = getattr(self, f'get_loaded_{category}s')
-                    modules[category] = [mod.identifier for mod in method()]
+                    pool = (mod.identifier for mod in
+                            getattr(self, f'get_loaded_{category}s')())
                 else:
-                    attr = getattr(self, f'_{category}s')
-                    modules[category] = list(attr.keys())
+                    pool = getattr(self, f'_{category}s').keys()
+                results.extend(
+                    ModuleCmdResult(mod, status, category)
+                    for mod in pool)
         elif subcmd == 'info':
             status = mcs.QUERY
-            try:
-                mtype = parsed.args['mtype']
-                module = getattr(self, f'_{mtype}s')[mod_id]
-            except KeyError:
-                status = mcs.NO_SUCH_MOD
-            else:
-                for attr in ('name', 'description', 'author', 'version',
-                             'license'):
-                    info[attr] = getattr(module, attr)
-        await ctx.core_command_module(parsed, status, modules=modules,
-                                      info=info)
+            mtype = parsed.args['mtype']
+            for mod_id in parsed.args['module']:
+                info = {}
+                try:
+                    module = getattr(self, f'_{mtype}s')[mod_id]
+                except KeyError:
+                    status = mcs.NO_SUCH_MOD
+                else:
+                    for attr in ('name', 'description', 'author', 'version',
+                                 'license'):
+                        info[attr] = getattr(module, attr)
+                results.append(ModuleCmdResult(mod_id, status, mtype, info))
+        await ctx.core_command_module(parsed, results)
 
     async def module_command_version(self, ctx, parsed):
         """Implementation for Core `version` command."""
