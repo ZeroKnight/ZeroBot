@@ -261,6 +261,7 @@ async def _handle_module_query(embed, command, results):
             mtype = res.mtype
             info = res.info
             embed = discord.Embed(title=f"{mtype.capitalize()} Module")
+            embed.color = discord.Color.teal()
             if res.status is ModuleCmdStatus.NO_SUCH_MOD:
                 embed.color = discord.Color.red()
                 embed.description = f'No such {mtype} module: **{res.module}**'
