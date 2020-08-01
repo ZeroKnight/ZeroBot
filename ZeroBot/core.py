@@ -947,8 +947,9 @@ class Core:
                 status = ModuleCmdStatus.LOAD_OK
         elif subcmd == 'reload':
             if parsed.args['mtype'] == 'protocol':
-                ctx.reply_command_result(parsed, 'Reloading protocol '
-                                         'modules is not yet implemented.')
+                await ctx.reply_command_result(
+                    parsed,
+                    'Reloading protocol modules is not yet implemented.')
                 return
             try:
                 module = await self.reload_feature(mod_id)
