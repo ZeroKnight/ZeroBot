@@ -13,6 +13,7 @@ import asyncio
 import datetime
 import logging
 import logging.config
+import time
 from argparse import ArgumentError, ArgumentTypeError, _SubParsersAction
 from collections import namedtuple
 from dataclasses import dataclass
@@ -151,6 +152,8 @@ class VersionInfo:
 ModuleCmdResult = namedtuple('ModuleCmdResult',
                              ('module', 'status', 'mtype', 'info'),
                              defaults=[None])
+WaitingCmdInfo = namedtuple('WaitingCmdInfo',
+                            'id, cmd, delay, invoker, source, started')
 
 
 class Core:
@@ -196,6 +199,8 @@ class Core:
         self._features = {}  # maps feature module names to their Module
         self._dummy_module = CoreModule(self, ZeroBot.__version__)
         self._commands = CommandRegistry()
+        self._delayed_commands = {}
+        self._delayed_command_count = 0
         self._shutdown_reason = None
 
         # Read config
@@ -351,6 +356,15 @@ class Core:
         cmd_wait.add_argument(
             'args', nargs=argparse.REMAINDER, help='Command arguments')
         cmds.append(cmd_wait)
+
+        cmd_cancel = CommandParser('cancel', 'Cancel a waiting command')
+        cancel_group = cmd_cancel.add_mutually_exclusive_group()
+        cancel_group.add_argument(
+            'id', type=int, nargs='?', help='The ID of a waiting command')
+        cancel_group.add_argument(
+            '-l', '--list', action='store_true',
+            help='List currently waiting commands')
+        cmds.append(cmd_cancel)
 
         # TODO: restart command
 
@@ -814,6 +828,13 @@ class Core:
         module that registered ``frobnicate`` with the parsed elements of the
         command as an `argparse.Namespace` object.
         """
+        async def delay_wrapper(seconds: float, coro):
+            try:
+                await asyncio.sleep(seconds)
+                await coro
+            except asyncio.CancelledError:
+                coro.close()
+
         cmd_str = cmd_msg.content
         if not cmd_str.startswith(self.cmdprefix):
             raise NotACommand(f'Not a command string: {cmd_str}')
@@ -839,8 +860,18 @@ class Core:
         if callable(method):
             parsed = ParsedCommand(name, vars(namespace), cmd, cmd_msg)
             if delay:
-                await asyncio.sleep(delay)
-            await method(ctx, parsed)
+                self._delayed_command_count += 1
+                wait_id = self._delayed_command_count
+                info = WaitingCmdInfo(
+                    wait_id, cmd_str, delay, invoker, dest, time.time())
+                task = self.eventloop.create_task(
+                    delay_wrapper(delay, method(ctx, parsed)),
+                    name=f'ZeroBot_Wait_Cmd_{wait_id}')
+                self._delayed_commands[wait_id] = (task, info)
+                await task
+                del self._delayed_commands[wait_id]
+            else:
+                await method(ctx, parsed)
 
     def quit(self, reason: str = None):
         """Shut down ZeroBot.
@@ -1029,6 +1060,24 @@ class Core:
                     f"{', '.join(factor.keys())}")
             delay = float(delay.replace(suffix, '')) * factor[suffix]
         cmd = parsed.args['command']
-        args = ' '.join(parsed.args['args'])
-        parsed.msg.content = f'{self.cmdprefix}{cmd} {args}'
+        args = ' '.join(parsed.args['args']) or None
+        parsed.msg.content = f'{self.cmdprefix}{cmd}'
+        parsed.msg.content += f' {args}' if args else ''
         await self.module_commanded(parsed.msg, ctx, delay)
+
+    async def module_command_cancel(self, ctx, parsed):
+        """Implementation for Core `cancel` command."""
+        waiting = []
+        wait_id = None
+        cancelled = False
+        if parsed.args['list']:
+            waiting = [pair[1] for pair in self._delayed_commands.values()]
+        else:
+            wait_id = parsed.args['id']
+            try:
+                cancelled = True
+                task, waiting = self._delayed_commands[wait_id]
+                task.cancel()
+            except KeyError:
+                pass
+        await ctx.core_command_cancel(parsed, cancelled, wait_id, waiting)

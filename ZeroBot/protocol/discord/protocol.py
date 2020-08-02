@@ -5,6 +5,7 @@ Discord protocol implementation.
 
 import asyncio
 import logging
+import time
 
 import discord
 from discord import ChannelType
@@ -128,6 +129,27 @@ class DiscordContext(Context, discord.Client):
         embed.set_footer(text='Hacked together over the years by '
                          f'{info.author} with love.')
         # TODO: Set thumbnail to whatever avatar we come up with for ZeroBot
+        await command.source.send(embed=embed)
+
+    async def core_command_cancel(self, command, cancelled, wait_id, waiting):
+        embed = discord.Embed(title='Cancel')
+        if command.args['list']:
+            embed.color = discord.Color.gold()
+            embed.description = ('**Waiting Commands**:\n\n'
+                                 'ID | Command | Delay | Invoker | Remaining')
+            for wait in waiting:
+                remaining = wait.delay - (time.time() - wait.started)
+                embed.description += (
+                    f'\n**{wait.id}** | `{wait.cmd}` | {wait.delay:.2f}s | '
+                    f'{wait.invoker} | {remaining:.2f}s')
+        else:
+            if cancelled:
+                embed.color = discord.Color.green()
+                embed.description = (
+                    f'Cancelled waiting command **{wait_id}**:\n```\n'
+                    f'{waiting.cmd}```')
+            else:
+                embed.description = f'No waiting command with ID **{wait_id}**'
         await command.source.send(embed=embed)
 
 
