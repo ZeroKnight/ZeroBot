@@ -8,6 +8,7 @@ on protocol modules to enable ZeroBot to connect to and communicate somewhere,
 and feature modules to do something meaningful with that connection.
 """
 
+import argparse
 import asyncio
 import datetime
 import logging
@@ -341,7 +342,16 @@ class Core:
             help='Message sent to protocol modules as a reason')
         cmds.append(cmd_quit)
 
-        # TODO: WeeChat wait command
+        cmd_wait = CommandParser('wait', 'Execute a command after a delay')
+        cmd_wait.add_argument(
+            'delay',
+            help=('Amount of time to delay. Accepts the following modifier '
+                  "suffixes: 'ms', 's' (default), 'm', 'h'."))
+        cmd_wait.add_argument('command', help='Command to delay')
+        cmd_wait.add_argument(
+            'args', nargs=argparse.REMAINDER, help='Command arguments')
+        cmds.append(cmd_wait)
+
         # TODO: restart command
 
         self.command_register('core', *cmds)
@@ -757,7 +767,8 @@ class Core:
         await asyncio.sleep(delay)
         await self.module_send_event(event, ctx, *args, **kwargs)
 
-    async def module_commanded(self, cmd_msg: abc.Message, ctx: Context):
+    async def module_commanded(self, cmd_msg: abc.Message, ctx: Context,
+                               delay: float = None):
         """|coro|
 
         Parse a raw command string using a registered command parser.
@@ -773,6 +784,8 @@ class Core:
             by a user on a connected protocol.
         ctx : Context
             The protocol context where the command was sent.
+        delay : float, optional
+            The amount of time in seconds to delay execution of this command.
 
         Notes
         -----
@@ -808,8 +821,14 @@ class Core:
         name = name.lstrip(self.cmdprefix)
         invoker = cmd_msg.source
         dest = cmd_msg.destination
-        self.logger.debug(
-            f"Received command from '{invoker}' at '{dest}': {name=}, {args=}")
+        if delay:
+            self.logger.debug(
+                f"Received delayed command from '{invoker}' at '{dest}': "
+                f'{name=}, {args=}. Executing in {delay} seconds.')
+        else:
+            self.logger.debug(
+                f"Received command from '{invoker}' at '{dest}': {name=}, "
+                f'{args=}')
         try:
             cmd = self._commands[name]
             namespace = cmd.parse_args(args)
@@ -818,7 +837,9 @@ class Core:
             return
         method = getattr(cmd.module.handle, f'module_command_{name}', None)
         if callable(method):
-            parsed = ParsedCommand(name, vars(namespace), cmd, invoker, dest)
+            parsed = ParsedCommand(name, vars(namespace), cmd, cmd_msg)
+            if delay:
+                await asyncio.sleep(delay)
             await method(ctx, parsed)
 
     def quit(self, reason: str = None):
@@ -992,3 +1013,22 @@ class Core:
         """Implementation for Core `quit` command."""
         reason = ' '.join(parsed.args['msg'] or []) or 'Shutting down'
         self.quit(reason)
+
+    async def module_command_wait(self, ctx, parsed):
+        """Implementation for Core `wait` command."""
+        factor = {'ms': 1e-3, 's': 1, 'm': 60, 'h': 3600}
+        delay = parsed.args['delay']
+        try:
+            delay = float(delay)
+        except ValueError:
+            suffix = ''.join(filter(str.isalpha, delay[-2:]))
+            if suffix not in factor.keys():
+                await ctx.reply_command_result(
+                    parsed,
+                    f'Invalid delay suffix. Valid suffixes: '
+                    f"{', '.join(factor.keys())}")
+            delay = float(delay.replace(suffix, '')) * factor[suffix]
+        cmd = parsed.args['command']
+        args = ' '.join(parsed.args['args'])
+        parsed.msg.content = f'{self.cmdprefix}{cmd} {args}'
+        await self.module_commanded(parsed.msg, ctx, delay)

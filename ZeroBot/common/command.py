@@ -7,7 +7,7 @@ from argparse import ArgumentParser, _SubParsersAction
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from ZeroBot.common.abc import Channel, User
+from ZeroBot.common.abc import Channel, Message, User
 from ZeroBot.common.enums import HelpType
 from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
                                        CommandParseError)
@@ -139,18 +139,27 @@ class ParsedCommand:
         values.
     parser : CommandParser
         The parser that created this instance.
-    invoker : User
-        The user that invoked the command.
-    source : User or Channel
-        Where the command was sent from, either directly from a user, or from
-        within a channel.
+    msg : Message
+        The original message encompassing the command.
     """
 
     name: str
     args: Dict[str, Any]
     parser: CommandParser
-    invoker: User
-    source: Union[User, Channel]
+    msg: Message
+
+    @property
+    def invoker(self) -> User:
+        """The User that invoked the command."""
+        return self.msg.source
+
+    @property
+    def source(self) -> Union[User, Channel]:
+        """Where the command was sent from.
+
+        Can be either directly from a user, or from a user within a channel.
+        """
+        return self.msg.destination
 
 
 @dataclass
