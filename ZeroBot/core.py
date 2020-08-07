@@ -13,6 +13,8 @@ import asyncio
 import datetime
 import logging
 import logging.config
+import os
+import sys
 import time
 from argparse import ArgumentError, ArgumentTypeError, _SubParsersAction
 from collections import namedtuple
@@ -202,6 +204,7 @@ class Core:
         self._delayed_commands = {}
         self._delayed_command_count = 0
         self._shutdown_reason = None
+        self._restarting = False
 
         # Read config
         if config_dir:
@@ -340,6 +343,12 @@ class Core:
 
         cmd_version = CommandParser('version', 'Show version information')
         cmds.append(cmd_version)
+
+        cmd_restart = CommandParser('restart', 'Restart ZeroBot.')
+        cmd_restart.add_argument(
+            'msg', nargs='*',
+            help='Message sent to protocol modules as a reason')
+        cmds.append(cmd_restart)
 
         cmd_quit = CommandParser('quit', 'Shut down ZeroBot.')
         cmd_quit.add_argument(
@@ -638,6 +647,9 @@ class Core:
             self._shutdown()
             self.logger.debug('Closing event loop')
             self.eventloop.close()
+        if self._restarting:
+            self.logger.info(f'Restarting with command line: {sys.argv}')
+            os.execl(sys.executable, sys.executable, *sys.argv)
 
     def command_register(self, module_id: str, *cmds: CommandParser):
         """Register requested commands from a module.
@@ -1044,6 +1056,12 @@ class Core:
         """Implementation for Core `quit` command."""
         reason = ' '.join(parsed.args['msg'] or []) or 'Shutting down'
         self.quit(reason)
+
+    async def module_command_restart(self, ctx, parsed):
+        """Implementation for Core `restart` command."""
+        reason = ' '.join(parsed.args['msg'] or []) or 'Restarting'
+        self.quit(reason)
+        self._restarting = True
 
     async def module_command_wait(self, ctx, parsed):
         """Implementation for Core `wait` command."""
