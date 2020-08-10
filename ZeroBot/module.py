@@ -133,3 +133,7 @@ class CoreModule(Module):
         self.author = 'ZeroKnight'
         self.version = version
         self.license = 'MIT'
+
+    @property
+    def identifier(self) -> str:
+        return 'core'
