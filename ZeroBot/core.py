@@ -17,9 +17,8 @@ import os
 import sys
 import time
 from argparse import ArgumentError, ArgumentTypeError, _SubParsersAction
-from collections import namedtuple
+from collections import ChainMap, namedtuple
 from dataclasses import dataclass
-from itertools import chain
 from pathlib import Path
 from types import ModuleType
 from typing import Iterator, List, Optional, Tuple, Type, Union
@@ -199,6 +198,7 @@ class Core:
         self.logger = logging.getLogger('ZeroBot')
         self._protocols = {}  # maps protocol names to their ProtocolModule
         self._features = {}  # maps feature module names to their Module
+        self._all_modules = ChainMap(self._protocols, self._features)
         self._dummy_module = CoreModule(self, ZeroBot.__version__)
         self._commands = CommandRegistry()
         self._delayed_commands = {}
@@ -718,7 +718,7 @@ class Core:
         ModuleHasNoCommands
             The requested module has no registered commands.
         """
-        if module_id not in chain(self._protocols, self._features):
+        if module_id not in self._all_modules:
             raise ModuleNotLoaded(f"Module '{module_id}' is not loaded.",
                                   mod_id=module_id)
         for cmd in list(self._commands.iter_by_module(module_id)):
