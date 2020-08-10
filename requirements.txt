@@ -1,3 +1,4 @@
+aiosqlite
 appdirs
 dateutil
 discord.py
