@@ -27,6 +27,7 @@ import appdirs
 from toml import TomlDecodeError
 
 import ZeroBot
+import ZeroBot.database as zbdb
 from ZeroBot.common import HelpType, ModuleCmdStatus, abc
 from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
 from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
@@ -199,6 +200,7 @@ class Core:
         self._protocols = {}  # maps protocol names to their ProtocolModule
         self._features = {}  # maps feature module names to their Module
         self._all_modules = ChainMap(self._protocols, self._features)
+        self._db_connections = {}
         self._dummy_module = CoreModule(self, ZeroBot.__version__)
         self._commands = CommandRegistry()
         self._delayed_commands = {}
@@ -215,11 +217,19 @@ class Core:
         self.config = self.load_config('ZeroBot')
         if 'Core' not in self.config:
             self.config['Core'] = {}
+        self._cmdprefix = self.config['Core'].get('CmdPrefix', '!')
 
         # Configure logging
         self._init_logging()
 
-        self._cmdprefix = self.config['Core'].get('CmdPrefix', '!')
+        # Database Setup
+        if 'Database' not in self.config:
+            self.config['Database'] = {'Backup': {}}
+        self._db_path = self._config_dir.joinpath(
+            self.config['Database'].get('Filename', 'zerobot.sqlite'))
+        self.database = self.eventloop.run_until_complete(
+            zbdb.create_connection(self._db_path, self._dummy_module,
+                                   self.eventloop))
 
         # Register core commands
         self._register_commands()
@@ -734,6 +744,62 @@ class Core:
         """
         return command in self._commands
 
+    async def database_connect(self, module_id: str,
+                               readonly: bool = False) -> zbdb.Connection:
+        """Open a new module connection to ZeroBot's database.
+
+        When done, modules should close this connection via
+        `Core.database_disconnect` instead of calling the connection object's
+        `close` method so that `Core` may clean up any references to the
+        object.
+
+        Parameters
+        ----------
+        module_id : str
+            The identifier of the module that is opening a connection.
+        readonly : bool, optional
+            Whether the connection is read-only. Defaults to `False`.
+
+        Returns
+        -------
+        ZeroBot.database.Connection
+            A connection object for the requested database.
+
+        Raises
+        ------
+        ModuleNotLoaded
+            The specified module isn't loaded or currently being loaded.
+        """
+        if module_id not in self._all_modules:
+            raise ModuleNotLoaded(f"Module '{module_id}' is not loaded.",
+                                  mod_id=module_id)
+        module = self._all_modules[module_id]
+        connection = await zbdb.create_connection(self._db_path, module,
+                                                  self.eventloop, readonly)
+        self._db_connections[module_id] = connection
+        return connection
+
+    async def database_disconnect(self, module_id: str):
+        """Closes a module database connection.
+
+        Modules should call this method instead of the `close` method on their
+        `Connection` object so that Core may clean up any references to the
+        object.
+
+        Parameters
+        ----------
+        module_id : str
+            The identifier of the module whose database connection shall be
+            closed.
+
+        Raises
+        ------
+        ModuleNotLoaded
+            The specified module isn't loaded.
+        """
+        await self._db_connections[module_id].close()
+        del self._db_connections[module_id]
+
     async def module_send_event(self, event: str, ctx, *args, **kwargs):
         """|coro|
 
@@ -922,6 +988,12 @@ class Core:
                 self.logger.exception(
                     'Exception occurred while unregistering protocol '
                     f"module '{protocol.name}'.")
+        self.eventloop.run_until_complete(self.database.close())
+        if len(self._db_connections) > 0:
+            self.logger.debug('Cleaning up unclosed database connections')
+            for module in list(self._db_connections):
+                self.eventloop.run_until_complete(
+                    self.database_disconnect(module))
 
     # Core command implementations
 

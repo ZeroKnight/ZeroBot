@@ -52,7 +52,7 @@ async def create_connection(database: Union[str, Path], module: Module,
     """Establish a new connection to a ZeroBot database.
 
     Modules *should not* use this method or the `connect` method from either
-    `sqlite3` or `aiosqlite` directly. Use `Core.new_database_connection`
+    `sqlite3` or `aiosqlite` directly. Use `Core.database_connect`
     instead.
 
     Parameters
@@ -80,6 +80,7 @@ async def create_connection(database: Union[str, Path], module: Module,
 
     logger.debug(f"Creating {'read-only ' if readonly else ''}connection to "
                  f"database at '{database}' for module {module!r}")
+    # NOTE: aiosqlite passes kwargs to sqlite3.connect
     conn = await aiosqlite.connect(
         f"{database.as_uri()}?mode={'ro' if readonly else 'rwc'}",
         loop=loop, uri=True, factory=Connection, **kwargs)
