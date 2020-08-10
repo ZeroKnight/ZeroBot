@@ -60,6 +60,11 @@ class Module:
     def __str__(self):
         return f'{self.name} v{self.version}'
 
+    @staticmethod
+    def get_type() -> str:
+        """Return a string representing the module type."""
+        return 'feature'
+
     @property
     def identifier(self) -> str:
         """Get the module identifier, i.e. the name used to load it."""
@@ -101,6 +106,11 @@ class ProtocolModule(Module):
         super().__init__(import_str)
 
         self.contexts = []
+
+    @staticmethod
+    def get_type() -> str:
+        """Return a string representing the module type."""
+        return 'protocol'
 
     @property
     def identifier(self) -> str:
