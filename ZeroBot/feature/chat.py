@@ -6,12 +6,15 @@ privileged users to puppet ZeroBot, sending arbitrary messages and actions.
 
 from ZeroBot.common import CommandParser
 
-CORE = None
 MODULE_NAME = 'Chat'
 MODULE_AUTHOR = 'ZeroKnight'
 MODULE_VERSION = '0.1'
 MODULE_LICENSE = 'MIT'
 MODULE_DESC = 'Allows ZeroBot to chat and respond to conversation in various ways.'
+
+CORE = None
+MOD_ID = 'chat'
+DB = None
 
 # \xa1 and \xbf are the inverted variants of ! and ?
 # \x203D is the interrobang
@@ -20,10 +23,12 @@ DOTCHARS = '.!?\xA1\xBF\u203D'
 
 async def module_register(core):
     """Initialize mdoule."""
-    global CORE
+    global CORE, DB
     CORE = core
 
     # make database connection and initialize tables if necessary
+    DB = await core.database_connect(MOD_ID)
+
     # check for existence of 'fortune' command in environment
 
     _register_commands()
@@ -31,7 +36,7 @@ async def module_register(core):
 
 async def module_unregister():
     """Prepare for shutdown."""
-    # close database connection
+    await CORE.database_disconnect(MOD_ID)
 
 
 def _register_commands():
@@ -56,7 +61,7 @@ def _register_commands():
         'fortune', "Read a fortune from the *nix 'fortune' command")
     cmds.append(cmd_fortune)
 
-    CORE.command_register('chat', *cmds)
+    CORE.command_register(MOD_ID, *cmds)
 
 
 async def module_on_message(ctx, message):
