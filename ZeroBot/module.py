@@ -4,8 +4,43 @@ Provides abstractions for ZeroBot modules and their associated files.
 """
 
 import importlib
+from importlib.abc import MetaPathFinder
+from importlib.util import spec_from_file_location
+from pathlib import Path
+from typing import List
 
 from ZeroBot.util import gen_repr
+
+
+class ZeroBotModuleFinder(MetaPathFinder):
+    """Meta path finder for ZeroBot modules.
+
+    Will search for ZeroBot modules in the locations specified in ZeroBot's
+    configuration as well as the usual places in `sys.path`.
+
+    Parameters
+    ----------
+    search_dirs : list of paths
+        The list of paths to search for ZeroBot modules.
+    """
+
+    def __init__(self, search_dirs: List):
+        self.search_dirs = search_dirs
+
+    def find_spec(self, fullname, path, target=None):
+        spec = None
+        parts = fullname.split('.')
+        if (parts[0] != 'ZeroBot'
+                or parts[1] not in ('feature', 'protocol')
+                or len(parts) < 3):
+            return None
+        for loc in self.search_dirs:
+            filename = Path(loc, *parts[1:]).with_suffix('.py')
+            if filename.exists():
+                spec = spec_from_file_location(fullname, str(filename))
+                if spec is not None:
+                    break
+        return spec
 
 
 class Module:

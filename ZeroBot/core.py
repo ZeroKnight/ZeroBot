@@ -36,7 +36,8 @@ from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
                                        ModuleNotLoaded, ModuleRegisterError,
                                        NoSuchModule, NotACommand)
 from ZeroBot.config import Config
-from ZeroBot.module import CoreModule, Module, ProtocolModule
+from ZeroBot.module import (CoreModule, Module, ProtocolModule,
+                            ZeroBotModuleFinder)
 from ZeroBot.protocol.context import Context
 
 # Minimal initial logging format for any messages before the config is read and
@@ -215,6 +216,20 @@ class Core:
         self.config = self.load_config('ZeroBot')
         if 'Core' not in self.config:
             self.config['Core'] = {}
+
+        # Set up our meta path finder for ZeroBot modules
+        try:
+            module_dirs = self.config['Core']['ModuleDirs']
+            if not isinstance(module_dirs, list):
+                module_dirs = [Path(module_dirs).expanduser()]
+            else:
+                module_dirs = [Path(d).expanduser() for d in module_dirs]
+        except KeyError:
+            module_dirs = [Path(appdirs.user_data_dir(
+                'ZeroBot', appauthor=False, roaming=True))]
+        self.config['Core']['ModuleDirs'] = module_dirs
+        # Add before built-in PathFinder
+        sys.meta_path.insert(2, ZeroBotModuleFinder(module_dirs))
 
         # Configure logging
         self._init_logging()
