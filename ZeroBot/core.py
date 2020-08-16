@@ -612,25 +612,25 @@ class Core:
             self.logger.info(f"Loaded config file '{path.name}'")
         return config
 
-    def protocol_loaded(self, name: str) -> bool:
-        """Return whether the given protocol is loaded or not.
+    def protocol_loaded(self, module_id: str) -> bool:
+        """Check if a protocol module is currently loaded.
 
         Parameters
         ----------
-        name : str
-            The name of the protocol to check.
+        module_id : str
+            The identifier of the protocol to check for.
         """
-        return name in self._protocols
+        return module_id in self._protocols
 
-    def feature_loaded(self, name: str) -> bool:
-        """Return whether the given feature is loaded or not.
+    def feature_loaded(self, module_id: str) -> bool:
+        """Check if a feature module is currently loaded.
 
         Parameters
         ----------
-        name : str
-            The name of the feature to check.
+        module_id : str
+            The identifier of the feature to check for.
         """
-        return name in self._features
+        return module_id in self._features
 
     def get_loaded_protocols(self) -> List[ProtocolModule]:
         """Get a list of loaded protocol modules.
