@@ -650,6 +650,57 @@ class Core:
         """
         return list(self._features.values())
 
+    def protocol_available(self, module_id: str) -> bool:
+        """Check if a protocol module is available to load.
+
+        Parameters
+        ----------
+        module_id : str
+            The identifier of the protocol to check for.
+        """
+        return (self.protocol_loaded(module_id)
+                or ZeroBot.module.module_available(module_id, 'protocol'))
+
+    def feature_available(self, module_id: str) -> bool:
+        """Check if a feature module is available to load.
+
+        Parameters
+        ----------
+        module_id : str
+            The identifier of the feature to check for.
+        """
+        return (self.feature_loaded(module_id)
+                or ZeroBot.module.module_available(module_id, 'feature'))
+
+    def get_available_protocols(self) -> List[str]:
+        """Get a list of all available protocol modules.
+
+        Returns
+        -------
+        List of strings
+            List of protocol module identifiers.
+        """
+        modules = []
+        for mdir in ([Path(ZeroBot.__path__[0])]
+                     + self.config['Core']['ModuleDirs']):
+            modules += [child.parent.name for child in
+                        mdir.glob('protocol/*/protocol.py')]
+        return modules
+
+    def get_available_features(self) -> List[str]:
+        """Get a list of all available feature modules.
+
+        Returns
+        -------
+        List of strings
+            List of feature module identifiers.
+        """
+        modules = []
+        for mdir in ([Path(ZeroBot.__path__[0])]
+                     + self.config['Core']['ModuleDirs']):
+            modules += [child.stem for child in mdir.glob('feature/*.py')]
+        return modules
+
     def run(self):
         """Start ZeroBot's event loop."""
         try:

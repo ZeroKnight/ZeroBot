@@ -12,6 +12,24 @@ from typing import List
 from ZeroBot.util import gen_repr
 
 
+def module_available(module_id: str, mtype: str) -> bool:
+    """Checks for the existence of a given module.
+
+    Parameters
+    ----------
+    module_id : str
+        The identifier of the module to check for.
+    mtype : str
+        The type of module to look for; either `'protocol'` or `'feature'`.
+
+    Returns
+    -------
+    bool
+        Whether or not the given module is availble to load.
+    """
+    return importlib.util.find_spec(f'ZeroBot.{mtype}.{module_id}') is not None
+
+
 class ZeroBotModuleFinder(MetaPathFinder):
     """Meta path finder for ZeroBot modules.
 
