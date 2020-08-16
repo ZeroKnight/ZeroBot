@@ -462,7 +462,7 @@ class Core:
         try:
             module = self._handle_load_module(name, ProtocolModule)
         except (ModuleLoadError, NoSuchModule) as ex:
-            self.logger.error(ex)
+            self.logger.exception(ex)
             raise
         config = self.load_config(name)
         try:
@@ -508,7 +508,7 @@ class Core:
         try:
             module = self._handle_load_module(name, Module)
         except (ModuleLoadError, NoSuchModule) as ex:
-            self.logger.error(ex)
+            self.logger.exception(ex)
             raise
         self._features[name] = module
         try:
@@ -563,7 +563,7 @@ class Core:
             await module.handle.module_register(self)
         except Exception:  # pylint: disable=broad-except
             msg = f"Failed to reload feature module '{name}'"
-            self.logger.error(msg)
+            self.logger.exception(msg)
             raise ModuleLoadError(msg, mod_id=name)
         self.logger.info(f"Reloaded feature module '{name}'")
         return module
