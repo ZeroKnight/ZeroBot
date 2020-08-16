@@ -1093,7 +1093,7 @@ class Core:
                     pool = (mod.identifier for mod in
                             getattr(self, f'get_loaded_{category}s')())
                 else:
-                    pool = getattr(self, f'_{category}s').keys()
+                    pool = getattr(self, f'get_available_{category}s')()
                 results.extend(
                     ModuleCmdResult(mod, status, category)
                     for mod in pool)
@@ -1105,7 +1105,10 @@ class Core:
                 try:
                     module = getattr(self, f'_{mtype}s')[mod_id]
                 except KeyError:
-                    status = mcs.NO_SUCH_MOD
+                    if getattr(self, f'{mtype}_available')(mod_id):
+                        status = mcs.NOT_YET_LOADED
+                    else:
+                        status = mcs.NO_SUCH_MOD
                 else:
                     for attr in ('name', 'description', 'author', 'version',
                                  'license'):

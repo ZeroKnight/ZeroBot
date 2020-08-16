@@ -283,11 +283,14 @@ async def _handle_module_query(embed, command, results):
             mtype = res.mtype
             info = res.info
             embed = discord.Embed(title=f"{mtype.capitalize()} Module")
-            embed.color = discord.Color.teal()
+            embed.color = discord.Color.red()
             if res.status is ModuleCmdStatus.NO_SUCH_MOD:
-                embed.color = discord.Color.red()
                 embed.description = f'No such {mtype} module: **{res.module}**'
+            elif res.status is ModuleCmdStatus.NOT_YET_LOADED:
+                embed.description = (f'{mtype.capitalize()} module '
+                                     f'**{res.module}** is not loaded.')
             else:
+                embed.color = discord.Color.teal()
                 name, desc = info['name'], info['description']
                 embed.description = f"**{name}**\n{desc}"
                 embed.add_field(name='Author', value=info['author'])
