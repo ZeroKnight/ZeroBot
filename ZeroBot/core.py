@@ -235,7 +235,8 @@ class Core:
 
         # Database Setup
         if 'Database' not in self.config:
-            self.config['Database'] = {'Backup': {}}
+            self.config['Database'] = {}
+        self.config['Database'].setdefault('Backup', {})
         self._db_path = self._config_dir.joinpath(
             self.config['Database'].get('Filename', 'zerobot.sqlite'))
         self.database = self.eventloop.run_until_complete(
