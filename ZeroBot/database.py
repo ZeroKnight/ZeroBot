@@ -47,7 +47,7 @@ class Connection(sqlite3.Connection):
 
 
 async def create_connection(database: Union[str, Path], module: Module,
-                            loop: asyncio.AbstractEventLoop,
+                            loop: asyncio.AbstractEventLoop = None,
                             readonly: bool = False, **kwargs) -> Connection:
     """Establish a new connection to a ZeroBot database.
 
@@ -62,7 +62,7 @@ async def create_connection(database: Union[str, Path], module: Module,
     module : Module
         The ZeroBot module that this connection is associated with, i.e. the
         module that "owns" this connection.
-    loop : asyncio.AbstractEventLoop
+    loop : asyncio.AbstractEventLoop, optional
         The `asyncio` event loop to use. This is typically `Core.eventloop`.
     readonly : bool, optional
         Whether the connection is read-only. Defaults to `False`.
@@ -77,6 +77,8 @@ async def create_connection(database: Union[str, Path], module: Module,
     if not isinstance(database, Path):
         database = Path(database)
     database = database.absolute()
+    if loop is None:
+        loop = asyncio.get_event_loop()
 
     logger.debug(f"Creating {'read-only ' if readonly else ''}connection to "
                  f"database at '{database}' for module {module!r}")
