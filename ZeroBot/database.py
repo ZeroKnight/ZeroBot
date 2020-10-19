@@ -109,6 +109,8 @@ async def create_backup(database: Connection, target: Union[str, Path],
     loop : asyncio.AbstractEventLoop, optional
         The `asyncio` event loop to use. This is typically `Core.eventloop`.
     """
+    if loop is None:
+        loop = asyncio.get_event_loop()
     logger.debug(f"Creating connection to new backup database at '{target}'")
     async with aiosqlite.connect(target, loop=loop) as backup_conn:
         logger.info(f"Creating database backup at '{target}'")
