@@ -568,6 +568,10 @@ class Core:
                             f"'{type(feature)}'")
         try:
             await module.handle.module_unregister()
+            try:
+                await self._db_connections[name].close()
+            except KeyError:
+                pass
             self.command_unregister_module(name)
             module.reload()
             await module.handle.module_register(self)
