@@ -86,6 +86,7 @@ async def create_connection(database: Union[str, Path], module: Module,
     conn = await aiosqlite.connect(
         f"{database.as_uri()}?mode={'ro' if readonly else 'rwc'}",
         loop=loop, uri=True, factory=Connection, **kwargs)
+    conn.setName(module.identifier)
     conn._connection._module = module  # pylint: disable=protected-access
     conn._connection._dbpath = database  # pylint: disable=protected-access
     return conn
