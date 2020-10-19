@@ -168,9 +168,12 @@ class Core:
 
     Parameters
     ----------
-    config_path : str or Path object, optional
+    config_dir : str or Path, optional
         Specifies the path to ZeroBot's configuration directory; defaults to
         ``<user_config_dir>/ZeroBot``.
+    data_dir : str or Path, optional
+        Specifies the path to ZeroBot's data directory; defaults to
+        ``<user_data_dir>/ZeroBot``.
     eventloop : asyncio.AbstractEventLoop, optional
         The asyncio event loop to use. If unspecified, the default loop will be
         used, i.e. `asyncio.get_event_loop()`.
@@ -184,6 +187,7 @@ class Core:
     config : Config
         A `Config` object representing ZeroBot's main configuration file.
     config_dir : Path
+    data_dir : Path
     eventloop
 
     Notes
@@ -194,6 +198,7 @@ class Core:
     """
 
     def __init__(self, config_dir: Union[str, Path] = None,
+                 data_dir: Union[str, Path] = None,
                  eventloop: asyncio.AbstractEventLoop = None):
         self.eventloop = eventloop if eventloop else asyncio.get_event_loop()
         self.logger = logging.getLogger('ZeroBot')
@@ -218,6 +223,12 @@ class Core:
         if 'Core' not in self.config:
             self.config['Core'] = {}
         self._cmdprefix = self.config['Core'].get('CmdPrefix', '!')
+
+        if data_dir:
+            self._data_dir = Path(data_dir)
+        else:
+            self._data_dir = Path(appdirs.user_data_dir(
+                'ZeroBot', appauthor=False, roaming=True))
 
         # Configure logging
         self._init_logging()
@@ -259,6 +270,11 @@ class Core:
     def config_dir(self) -> Path:
         """Get the path to ZeroBot's configuration directory."""
         return self._config_dir
+
+    @property
+    def data_dir(self) -> Path:
+        """Get the path to ZeroBot's data directory."""
+        return self._data_dir
 
     def _init_logging(self):
         """Initialize logging configuration."""
