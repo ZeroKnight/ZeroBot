@@ -821,6 +821,43 @@ class Core:
         await self._db_connections[module_id].close()
         del self._db_connections[module_id]
 
+    async def database_create_backup(self, target: Union[str, Path] = None):
+        """Create a full backup of ZeroBot's active database.
+
+        The `target` parameter and configuration settings for database backups
+        control how and where the backup is created.
+
+        Parameters
+        ----------
+        target : str or Path, optional
+            Where to write the backup. If the given path is relative, the
+            backup will be relative to the ``Database.Backup.BackupDir``
+            setting. If `target` is omitted, both the ``Format`` and
+            ``BackupDir`` settings will be used.
+
+        Notes
+        -----
+        The ``Database.Backup.Format`` option is a format specification for
+        `strftime`.
+        """
+        bcfg = self.config['Database']['Backup']
+        backup_dir = Path(
+            bcfg.get('BackupDir', f'{self._data_dir}/backup')).expanduser()
+        if not backup_dir.is_absolute():
+            backup_dir = backup_dir.relative_to(self._data_dir)
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        if target is None:
+            fmt = bcfg.get('Format', '%FT%H%M%S_zerobot.sqlite')
+            now = datetime.datetime.now()
+            target = backup_dir / now.strftime(fmt)
+        else:
+            if not isinstance(target, Path):
+                target = Path(target)
+            if not target.is_absolute():
+                target = target.relative_to(backup_dir)
+        # TODO: MaxBackups
+        await zbdb.create_backup(self.database, target, self.eventloop)
+
     async def module_send_event(self, event: str, ctx, *args, **kwargs):
         """|coro|
 

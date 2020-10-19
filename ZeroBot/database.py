@@ -90,3 +90,26 @@ async def create_connection(database: Union[str, Path], module: Module,
     conn._connection._module = module  # pylint: disable=protected-access
     conn._connection._dbpath = database  # pylint: disable=protected-access
     return conn
+
+
+async def create_backup(database: Connection, target: Union[str, Path],
+                        loop: asyncio.AbstractEventLoop = None):
+    """Create a full backup of a ZeroBot database.
+
+    Modules *should not* use this method or the `backup` method from either
+    `sqlite3` or `aiosqlite` directly. Use `Core.database_create_backup`
+    instead.
+
+    Parameters
+    ----------
+    database : ZeroBot.database.Connection
+        A connection to a ZeroBot database.
+    target : str or Path
+        Where to write the backup.
+    loop : asyncio.AbstractEventLoop, optional
+        The `asyncio` event loop to use. This is typically `Core.eventloop`.
+    """
+    logger.debug(f"Creating connection to new backup database at '{target}'")
+    async with aiosqlite.connect(target, loop=loop) as backup_conn:
+        logger.info(f"Creating database backup at '{target}'")
+        await database.backup(backup_conn)
