@@ -402,8 +402,6 @@ class Core:
             help='List currently waiting commands')
         cmds.append(cmd_cancel)
 
-        # TODO: restart command
-
         self.command_register('core', *cmds)
 
     async def _load_protocols(self) -> int:
