@@ -402,6 +402,10 @@ class Core:
             help='List currently waiting commands')
         cmds.append(cmd_cancel)
 
+        cmd_backup = CommandParser('backup', 'Create a database backup')
+        cmd_backup.add_argument('name', type=Path, help='Backup file name')
+        cmds.append(cmd_backup)
+
         self.command_register('core', *cmds)
 
     async def _load_protocols(self) -> int:
@@ -1227,3 +1231,10 @@ class Core:
             except KeyError:
                 pass
         await ctx.core_command_cancel(parsed, cancelled, wait_id, waiting)
+
+    async def module_command_backup(self, ctx, parsed):
+        """Implementation for Core `backup` command."""
+        file = parsed.args['name']
+        file = file.with_suffix(f'{file.suffix}.sqlite')
+        await self.database_create_backup(file)
+        await ctx.core_command_backup(parsed, file)

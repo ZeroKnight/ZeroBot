@@ -152,6 +152,13 @@ class DiscordContext(Context, discord.Client):
                 embed.description = f'No waiting command with ID **{wait_id}**'
         await command.source.send(embed=embed)
 
+    async def core_command_backup(self, command, file):
+        embed = discord.Embed(title='Database Backup',
+                              color=discord.Color.green(),
+                              description='Backup successful')
+        embed.add_field(name='Filename', value=file.name)
+        await command.source.send(embed=embed)
+
 
 def _format_help_CMD(embed, help_cmd, result):
     embed.title += f' — {result.name}'
