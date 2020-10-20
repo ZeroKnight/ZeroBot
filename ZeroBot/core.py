@@ -403,7 +403,7 @@ class Core:
         cmds.append(cmd_cancel)
 
         cmd_backup = CommandParser('backup', 'Create a database backup')
-        cmd_backup.add_argument('name', type=Path, help='Backup file name')
+        cmd_backup.add_argument('name', type=Path, help='Backup filename')
         cmds.append(cmd_backup)
 
         self.command_register('core', *cmds)
