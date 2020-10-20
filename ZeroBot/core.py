@@ -842,7 +842,7 @@ class Core:
         backup_dir = Path(
             bcfg.get('BackupDir', f'{self._data_dir}/backup')).expanduser()
         if not backup_dir.is_absolute():
-            backup_dir = backup_dir.relative_to(self._data_dir)
+            backup_dir = self._data_dir / backup_dir
         backup_dir.mkdir(parents=True, exist_ok=True)
         if target is None:
             fmt = bcfg.get('Format', '%FT%H%M%S_zerobot.sqlite')
@@ -852,7 +852,7 @@ class Core:
             if not isinstance(target, Path):
                 target = Path(target)
             if not target.is_absolute():
-                target = target.relative_to(backup_dir)
+                target = backup_dir / target
         # TODO: MaxBackups
         await zbdb.create_backup(self.database, target, self.eventloop)
 
