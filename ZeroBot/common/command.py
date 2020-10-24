@@ -90,12 +90,13 @@ class CommandParser(_NoExitArgumentParser):
     def __str__(self):
         return self.name
 
-    def add_subcommand(self, subp: _SubParsersAction, name: str,
+    @staticmethod
+    def add_subcommand(subp: _SubParsersAction, name: str,
                        description: Optional[str] = None,
                        **kwargs) -> 'CommandParser':
         """Helper method for adding subcommands.
 
-        Alternative to using `add_parser` that simplifies adding subcommands to
+        Wrapper around `add_parser` that simplifies adding subcommands to
         ZeroBot commands. The same string is used for both the `description`
         and `help` parameters of `add_parser`.
 
