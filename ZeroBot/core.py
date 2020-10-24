@@ -27,6 +27,7 @@ import appdirs
 from toml import TomlDecodeError
 
 import ZeroBot
+import ZeroBot.database as zbdb
 from ZeroBot.common import HelpType, ModuleCmdStatus, abc
 from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
 from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
@@ -168,9 +169,12 @@ class Core:
 
     Parameters
     ----------
-    config_path : str or Path object, optional
+    config_dir : str or Path, optional
         Specifies the path to ZeroBot's configuration directory; defaults to
         ``<user_config_dir>/ZeroBot``.
+    data_dir : str or Path, optional
+        Specifies the path to ZeroBot's data directory; defaults to
+        ``<user_data_dir>/ZeroBot``.
     eventloop : asyncio.AbstractEventLoop, optional
         The asyncio event loop to use. If unspecified, the default loop will be
         used, i.e. `asyncio.get_event_loop()`.
@@ -184,6 +188,7 @@ class Core:
     config : Config
         A `Config` object representing ZeroBot's main configuration file.
     config_dir : Path
+    data_dir : Path
     eventloop
 
     Notes
@@ -194,12 +199,14 @@ class Core:
     """
 
     def __init__(self, config_dir: Union[str, Path] = None,
+                 data_dir: Union[str, Path] = None,
                  eventloop: asyncio.AbstractEventLoop = None):
         self.eventloop = eventloop if eventloop else asyncio.get_event_loop()
         self.logger = logging.getLogger('ZeroBot')
         self._protocols = {}  # maps protocol names to their ProtocolModule
         self._features = {}  # maps feature module names to their Module
         self._all_modules = ChainMap(self._protocols, self._features)
+        self._db_connections = {}
         self._dummy_module = CoreModule(self, ZeroBot.__version__)
         self._commands = CommandRegistry()
         self._delayed_commands = {}
@@ -216,6 +223,13 @@ class Core:
         self.config = self.load_config('ZeroBot')
         if 'Core' not in self.config:
             self.config['Core'] = {}
+        self._cmdprefix = self.config['Core'].get('CmdPrefix', '!')
+
+        if data_dir:
+            self._data_dir = Path(data_dir)
+        else:
+            self._data_dir = Path(appdirs.user_data_dir(
+                'ZeroBot', appauthor=False, roaming=True))
 
         # Set up our meta path finder for ZeroBot modules
         try:
@@ -234,7 +248,15 @@ class Core:
         # Configure logging
         self._init_logging()
 
-        self._cmdprefix = self.config['Core'].get('CmdPrefix', '!')
+        # Database Setup
+        if 'Database' not in self.config:
+            self.config['Database'] = {}
+        self.config['Database'].setdefault('Backup', {})
+        self._db_path = self._config_dir.joinpath(
+            self.config['Database'].get('Filename', 'zerobot.sqlite'))
+        self.database = self.eventloop.run_until_complete(
+            zbdb.create_connection(self._db_path, self._dummy_module,
+                                   self.eventloop))
 
         # Register core commands
         self._register_commands()
@@ -264,6 +286,11 @@ class Core:
     def config_dir(self) -> Path:
         """Get the path to ZeroBot's configuration directory."""
         return self._config_dir
+
+    @property
+    def data_dir(self) -> Path:
+        """Get the path to ZeroBot's data directory."""
+        return self._data_dir
 
     def _init_logging(self):
         """Initialize logging configuration."""
@@ -390,7 +417,9 @@ class Core:
             help='List currently waiting commands')
         cmds.append(cmd_cancel)
 
-        # TODO: restart command
+        cmd_backup = CommandParser('backup', 'Create a database backup')
+        cmd_backup.add_argument('name', type=Path, help='Backup filename')
+        cmds.append(cmd_backup)
 
         self.command_register('core', *cmds)
 
@@ -573,6 +602,10 @@ class Core:
                             f"'{type(feature)}'")
         try:
             await module.handle.module_unregister()
+            try:
+                await self._db_connections[name].close()
+            except KeyError:
+                pass
             self.command_unregister_module(name)
             module.reload()
             await module.handle.module_register(self)
@@ -800,6 +833,99 @@ class Core:
         """
         return command in self._commands
 
+    async def database_connect(self, module_id: str,
+                               readonly: bool = False) -> zbdb.Connection:
+        """Open a new module connection to ZeroBot's database.
+
+        When done, modules should close this connection via
+        `Core.database_disconnect` instead of calling the connection object's
+        `close` method so that `Core` may clean up any references to the
+        object.
+
+        Parameters
+        ----------
+        module_id : str
+            The identifier of the module that is opening a connection.
+        readonly : bool, optional
+            Whether the connection is read-only. Defaults to `False`.
+
+        Returns
+        -------
+        ZeroBot.database.Connection
+            A connection object for the requested database.
+
+        Raises
+        ------
+        ModuleNotLoaded
+            The specified module isn't loaded or currently being loaded.
+        """
+        if module_id not in self._all_modules:
+            raise ModuleNotLoaded(f"Module '{module_id}' is not loaded.",
+                                  mod_id=module_id)
+        module = self._all_modules[module_id]
+        connection = await zbdb.create_connection(self._db_path, module,
+                                                  self.eventloop, readonly)
+        self._db_connections[module_id] = connection
+        return connection
+
+    async def database_disconnect(self, module_id: str):
+        """Closes a module database connection.
+
+        Modules should call this method instead of the `close` method on their
+        `Connection` object so that Core may clean up any references to the
+        object.
+
+        Parameters
+        ----------
+        module_id : str
+            The identifier of the module whose database connection shall be
+            closed.
+
+        Raises
+        ------
+        ModuleNotLoaded
+            The specified module isn't loaded.
+        """
+        await self._db_connections[module_id].close()
+        del self._db_connections[module_id]
+
+    async def database_create_backup(self, target: Union[str, Path] = None):
+        """Create a full backup of ZeroBot's active database.
+
+        The `target` parameter and configuration settings for database backups
+        control how and where the backup is created.
+
+        Parameters
+        ----------
+        target : str or Path, optional
+            Where to write the backup. If the given path is relative, the
+            backup will be relative to the ``Database.Backup.BackupDir``
+            setting. If `target` is omitted, both the ``Format`` and
+            ``BackupDir`` settings will be used.
+
+        Notes
+        -----
+        The ``Database.Backup.Format`` option is a format specification for
+        `strftime`.
+        """
+        bcfg = self.config['Database']['Backup']
+        backup_dir = Path(
+            bcfg.get('BackupDir', f'{self._data_dir}/backup')).expanduser()
+        if not backup_dir.is_absolute():
+            backup_dir = self._data_dir / backup_dir
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        if target is None:
+            fmt = bcfg.get('Format', '%FT%H%M%S_zerobot.sqlite')
+            now = datetime.datetime.now()
+            target = backup_dir / now.strftime(fmt)
+        else:
+            if not isinstance(target, Path):
+                target = Path(target)
+            if not target.is_absolute():
+                target = backup_dir / target
+        # TODO: MaxBackups
+        await zbdb.create_backup(self.database, target, self.eventloop)
+
     async def module_send_event(self, event: str, ctx, *args, **kwargs):
         """|coro|
 
@@ -988,6 +1114,12 @@ class Core:
                 self.logger.exception(
                     'Exception occurred while unregistering protocol '
                     f"module '{protocol.name}'.")
+        self.eventloop.run_until_complete(self.database.close())
+        if len(self._db_connections) > 0:
+            self.logger.debug('Cleaning up unclosed database connections')
+            for module in list(self._db_connections):
+                self.eventloop.run_until_complete(
+                    self.database_disconnect(module))
 
     # Core command implementations
 
@@ -1168,3 +1300,10 @@ class Core:
             except KeyError:
                 pass
         await ctx.core_command_cancel(parsed, cancelled, wait_id, waiting)
+
+    async def module_command_backup(self, ctx, parsed):
+        """Implementation for Core `backup` command."""
+        file = parsed.args['name']
+        file = file.with_suffix(f'{file.suffix}.sqlite')
+        await self.database_create_backup(file)
+        await ctx.core_command_backup(parsed, file)
