@@ -5,6 +5,7 @@ Classes and utility functions for working with and creating ZeroBot commands.
 
 from argparse import ArgumentParser, _SubParsersAction
 from dataclasses import dataclass, field
+from functools import partial
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ZeroBot.common.abc import Channel, Message, User
@@ -89,6 +90,24 @@ class CommandParser(_NoExitArgumentParser):
 
     def __str__(self):
         return self.name
+
+    def make_adder(self, *args, **kwargs):
+        """Helper shortcut for creating subcommands.
+
+        Accepts arguments for `add_subparsers`, creating a new subparser and
+        returning a partial function wrapping `add_subcommand` for the new
+        subparser. If the `dest` argument isn't specified, it defaults to
+        `'subcmd'`.
+
+        Example
+        -------
+        cmd_foo = CommandParser('foo', 'Does foo stuff')
+        foo_adder = cmd_foo.make_adder(metavar='OPERATION', required=True)
+        bar_subcmd = foo_adder('bar', description='Does bar stuff to foo')
+        """
+        kwargs.setdefault('dest', 'subcmd')
+        subp = self.add_subparsers(*args, **kwargs)
+        return partial(self.add_subcommand, subp)
 
     @staticmethod
     def add_subcommand(subp: _SubParsersAction, name: str,

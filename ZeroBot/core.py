@@ -358,15 +358,12 @@ class Core:
             help='Target is a protocol module')
         cmd_module = CommandParser('module',
                                    'Manage and query ZeroBot modules')
-        subp = cmd_module.add_subparsers(metavar='OPERATION', dest='subcmd',
-                                         required=True)
-        add_subcmd = cmd_module.add_subcommand
-        add_subcmd(subp, 'load', description='Load a module',
+        add_subcmd = cmd_module.make_adder(metavar='OPERATION', dest='subcmd',
+                                           required=True)
+        add_subcmd('load', description='Load a module', parents=[target_mod])
+        add_subcmd('reload', description='Reload a module',
                    parents=[target_mod])
-        add_subcmd(subp, 'reload', description='Reload a module',
-                   parents=[target_mod])
-        subcmd_list = add_subcmd(subp, 'list',
-                                 description='List available modules')
+        subcmd_list = add_subcmd('list', description='List available modules')
         subcmd_list.add_argument(
             '-l', '--loaded', action='store_true', help='Only loaded modules')
         list_group = subcmd_list.add_mutually_exclusive_group()
@@ -379,7 +376,7 @@ class Core:
             '-p', '--protocol', action='store_const', const=['protocol'],
             dest='category', default=default_categories,
             help='Only protocol modules')
-        add_subcmd(subp, 'info', description='Show module information',
+        add_subcmd('info', description='Show module information',
                    parents=[target_mod])
         cmds.append(cmd_module)
 
