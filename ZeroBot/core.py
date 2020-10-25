@@ -41,6 +41,8 @@ from ZeroBot.module import (CoreModule, Module, ProtocolModule,
                             ZeroBotModuleFinder)
 from ZeroBot.protocol.context import Context
 
+# pylint: disable=broad-except
+
 # Minimal initial logging format for any messages before the config is read and
 # user logging configuration is applied.
 logging.basicConfig(style='{', format='{asctime} {levelname:7} {message}',
@@ -467,7 +469,7 @@ class Core:
             raise NoSuchModule(
                 f"Could not find {type_str} module '{name}': {ex}",
                 mod_id=name, exc=ex)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             raise ModuleLoadError(f"Failed to load {type_str} module '{name}'",
                                   mod_id=name)
         self.logger.debug(f'Imported {type_str} module {module!r}')
@@ -508,7 +510,7 @@ class Core:
         config = self.load_config(name)
         try:
             connections = await module.handle.module_register(self, config)
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:
             msg = f'Failed to register protocol module {module!r}: {ex}'
             self.logger.error(msg)
             raise ModuleRegisterError(msg, mod_id=name) from ex
@@ -554,7 +556,7 @@ class Core:
         self._features[name] = module
         try:
             await module.handle.module_register(self)
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:
             del self._features[name]
             msg = f'Failed to register feature module {module!r}: {ex}'
             self.logger.error(msg)
@@ -606,7 +608,7 @@ class Core:
             self.command_unregister_module(name)
             module.reload()
             await module.handle.module_register(self)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             msg = f"Failed to reload feature module '{name}'"
             self.logger.exception(msg)
             raise ModuleLoadError(msg, mod_id=name)
@@ -737,7 +739,7 @@ class Core:
             self.eventloop.run_forever()
         except KeyboardInterrupt:
             self.logger.info('Interrupt received, shutting down.')
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             self.logger.exception('Unhandled exception raised, shutting down.')
         finally:
             self._shutdown()
@@ -1097,7 +1099,7 @@ class Core:
             try:
                 self.eventloop.run_until_complete(
                     feature.handle.module_unregister())
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.logger.exception(
                     'Exception occurred while unregistering feature '
                     f"module '{feature.name}'.")
@@ -1107,7 +1109,7 @@ class Core:
                 self.eventloop.run_until_complete(
                     protocol.handle.module_unregister(protocol.contexts,
                                                       self._shutdown_reason))
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 self.logger.exception(
                     'Exception occurred while unregistering protocol '
                     f"module '{protocol.name}'.")
