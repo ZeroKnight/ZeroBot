@@ -209,6 +209,7 @@ class Core:
         self._features = {}  # maps feature module names to their Module
         self._all_modules = ChainMap(self._protocols, self._features)
         self._db_connections = {}
+        self._configs = {}  # maps config file names to their Config
         self._dummy_module = CoreModule(self, ZeroBot.__version__)
         self._commands = CommandRegistry()
         self._delayed_commands = {}
@@ -287,6 +288,11 @@ class Core:
     def config_dir(self) -> Path:
         """Get the path to ZeroBot's configuration directory."""
         return self._config_dir
+
+    @property
+    def configs(self) -> List[Config]:
+        """Get a list of currently loaded `Config`s."""
+        return self._configs
 
     @property
     def data_dir(self) -> Path:
@@ -614,7 +620,7 @@ class Core:
         self.logger.info(f"Reloaded feature module '{name}'")
         return module
 
-    def load_config(self, name: str) -> dict:
+    def load_config(self, name: str) -> Config:
         """Load a configuration file.
 
         Parameters
@@ -626,11 +632,12 @@ class Core:
 
         Returns
         -------
-        dict
-            A dictionary representing a parsed TOML config file.
+        ZeroBot.Config
+            A dictionary-like object representing a parsed TOML config file.
         """
         path = self._config_dir / Path(name).with_suffix('.toml')
         config = Config(path)
+        self._configs[path.stem] = config
         try:
             config.load()
         except FileNotFoundError:
