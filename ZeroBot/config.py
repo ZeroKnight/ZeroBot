@@ -7,6 +7,8 @@ from collections import ChainMap, UserDict
 from pathlib import Path
 from string import Template
 from typing import Any, Iterable, Mapping, Optional, Union
+from functools import reduce
+import operator
 
 import toml
 
@@ -168,3 +170,22 @@ class Config(ConfigDict):
         """
         toml.dump(self.data, new_path or self.path)
         self._last_state = self.data
+
+    def reset(self, key: str = None):
+        """Reset this config to its last loaded/saved state.
+
+        Parameters
+        ----------
+        key : str, optional
+            If specified, resets a single key instead of the whole config. The
+            value is interpreted as a dot-separated identifier for a key under
+            an arbitrarily deep hierarchy, e.g. ``Core.Database.Filename``.
+        """
+        if key is not None:
+            nodes = key.split('.')
+            last = reduce(operator.getitem, nodes, self._last_state)
+            key = nodes.pop()
+            current = reduce(operator.getitem, nodes, self.data)
+            current[key] = last
+        else:
+            self.data = self._last_state
