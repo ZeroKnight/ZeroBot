@@ -28,7 +28,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Any, Union
 
 from ZeroBot.common import ParsedCommand
-from ZeroBot.common.abc import Channel, Message
+from ZeroBot.common.abc import Channel, Message, User
 
 
 class Context(metaclass=ABCMeta):
@@ -71,6 +71,32 @@ class Context(metaclass=ABCMeta):
         protocol-specific behavior.
         """
         return __name__
+
+    @property
+    @abstractmethod
+    def owner(self) -> User:
+        """The primary, owning user that controls ZeroBot.
+
+        This property is initalized by the ``Owner`` setting in the protocol
+        configuration file. The "owner" is the user that has ultimate authority
+        over ZeroBot, typically the user running ZeroBot.
+
+        Returns
+        -------
+        User
+            An instance of a `User` implementation specific to this context.
+
+        Notes
+        -----
+        The initializing value varies between protocols, but should uniquely
+        identify a user or account on the protocol for this context. Examples
+        would be a Discord user ID, or an IRC services account name.
+        """
+
+    @owner.setter
+    @abstractmethod
+    def owner(self, user: User):
+        ...
 
     @abstractmethod
     async def module_message(self, destination: Any, message: str):
