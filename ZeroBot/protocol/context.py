@@ -24,7 +24,7 @@ usual way, but can still properly integrate with ZeroBot. For example:
         # Usual implementation of foo.Client ...
 """
 
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from typing import Any, Union
 
 from ZeroBot.common import ParsedCommand
@@ -72,22 +72,23 @@ class Context(metaclass=ABCMeta):
         """
         return __name__
 
+    @abstractmethod
     async def module_message(self, destination: Any, message: str):
         """Send a message through this context.
 
         The type of ``destination`` is protocol-dependent, and can often be
         given via `Message.destination`.
         """
-        raise NotImplementedError
 
+    @abstractmethod
     async def module_join(self, where: Channel, password: str = None):
         """Join the given channel, with optional password."""
-        raise NotImplementedError
 
+    @abstractmethod
     async def module_leave(self, where: Channel, reason: str = None):
         """Leave the given channel, with optional reason."""
-        raise NotImplementedError
 
+    @abstractmethod
     async def reply_command_result(self, command: ParsedCommand,
                                    result: Union[str, Message]):
         """Called by feature modules to display command output.
@@ -97,4 +98,3 @@ class Context(metaclass=ABCMeta):
         features that others don't; this interface allows command output
         formatting on a per-protocol basis.
         """
-        raise NotImplementedError
