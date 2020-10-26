@@ -133,6 +133,7 @@ class Config(ConfigDict):
     def __init__(self, path: Union[str, Path], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.path = path
+        self._last_state = {}
 
     def load(self):
         """Load (or reload) the associated TOML config file.
@@ -153,6 +154,7 @@ class Config(ConfigDict):
         keys and sections will *not* be updated.
         """
         self.update(toml.load(self.path))
+        self._last_state = self.data
 
     # TODO: testing
     def save(self, new_path: Union[str, Path] = None):
@@ -165,3 +167,4 @@ class Config(ConfigDict):
             overwrite where it was originally loaded from, i.e. `self.path`.
         """
         toml.dump(self.data, new_path or self.path)
+        self._last_state = self.data
