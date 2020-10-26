@@ -225,7 +225,6 @@ class Core:
         self.config = self.load_config('ZeroBot')
         if 'Core' not in self.config:
             self.config['Core'] = {}
-        self._cmdprefix = self.config['Core'].get('CmdPrefix', '!')
 
         if data_dir:
             self._data_dir = Path(data_dir)
@@ -282,7 +281,7 @@ class Core:
     @property
     def cmdprefix(self) -> str:
         """Get the command prefix."""
-        return self._cmdprefix
+        return self.config['Core'].get('CmdPrefix', '!')
 
     @property
     def config_dir(self) -> Path:
