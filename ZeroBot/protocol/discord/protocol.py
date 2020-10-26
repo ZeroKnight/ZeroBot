@@ -5,6 +5,7 @@ Discord protocol implementation.
 
 import asyncio
 import logging
+import re
 import time
 
 import discord
@@ -26,6 +27,8 @@ CORE = None
 CFG = None
 
 logger = logging.getLogger('ZeroBot.Discord')
+
+has_discriminator = re.compile(r'#\d{4}$')
 
 
 async def module_register(core, cfg):
@@ -61,6 +64,26 @@ class DiscordContext(Context, discord.Client):
         """Connected and ready to listen for events."""
         logger.info(f'Logged in as {self.user}')
 
+        # Find and set owner
+        owner_str = CFG['Owner']
+        if has_discriminator.search(owner_str):
+            for guild in self.guilds:
+                if (member := guild.get_member_named(owner_str)) is not None:
+                    self._owner = member
+                    break
+            if member is None:
+                logger.warning(f"Could not set owner: user '{owner_str}' not "
+                               'found in any connected server.')
+        elif re.match(r'^\d+$', owner_str):
+            if user := self.get_user(owner_str) is not None:
+                self._owner = user
+            else:
+                logger.warning('Could not set owner: no user found with '
+                               f"ID '{owner_str}'")
+        else:
+            logger.error('Could not set owner:string must be a '
+                         'username+discriminator (Foo#1234) or a unique ID.')
+
     async def on_disconnect(self):
         """Disconnected from Discord.
 
@@ -86,6 +109,18 @@ class DiscordContext(Context, discord.Client):
                                          DiscordMessage(message))
 
     # ZeroBot Interface
+
+    @ property
+    def owner(self) -> DiscordUser:
+        return self._owner
+
+    @ owner.setter
+    def owner(self, user: DiscordUser):
+        if isinstance(user, DiscordUser):
+            self._owner = user
+        else:
+            raise TypeError(
+                f'expected a DiscordUser object, not {type(user)}')
 
     async def module_message(self, destination: DiscordServer,
                              message: DiscordMessage):
