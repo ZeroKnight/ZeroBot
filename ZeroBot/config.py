@@ -4,6 +4,7 @@ Interface for ZeroBot's configuration and config files.
 """
 
 from collections import ChainMap, UserDict
+from copy import deepcopy
 from pathlib import Path
 from string import Template
 from typing import Any, Iterable, Mapping, Optional, Union
@@ -155,7 +156,7 @@ class Config(ConfigDict):
         keys and sections will *not* be updated.
         """
         self.update(toml.load(self.path))
-        self._last_state = self.data
+        self._last_state = ConfigDict(deepcopy(self.data))
 
     # TODO: testing
     def save(self, new_path: Union[str, Path] = None):
@@ -168,7 +169,7 @@ class Config(ConfigDict):
             overwrite where it was originally loaded from, i.e. `self.path`.
         """
         toml.dump(self.data, new_path or self.path)
-        self._last_state = self.data
+        self._last_state = ConfigDict(deepcopy(self.data))
 
     def set(self, key_path: str, value: Any):
         """Set a config key to a new value.
