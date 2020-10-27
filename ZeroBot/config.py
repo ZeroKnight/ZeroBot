@@ -22,19 +22,27 @@ _configvars = {
 class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
     """Wrapper around a `dict` useful for deserialized config files.
 
-    See `Config` documentation for more details.
+    Do not use this class directly, use `Config` instead.
     """
 
     def __getitem__(self, key):
+        key, *subkeys = key.split('.', 1)
         value = super().__getitem__(key)
-        if isinstance(value, str):
+        if subkeys:
+            value = value.__getitem__(subkeys[0])
+        elif isinstance(value, str):
             value = Template(value).safe_substitute(_configvars)
         return value
 
     def __setitem__(self, key, value):
+        tail, *subkeys = key.rsplit('.', 1)[::-1]
+        if subkeys:
+            target = self.__getitem__(subkeys[0])
+        else:
+            target = self.data
         if isinstance(value, dict):
             value = ConfigDict(value)
-        self.data[key] = value
+        target[tail] = value
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {super().__repr__()}>'
@@ -83,16 +91,17 @@ class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
     # pylint: disable=arguments-differ
     def get(self, key: str, default: Any = None, *,
             template_vars: Mapping = None) -> Any:
-        """Extended `dict.get` with optional template substitution.
+        """Extends `dict.get` with substitution and dotted-subkey access.
 
-        Behaves exactly like `dict.get`, but the retrieved value can undergo
-        template substitution (`string.Template`) if `template_vars` is given.
-        Note that substitution will *not* be done for the `default` fallback.
+        The retrieved value can undergo template substitution, i.e.
+        (`string.Template`) if `template_vars` is given. Note that substitution
+        will *not* be done for the `default` fallback. See `Config` for details
+        on dotted-subkey access.
 
         Parameters
         ----------
         key : str
-            They key to look up.
+            They key to look up; may be a dotted-subkey.
         default : Any, optional
             Value to return if `key` was not found. Will *not* undergo
             substitution.
@@ -116,7 +125,25 @@ class Config(ConfigDict):
     """A wrapper around a parsed TOML configuration file.
 
     Provides typical `dict`-like access with per-section fallbacks and default
-    values.
+    values. Since these config files very often contain nested sections,
+    methods that take a dictionary key as an argument have been expanded to
+    allow dot-delimited keys that specify sequential access into nested
+    sections. Such keys are of the form ``'foo.bar.baz'`` and would be
+    equivalent to performing successive lookups of each key on a starting
+    dictionary. For example::
+
+        self.get('foo.bar.baz')
+        # Is the same as:
+        self.get('foo').get('bar').get('baz')
+
+        my_config['foo.bar.baz']
+        # Is the same as:
+        my_config['foo']['bar']['baz']
+
+    In addition, key values are automatically subject to template expansion for
+    some global variables, as well as on demand with the inclusion of
+    a `template_vars` parameter. This feature leverages `string.Template`, and
+    thus works identically.
 
     Parameters
     ----------
@@ -135,7 +162,23 @@ class Config(ConfigDict):
     def __init__(self, path: Union[str, Path], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.path = path
-        self._last_state = {}
+        self._last_state = None
+
+    def reset(self, key: str = None):
+        """Reset this config or a single key to its last loaded/saved state.
+
+        See `Config` for details on dotted-subkey access.
+
+        Parameters
+        ----------
+        key : str, optional
+            If specified, resets a single key instead of the whole config. The
+            key may be a dotted-subkey.
+        """
+        if key is not None:
+            self[key] = self._last_state[key]
+        else:
+            self.data = self._last_state
 
     def load(self):
         """Load (or reload) the associated TOML config file.
@@ -170,42 +213,3 @@ class Config(ConfigDict):
         """
         toml.dump(self.data, new_path or self.path)
         self._last_state = ConfigDict(deepcopy(self.data))
-
-    def set(self, key_path: str, value: Any):
-        """Set a config key to a new value.
-
-        Parameters
-        ----------
-        key_path : str
-            The key to set. The key is interpreted as a dot-separated
-            identifier for a key under an arbitrarily deep hierarchy, e.g.
-            ``Core.Database.Filename``.
-        value : Any
-            The new value for the key.
-        """
-        if key_path is not None:
-            nodes = key_path.split('.')
-            key = nodes.pop()
-            target = map_reduce(nodes, self.data)
-            target[key] = value
-        else:
-            ValueError('key must not be None')
-
-    def reset(self, key: str = None):
-        """Reset this config or a single key to its last loaded/saved state.
-
-        Parameters
-        ----------
-        key : str, optional
-            If specified, resets a single key instead of the whole config. The
-            key is interpreted as a dot-separated identifier for a key under an
-            arbitrarily deep hierarchy, e.g. ``Core.Database.Filename``.
-        """
-        if key is not None:
-            nodes = key.split('.')
-            last = map_reduce(nodes, self._last_state)
-            key = nodes.pop()
-            current = map_reduce(nodes, self.data)
-            current[key] = last
-        else:
-            self.data = self._last_state
