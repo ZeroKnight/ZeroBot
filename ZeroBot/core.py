@@ -1141,7 +1141,11 @@ class Core:
                     args[name] = (arg.help, False)
             for opt in request._get_optional_actions():
                 names = tuple(opt.option_strings)
-                metavar = opt.metavar or opt.dest
+                if opt.nargs == 0 or opt.const:
+                    # Don't make it seem like flag options take a value
+                    metavar = None
+                else:
+                    metavar = opt.metavar or opt.dest
                 opts[names] = (metavar, opt.help)
             return CommandHelp(HelpType.CMD, request.name, desc, usage,
                                args=args, opts=opts, subcmds=subcmds)

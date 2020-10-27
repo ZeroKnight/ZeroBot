@@ -215,8 +215,11 @@ def _format_help_CMD(embed, help_cmd, result):
                 embed.description += '```'
         for names, info in result.opts.items():
             opts = ', '.join(f'**{name}**' for name in names)
-            embed.description += (f'\n> {opts} {info[0]}'
-                                  f'\n> ```\n> {info[1]}```')
+            val_name, opt_desc = info
+            if val_name is not None:
+                opts = f'{opts} {val_name}'
+            embed.description += (f'\n> {opts}'
+                                  f'\n> ```\n> {opt_desc}```')
 
 
 def _format_help_MOD(embed, help_cmd, result):
