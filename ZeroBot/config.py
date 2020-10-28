@@ -12,6 +12,8 @@ from typing import Any, Iterable, Mapping, Optional, Union
 import toml
 
 import ZeroBot
+from ZeroBot.common.exceptions import (ConfigDecodeError, ConfigEncodeError,
+                                       ConfigReadError, ConfigWriteError)
 from ZeroBot.util import map_reduce
 
 _configvars = {
@@ -198,7 +200,16 @@ class Config(ConfigDict):
         Any fallbacks created via `set_fallback` and any references to config
         keys and sections will *not* be updated.
         """
-        self.update(toml.load(self.path))
+        try:
+            self.update(toml.load(self.path))
+        except toml.TomlDecodeError as ex:
+            raise ConfigDecodeError(
+                f"Failed to parse config file at '{self.path}'",
+                config_name=self.path.stem) from ex
+        except OSError as ex:
+            raise ConfigReadErrror(
+                f"Could not read config file at '{self.path}'",
+                config_name=self.path.stem) from ex
         self._last_state = ConfigDict(deepcopy(self.data))
 
     # TODO: testing
@@ -211,5 +222,16 @@ class Config(ConfigDict):
             Where the new config file should be written. If omitted, will
             overwrite where it was originally loaded from, i.e. `self.path`.
         """
-        toml.dump(self.data, new_path or self.path)
+        path = new_path or self.path
+        try:
+            toml.dump(self.data, path)
+        except ValueError as ex:
+            cls_name = self.__class__.__name__
+            raise ConfigEncodeError(
+                f'Failed to encode {cls_name} object {self}',
+                config_name=self.path.stem) from ex
+        except OSError as ex:
+            raise ConfigWriteError(
+                f"Could not write config file to '{path}'",
+                config_name=self.path.stem) from ex
         self._last_state = ConfigDict(deepcopy(self.data))
