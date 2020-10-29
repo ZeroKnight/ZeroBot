@@ -769,8 +769,9 @@ class Core:
             List of protocol module identifiers.
         """
         modules = []
-        for mdir in ([Path(ZeroBot.__path__[0])]
+        for mdir in ([ZeroBot.__path__[0]]
                      + self.config['Core']['ModuleDirs']):
+            mdir = Path(mdir)
             modules += [child.parent.name for child in
                         mdir.glob('protocol/*/protocol.py')]
         return modules
@@ -784,8 +785,9 @@ class Core:
             List of feature module identifiers.
         """
         modules = []
-        for mdir in ([Path(ZeroBot.__path__[0])]
+        for mdir in ([ZeroBot.__path__[0]]
                      + self.config['Core']['ModuleDirs']):
+            mdir = Path(mdir)
             modules += [child.stem for child in mdir.glob('feature/*.py')]
         return modules
 
