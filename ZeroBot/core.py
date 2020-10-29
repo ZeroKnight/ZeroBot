@@ -589,7 +589,7 @@ class Core:
         Returns
         -------
         Module
-            Represents the loaded protocol if it was loaded successfully.
+            Represents the loaded feature module if it was loaded successfully.
 
         Raises
         ------
