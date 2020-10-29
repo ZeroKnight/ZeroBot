@@ -8,7 +8,7 @@ from enum import Enum, unique
 
 @unique
 class HelpType(Enum):
-    """Enumeration representing the type of response to a command help request.
+    """Enum representing the type of response to a command help request.
 
     A help request is for a specific command, module, or for an overview of
     available modules and commands. This enumeration also denotes problematic
@@ -25,7 +25,7 @@ class HelpType(Enum):
 
 @unique
 class ModuleCmdStatus(Enum):
-    """Enumeration denoting the result of a ``module`` core command invokation.
+    """Enum denoting the result of a ``module`` core command invokation.
 
     Attempting to (re)load a module, for example, can succeed, fail, or the
     requested module might not exist, already be loaded, or isn't yet loaded.
@@ -49,3 +49,24 @@ class ModuleCmdStatus(Enum):
     def is_reload(cls, status: 'ModuleCmdStatus') -> bool:
         """Return whether the given status is a "RELOAD" type."""
         return status in (cls.RELOAD_OK, cls.RELOAD_FAIL, cls.NOT_YET_LOADED)
+
+
+@unique
+class ConfigCmdStatus(Enum):
+    """Enum denoting the result of a ``config`` core command invokation."""
+
+    GET_OK = 1
+    SET_OK = 2
+    RESET_OK = 3
+    SAVE_OK = 4
+    RELOAD_OK = 5
+    NO_SUCH_KEY = 6
+    NO_SUCH_CONFIG = 7
+    SAVE_FAIL = 8
+    RELOAD_FAIL = 9
+
+    @classmethod
+    def is_ok(cls, status: 'ConfigCmdStatus') -> bool:
+        """Return whether the given status is an "OK" type."""
+        return status in (
+            cls.GET_OK, cls.SET_OK, cls.RESET_OK, cls.SAVE_OK, cls.RELOAD_OK)

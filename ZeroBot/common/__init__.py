@@ -2,4 +2,4 @@
 
 from . import abc
 from .command import CommandHelp, CommandParser, ParsedCommand
-from .enums import HelpType, ModuleCmdStatus
+from .enums import ConfigCmdStatus, HelpType, ModuleCmdStatus

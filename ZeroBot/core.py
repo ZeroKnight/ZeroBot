@@ -28,14 +28,15 @@ from toml import TomlDecodeError
 
 import ZeroBot
 import ZeroBot.database as zbdb
-from ZeroBot.common import HelpType, ModuleCmdStatus, abc
+from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus, abc
 from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
 from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
                                        CommandNotRegistered, CommandParseError,
                                        ModuleAlreadyLoaded,
                                        ModuleHasNoCommands, ModuleLoadError,
                                        ModuleNotLoaded, ModuleRegisterError,
-                                       NoSuchModule, NotACommand)
+                                       NoSuchModule, NotACommand,
+                                       ZeroBotConfigError)
 from ZeroBot.config import Config
 from ZeroBot.module import (CoreModule, Module, ProtocolModule,
                             ZeroBotModuleFinder)
@@ -155,8 +156,11 @@ class VersionInfo:
 
 
 ModuleCmdResult = namedtuple('ModuleCmdResult',
-                             ('module', 'status', 'mtype', 'info'),
+                             'module, status, mtype, info',
                              defaults=[None])
+ConfigCmdResult = namedtuple('ConfigCmdResult',
+                             'config, status, key, value, new_path',
+                             defaults=[None] * 3)
 WaitingCmdInfo = namedtuple('WaitingCmdInfo',
                             'id, cmd, delay, invoker, source, started')
 
@@ -386,6 +390,52 @@ class Core:
         add_subcmd('info', description='Show module information',
                    parents=[target_mod])
         cmds.append(cmd_module)
+
+        save_reload_args = CommandParser()
+        save_reload_args.add_argument(
+            'config_file', nargs='*',
+            help=('Name of config file (without .toml extension). Omit to '
+                  'affect all loaded config files.'))
+        set_reset_args = CommandParser()
+        set_reset_args.add_argument(
+            'config_file',
+            help='Name of config file (without .toml extension)')
+        cmd_config = CommandParser('config', 'Manage configuration')
+        add_subcmd = cmd_config.make_adder(metavar='OPERATION', dest='subcmd',
+                                           required=True)
+        add_subcmd('save', description='Save config files to disk',
+                   parents=[save_reload_args])
+        subcmd_savenew = add_subcmd(
+            'savenew', description='Save config file to a new path')
+        subcmd_savenew.add_argument(
+            'config_file',
+            help='Name of config file (without .toml extension)')
+        subcmd_savenew.add_argument(
+            'new_path', help='The path to save the config file to')
+        add_subcmd('reload', description='Reload config files from disk',
+                   parents=[save_reload_args])
+        subcmd_set = add_subcmd('set', description='Modify config settings',
+                                parents=[set_reset_args])
+        subcmd_set.add_argument(
+            'key_path',
+            help=('The config key to set. Subkeys are separated by dots, '
+                  "e.g. 'Core.Backup.Filename'"))
+        subcmd_set.add_argument(
+            'value', nargs='?',
+            help='The new value. Omit to show the current value.')
+        subcmd_reset = add_subcmd(
+            'reset', description='Reset config settings to last loaded value',
+            parents=[set_reset_args])
+        subcmd_reset.add_argument(
+            'key_path', nargs='?',
+            help=('The config key to set. Subkeys are separated by dots, '
+                  "e.g. 'Core.Backup.Filename'. If omitted, the entire "
+                  'config will be reset.'))
+        subcmd_reset.add_argument(
+            '-d', '--default', action='store_true',
+            help=('Set the key to its default value instead. Effectively '
+                  'unsets a config key.'))
+        cmds.append(cmd_config)
 
         cmd_version = CommandParser('version', 'Show version information')
         cmds.append(cmd_version)
@@ -1252,6 +1302,91 @@ class Core:
                         info[attr] = getattr(module, attr)
                 results.append(ModuleCmdResult(mod_id, status, mtype, info))
         await ctx.core_command_module(parsed, results)
+
+    async def module_command_config(self, ctx, parsed):
+        """Implementation for Core `config` command."""
+        if parsed.invoker != ctx.owner:
+            return
+        ccs = ConfigCmdStatus
+        results = []
+        subcmd = parsed.args['subcmd']
+        value = None
+        if subcmd.endswith('set'):  # set, reset
+            key = parsed.args['key_path']
+            try:
+                config = self.configs[parsed.args['config_file']]
+            except KeyError:
+                status = ccs.NO_SUCH_CONFIG
+            else:
+                try:
+                    if subcmd.startswith('re'):
+                        if parsed.args['default']:
+                            config.unset(key)
+                        else:
+                            config.reset(key)
+                        status = ccs.RESET_OK
+                    else:
+                        value = parsed.args['value']
+                        if value:
+                            config[key] = value
+                            status = ccs.SET_OK
+                        else:
+                            value = config.get(key)
+                            status = ccs.GET_OK
+                except KeyError:
+                    status = ccs.NO_SUCH_KEY
+            results.append(ConfigCmdResult(config, status, key, value))
+        elif subcmd == 'save':
+            pool = parsed.args['config_file']
+            if not pool:
+                pool = self.configs.values()
+            for config in pool:
+                try:
+                    config = self.configs[config]
+                    config.save()
+                except KeyError:
+                    status = ccs.NO_SUCH_CONFIG
+                except ZeroBotConfigError as ex:
+                    self.logger.exception(ex)
+                    status = ccs.SAVE_FAIL
+                else:
+                    status = ccs.SAVE_OK
+                results.append(ConfigCmdResult(config, status))
+        elif subcmd == 'savenew':
+            new_path = parsed.args['new_path']
+            try:
+                config = self.configs[parsed.args['config_file']]
+            except KeyError:
+                status = ccs.NO_SUCH_CONFIG
+            else:
+                if new_path is not None:
+                    Path(new_path).parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    config.save(new_path)
+                except ZeroBotConfigError as ex:
+                    self.logger.exception(ex)
+                    status = ccs.SAVE_FAIL
+                else:
+                    status = ccs.SAVE_OK
+            results.append(
+                ConfigCmdResult(config, status, None, None, new_path))
+        elif subcmd == 'reload':
+            pool = parsed.args['config_file']
+            if not pool:
+                pool = self.configs.keys()
+            for config in pool:
+                try:
+                    config = self.configs[config]
+                    config.load()
+                except KeyError:
+                    status = ccs.NO_SUCH_CONFIG
+                except ZeroBotConfigError as ex:
+                    self.logger.exception(ex)
+                    status = ccs.RELOAD_FAIL
+                else:
+                    status = ccs.RELOAD_OK
+                results.append(ConfigCmdResult(config, status))
+        await ctx.core_command_config(parsed, results)
 
     async def module_command_version(self, ctx, parsed):
         """Implementation for Core `version` command."""
