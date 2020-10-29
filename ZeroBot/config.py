@@ -240,7 +240,8 @@ class Config(ConfigDict):
         """
         path = new_path or self.path
         try:
-            toml.dump(self.data, path)
+            with open(path, 'w') as file:
+                toml.dump(self.data, file)
         except ValueError as ex:
             cls_name = self.__class__.__name__
             raise ConfigEncodeError(
