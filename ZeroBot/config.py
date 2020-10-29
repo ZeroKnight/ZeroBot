@@ -182,6 +182,22 @@ class Config(ConfigDict):
         else:
             self.data = self._last_state
 
+    def unset(self, key: str = None):
+        """Unset a single key, or the entire config.
+
+        Effectively reverts keys to their default values.
+
+        Parameters
+        ----------
+        key : str , optional
+            If specified, unsets a single key instead of the whole config. The
+            key may be a dotted-subkey.
+        """
+        if key is not None:
+            del self[key]
+        else:
+            self.data = ConfigDict()
+
     def load(self):
         """Load (or reload) the associated TOML config file.
 
