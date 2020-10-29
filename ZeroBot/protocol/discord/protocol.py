@@ -149,8 +149,8 @@ class DiscordContext(Context, discord.Client):
         await help_cmd.source.send(embed=embed)
 
     async def core_command_module(self, command, results):
-        embed = discord.Embed(title='Module')
         subcmd = command.args['subcmd']
+        embed = discord.Embed(title=f'Module {subcmd}')
         if subcmd.endswith('load'):
             await _handle_module_load(embed, command, results)
         else:
