@@ -1258,11 +1258,15 @@ class Core:
 
     async def module_command_quit(self, ctx, parsed):
         """Implementation for Core `quit` command."""
+        if parsed.invoker != ctx.owner:
+            return
         reason = ' '.join(parsed.args['msg'] or []) or 'Shutting down'
         self.quit(reason)
 
     async def module_command_restart(self, ctx, parsed):
         """Implementation for Core `restart` command."""
+        if parsed.invoker != ctx.owner:
+            return
         reason = ' '.join(parsed.args['msg'] or []) or 'Restarting'
         self.quit(reason)
         self._restarting = True
@@ -1306,6 +1310,8 @@ class Core:
 
     async def module_command_backup(self, ctx, parsed):
         """Implementation for Core `backup` command."""
+        if parsed.invoker != ctx.owner:
+            return
         file = parsed.args['name']
         file = file.with_suffix(f'{file.suffix}.sqlite')
         await self.database_create_backup(file)
