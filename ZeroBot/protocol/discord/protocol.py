@@ -12,7 +12,7 @@ import discord
 from discord import ChannelType
 
 import ZeroBot.common.abc as abc
-from ZeroBot.common import HelpType, ModuleCmdStatus
+from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus
 from ZeroBot.protocol.context import Context
 
 from .classes import DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
@@ -81,7 +81,7 @@ class DiscordContext(Context, discord.Client):
                 logger.warning('Could not set owner: no user found with '
                                f"ID '{owner_str}'")
         else:
-            logger.error('Could not set owner:string must be a '
+            logger.error('Could not set owner: string must be a '
                          'username+discriminator (Foo#1234) or a unique ID.')
 
     async def on_disconnect(self):
@@ -149,12 +149,21 @@ class DiscordContext(Context, discord.Client):
         await help_cmd.source.send(embed=embed)
 
     async def core_command_module(self, command, results):
-        embed = discord.Embed(title='Module')
         subcmd = command.args['subcmd']
+        embed = discord.Embed(title=f'Module {subcmd}')
         if subcmd.endswith('load'):
             await _handle_module_load(embed, command, results)
         else:
             await _handle_module_query(embed, command, results)
+
+    async def core_command_config(self, command, results):
+        subcmd = command.args['subcmd']
+        embed = discord.Embed(title=f'Config {subcmd}')
+        if subcmd.endswith('set'):
+            _handle_config_set_reset(embed, command, results[0])
+        else:
+            _handle_config_save_reload(embed, command, results)
+        await command.source.send(embed=embed)
 
     async def core_command_version(self, command, info):
         embed = discord.Embed(title='Version Info',
@@ -342,3 +351,65 @@ async def _handle_module_query(embed, command, results):
                 embed.add_field(name='Version', value=info['version'])
                 embed.add_field(name='License', value=info['license'])
             await command.source.send(embed=embed)
+
+
+def _handle_config_save_reload(embed, command, results):
+    ccs = ConfigCmdStatus
+    subcmd = command.args['subcmd']
+    lines = []
+    had_ok, had_fail = False, False
+    for res in results:
+        outcome = None
+        if ccs.is_ok(res.status):
+            had_ok = True
+            verb = 'saved' if subcmd.startswith('save') else 'reloaded'
+            outcome = f'\u2705 Successfully {verb}'
+        elif res.status is ccs.NO_SUCH_CONFIG:
+            had_fail = True
+            lines.append(
+                f'\u274C No loaded config with name **{res.config}**')
+        else:
+            had_fail = True
+            verb = 'save' if subcmd.startswith('save') else 'reload'
+            outcome = f'\u274C Failed to {verb}'
+        if outcome:
+            lines.append(f'{outcome} config **{res.config.path.name}**')
+        if res.new_path:
+            lines[-1] += f' to new path at `{res.new_path}`'
+    if had_ok and had_fail:
+        embed.color = discord.Color.gold()
+    elif had_ok:
+        embed.color = discord.Color.green()
+    elif had_fail:
+        embed.color = discord.Color.red()
+    embed.description = '\n'.join(lines)
+
+
+def _handle_config_set_reset(embed, command, result):
+    ccs = ConfigCmdStatus
+    subcmd = command.args['subcmd']
+    ok = ccs.is_ok(result.status)
+    embed.color = discord.Color.green() if ok else discord.Color.red()
+    if subcmd.endswith('set'):
+        if result.status is ccs.GET_OK:
+            embed.description = (
+                f'Value of `{result.key}` is `{result.value}`')
+        elif result.status is ccs.SET_OK:
+            embed.description = (
+                f'Setting `{result.key}` to `{result.value}`')
+        elif result.status is ccs.RESET_OK:
+            if result.key:
+                what = f'value of `{result.key}`'
+            else:
+                what = f'config **{result.config.path.name}**'
+            if command.args['default']:
+                state = 'default'
+            else:
+                state = 'previously loaded'
+            embed.description = (
+                f'Resetting {what} to its previously {state} state')
+        elif result.status is ccs.NO_SUCH_KEY:
+            verb = 'get' if command.args['value'] is None else 'set'
+            embed.description = (
+                f'Cannot {verb} `{result.key}`: no such key')
+        embed.add_field(name='Config file', value=result.config.path.stem)

@@ -123,3 +123,49 @@ class CommandAlreadyRegistered(ZeroBotCommandError):
     def __init__(self, *args, cmd_name: str, mod_id: str):
         super().__init__(*args, cmd_name=cmd_name)
         self.mod_id = mod_id
+
+
+# Config
+
+class ZeroBotConfigError(ZeroBotException):
+    """Base exception for ZeroBot config errors.
+
+    Attributes
+    ----------
+    config_name : str
+        The name of the config file.
+    """
+
+    def __init__(self, *args, config_name: str):
+        super().__init__(*args)
+        self.config_name = config_name
+
+
+class ConfigReadError(ZeroBotConfigError):
+    """Unable to read a config file from disk.
+
+    *Note*: This exception means that the file itself could not be read,
+    and *not* that it was an invalid config. See `ConfigDecodeError` for
+    the latter.
+    """
+
+
+class ConfigWriteError(ZeroBotConfigError):
+    """Unable to write a config file to disk.
+
+    *Note*: This exception means that the file itself could not be written,
+    and *not* that it was an invalid config. See `ConfigEncodeError` for
+    the latter.
+    """
+
+
+class ConfigDecodeError(ZeroBotConfigError):
+    """Unable to successfully parse and decode a config file.
+
+    In other words, the config file could be *read*, but it was
+    invalid.
+    """
+
+
+class ConfigEncodeError(ZeroBotConfigError):
+    """Unable to successfully encode a `ZeroBot.Config` object."""
