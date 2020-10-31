@@ -6,7 +6,9 @@ privileged users to puppet ZeroBot, sending arbitrary messages and actions.
 
 import random
 import re
+from collections import deque
 from enum import Enum, unique
+from typing import Iterable, Tuple
 
 from ZeroBot.common import CommandParser
 
@@ -28,7 +30,8 @@ DOTCHARS = '.!?\xA1\xBF\u203D'
 PATTERN_WAT = re.compile(r'(?:h+w+|w+h*)[aou]+t\s*\??\s*$')
 PATTERN_DOTS = re.compile(r'^\s*[' + DOTCHARS + r']+\s*$')
 
-recent_phrases = None
+tables = ['berate', 'greetings', 'mentioned', 'questioned']
+recent_phrases = {}
 
 
 @unique
@@ -40,14 +43,17 @@ class QuestionResponse(Enum):
 
 async def module_register(core):
     """Initialize mdoule."""
-    global CORE, CFG, DB
+    global CORE, CFG, DB, recent_phrases
     CORE = core
 
     # make database connection and initialize tables if necessary
     DB = await core.database_connect(MOD_ID)
+    await DB.create_function('cooldown', 0, lambda: CFG['PhraseCooldown'])
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     CFG = core.load_config('modules')[MODULE_NAME]
+    for table in tables:
+        recent_phrases[table] = deque(maxlen=CFG['PhraseCooldown'])
 
     # check for existence of 'fortune' command in environment
 
@@ -84,6 +90,50 @@ def _register_commands():
     CORE.command_register(MOD_ID, *cmds)
 
 
+async def fetch_phrase(table: str, columns: Iterable[str],
+                       query: str = None, parameters: Tuple = None) -> Tuple:
+    """Convenient wrapper for fetching phrases.
+
+    Wraps a query intended to return a phrase from one of the Chat tables.
+    Automatically takes the recent phrases list into consideration; selecting
+    a different phrase if needed.
+
+    Parameters
+    ----------
+    table : str
+        The table to pull from, *without* the module identifier prefix.
+    columns : Iterable[str]
+        The columns to select, *except* the ``phrase`` column, which is
+        implied.
+    query : str, optional
+        The body of the query, placed after ``FROM table`` and before
+        ``ORDER BY``.
+    parameters : tuple, optional
+        Parameters to use use with `query`.
+
+    Returns
+    -------
+    tuple
+        A tuple of values for each requested column.
+
+    Notes
+    -----
+    This wrapper will take care of the ``ORDER BY`` and ``LIMIT`` clauses, so
+    they should not be included in `query`. The limit is chosen based on the
+    current value of the ``Chat.PhraseCooldown`` setting.
+    """
+    columns = ('phrase', *columns)
+    results = await DB.execute(
+        f"""SELECT {', '.join(columns)} FROM chat_{table}
+        {query}
+        ORDER BY RANDOM() LIMIT cooldown() + 1""", parameters)
+    row = await results.fetchone()
+    while row[0] in recent_phrases[table]:
+        row = await results.fetchone()
+    recent_phrases[table].append(row[0])
+    return row
+
+
 async def module_on_message(ctx, message):
     """Handle `Core` message event."""
     # Don't respond to our own messages.
@@ -115,26 +165,19 @@ async def module_on_message(ctx, message):
         pattern = pattern.replace(r'\z', f'{ctx.user.mention_pattern()}')
         if re.search(pattern, message.content, re.I):
             if re.search(r'would you kindly', message.content, re.I):
-                result = await DB.execute(
-                    """SELECT phrase, action FROM chat_questioned
-                    WHERE response_type = ?
-                    ORDER BY RANDOM() LIMIT 1""",
+                phrase, action = await fetch_phrase(
+                    'questioned', ['action'],
+                    'WHERE response_type = ?',
                     (QuestionResponse.Positive.value,))
             else:
-                result = await DB.execute(
-                    """SELECT phrase, action FROM chat_questioned
-                    ORDER BY RANDOM() LIMIT 1""")
-            phrase, action = await result.fetchone()
+                phrase, action = await fetch_phrase('questioned', ['action'])
             await ctx.module_message(message.destination, phrase, action)
             return
 
     # Respond to being mentioned... oddly
     # NOTE: Needs to be LOW priority
     if ctx.user.mentioned(message):
-        result = await DB.execute(
-            """SELECT * FROM chat_mentioned
-            ORDER BY RANDOM() LIMIT 1""")
-        phrase, action = await result.fetchone()
+        phrase, action = await fetch_phrase('mentioned', ['action'])
         await ctx.module_message(message.destination, phrase, action)
 
 
