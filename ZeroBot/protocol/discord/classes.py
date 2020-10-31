@@ -3,6 +3,7 @@
 Discord Implementation of ZeroBot.common.abc classes.
 """
 
+import re
 from typing import Union
 
 import discord
@@ -12,14 +13,18 @@ import ZeroBot.common.abc as zabc
 from ZeroBot.util import gen_repr
 
 
-class DiscordUser(zabc.User):
+class DiscordUser(zabc.User, discord.User):
     """Represents a Discord User."""
 
-    def __init__(self, user: discord.abc.User):
+    def __init__(self, user: discord.User):
         self._original = user
+
+        # ZeroBot interface overrides
         self.name = user.display_name
         self.username = user.name + user.discriminator
-        self.bot = user.bot
+
+    def __getattr__(self, name):
+        return getattr(self._original, name)
 
     def __repr__(self):
         attrs = ['name', 'username', 'bot']
@@ -29,9 +34,6 @@ class DiscordUser(zabc.User):
     def __str__(self):
         return self.name
 
-    def __eq__(self, other):
-        return self._original == other._original
-
     @property
     def original(self):
         return self._original
@@ -40,10 +42,11 @@ class DiscordUser(zabc.User):
         return self._original.mention()
 
     def mentioned(self, message: 'DiscordMessage') -> bool:
-        return self._original.mentioned_in(message)
+        return (self._original.mentioned_in(message)
+                or re.search(self.name, message.content, re.I))
 
 
-class DiscordServer(zabc.Server):
+class DiscordServer(zabc.Server, discord.Guild):
     """Represents a Discord Server (or Guild)."""
 
     def __init__(self, server: discord.Guild):
@@ -52,6 +55,9 @@ class DiscordServer(zabc.Server):
         self.port = None  # Not applicable to Discord servers
         self.ipv6 = None  # Not applicable to Discord servers
 
+    def __getattr__(self, name):
+        return getattr(self._original, name)
+
     def __repr__(self):
         attrs = ['name']
         extras = {'id': self._original.id, 'region': self._original.region}
@@ -59,9 +65,6 @@ class DiscordServer(zabc.Server):
 
     def __str__(self):
         return self.name
-
-    def __eq__(self, other):
-        return self._original == other._original
 
     @property
     def original(self):
@@ -80,10 +83,10 @@ class DiscordServer(zabc.Server):
         return not self._original.unavailable
 
 
-class DiscordChannel(zabc.Channel):
+class DiscordChannel(zabc.Channel, discord.TextChannel):
     """Represents a Discord channel of any type, private or otherwise."""
 
-    def __init__(self, channel: Union[GuildChannel, PrivateChannel]):
+    def __init__(self, channel: discord.TextChannel):
         self._original = channel
         self.password = None  # Not applicable to Discord channels
         if channel.type == discord.ChannelType.private:
@@ -91,6 +94,9 @@ class DiscordChannel(zabc.Channel):
         else:
             self.name = channel.name
         self.type = channel.type
+
+    def __getattr__(self, name):
+        return getattr(self._original, name)
 
     def __repr__(self):
         attrs = ['name']
@@ -112,7 +118,7 @@ class DiscordChannel(zabc.Channel):
         return self._original
 
 
-class DiscordMessage(zabc.Message):
+class DiscordMessage(zabc.Message, discord.Message):
     """Represents a Discord message of any type."""
 
     def __init__(self, message: discord.Message):
@@ -121,6 +127,9 @@ class DiscordMessage(zabc.Message):
         self.content = message.content
         self.time = message.created_at
         self._original = message
+
+    def __getattr__(self, name):
+        return getattr(self._original, name)
 
     def __repr__(self):
         attrs = ['source', 'destination', 'content', 'time']
