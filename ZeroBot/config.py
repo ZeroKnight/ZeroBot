@@ -34,6 +34,9 @@ class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
             value = value.__getitem__(subkeys[0])
         elif isinstance(value, str):
             value = Template(value).safe_substitute(_configvars)
+        elif isinstance(value, list):
+            for elem in value:
+                elem = Template(elem).safe_substitute(_configvars)
         return value
 
     def __setitem__(self, key, value):
@@ -117,8 +120,12 @@ class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
         exceptions and allow further substitution by other sources.
         """
         value = super().get(key, default)
-        if isinstance(value, str) and template_vars:
-            value = Template(value).safe_substitute(template_vars)
+        if template_vars:
+            if isinstance(value, str):
+                value = Template(value).safe_substitute(template_vars)
+            elif isinstance(value, list):
+                for elem in value:
+                    elem = Template(elem).safe_substitute(_configvars)
         return value
 
 
