@@ -54,6 +54,10 @@ async def module_unregister(contexts, reason: str = None):
 class DiscordContext(Context, discord.Client):
     """Discord implementation of a ZeroBot `Context`."""
 
+    @property
+    def user(self) -> DiscordUser:
+        return DiscordUser(super().user)
+
     # Discord Handlers
 
     async def on_connect(self):
