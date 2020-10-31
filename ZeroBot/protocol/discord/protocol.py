@@ -96,6 +96,10 @@ class DiscordContext(Context, discord.Client):
         """
         logger.info('Disconnected from Discord')
 
+    async def on_guild_join(self, guild):
+        """We joined a guild."""
+        CORE.module_send_event('join', self, DiscordServer(guild), self.user)
+
     async def on_message(self, message: discord.Message):
         """Handle messages."""
         if message.channel.type == ChannelType.private:
