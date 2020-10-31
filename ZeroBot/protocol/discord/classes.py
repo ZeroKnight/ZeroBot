@@ -39,7 +39,7 @@ class DiscordUser(zabc.User, discord.User):
         return self._original
 
     def mention(self) -> str:
-        return self._original.mention()
+        return self._original.mention
 
     def mentioned(self, message: 'DiscordMessage') -> bool:
         return (self._original.mentioned_in(message)
