@@ -45,6 +45,12 @@ class DiscordUser(zabc.User, discord.User):
         return (self._original.mentioned_in(message)
                 or re.search(self.name, message.content, re.I))
 
+    def mention_pattern(self) -> str:
+        """Return a pattern that matches the bare name or a mention."""
+        # The mention string differs by a '!' if it mentions
+        # a nickname or not.
+        return f'({self.name}|<@!?{self.id}>)'
+
 
 class DiscordServer(zabc.Server, discord.Guild):
     """Represents a Discord Server (or Guild)."""
