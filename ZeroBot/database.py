@@ -15,6 +15,8 @@ from ZeroBot.module import Module, ProtocolModule
 
 logger = logging.getLogger('ZeroBot.Database')
 
+sqlite3.register_converter('BOOLEAN', lambda x: bool(int(x)))
+
 
 class Connection(sqlite3.Connection):
     """Extension of `sqlite3.Connection` tied to ZeroBot.
@@ -41,6 +43,7 @@ class Connection(sqlite3.Connection):
         return self._dbpath
 
     def close(self):
+        """Close the database connection."""
         logger.debug(f"Closing connection to database at '{self._dbpath}' "
                      f'opened by module {self._module!r}')
         super().close()
@@ -85,7 +88,8 @@ async def create_connection(database: Union[str, Path], module: Module,
     # NOTE: aiosqlite passes kwargs to sqlite3.connect
     conn = await aiosqlite.connect(
         f"{database.as_uri()}?mode={'ro' if readonly else 'rwc'}",
-        loop=loop, uri=True, factory=Connection, **kwargs)
+        loop=loop, uri=True, factory=Connection,
+        detect_types=sqlite3.PARSE_DECLTYPES, **kwargs)
     conn.setName(module.identifier)
     conn._connection._module = module  # pylint: disable=protected-access
     conn._connection._dbpath = database  # pylint: disable=protected-access

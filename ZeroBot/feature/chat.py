@@ -125,7 +125,7 @@ async def module_on_message(ctx, message):
                     """SELECT phrase, action FROM chat_questioned
                     ORDER BY RANDOM() LIMIT 1""")
             phrase, action = await result.fetchone()
-            await ctx.module_message(message.destination, phrase, bool(action))
+            await ctx.module_message(message.destination, phrase, action)
             return
 
     # Respond to being mentioned... oddly
@@ -135,7 +135,7 @@ async def module_on_message(ctx, message):
             """SELECT * FROM chat_mentioned
             ORDER BY RANDOM() LIMIT 1""")
         phrase, action = await result.fetchone()
-        await ctx.module_message(message.destination, phrase, bool(action))
+        await ctx.module_message(message.destination, phrase, action)
 
 
 async def module_on_join(ctx, channel, user):
