@@ -131,7 +131,9 @@ class DiscordContext(Context, discord.Client):
                 f'expected a DiscordUser object, not {type(user)}')
 
     async def module_message(self, destination: DiscordServer,
-                             message: DiscordMessage):
+                             message: str, action: bool = False):
+        if action:
+            message = f'*{message}*'
         await destination.send(message)
 
     async def module_join(self, where, password=None):
