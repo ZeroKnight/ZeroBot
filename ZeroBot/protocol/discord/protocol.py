@@ -7,6 +7,7 @@ import asyncio
 import logging
 import re
 import time
+from typing import Union
 
 import discord
 from discord import ChannelType
@@ -54,9 +55,17 @@ async def module_unregister(contexts, reason: str = None):
 class DiscordContext(Context, discord.Client):
     """Discord implementation of a ZeroBot `Context`."""
 
-    @property
-    def user(self) -> DiscordUser:
-        return DiscordUser(super().user)
+    async def get_target(self,
+                         target: str) -> Union[DiscordUser, DiscordChannel]:
+        """Extract the user or channel object representing the given target."""
+        if match := re.match(r'<@!?(\d+)>', target):
+            return self.get_user(match.group(1))
+        elif match := re.match(r'<#(\d+)>', target):
+            return self.get_channel(match.group(1))
+        elif target.startswith('#'):
+            return discord.utils.get(self.get_all_channels(), name=target[1:])
+        else:
+            return discord.utils.get(self.get_all_members(), name=target)
 
     # Discord Handlers
 
@@ -133,6 +142,10 @@ class DiscordContext(Context, discord.Client):
         else:
             raise TypeError(
                 f'expected a DiscordUser object, not {type(user)}')
+
+    @property
+    def user(self) -> DiscordUser:
+        return DiscordUser(super().user)
 
     async def module_message(self, destination: DiscordServer,
                              message: str, action: bool = False):
