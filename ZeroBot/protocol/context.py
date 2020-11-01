@@ -64,13 +64,13 @@ class Context(metaclass=ABCMeta):
     """
 
     @property
+    @abstractmethod
     def protocol(self):
         """The protocol that this context belongs to.
 
         Feature modules may check against this property to implement
         protocol-specific behavior.
         """
-        return __name__
 
     @property
     @abstractmethod

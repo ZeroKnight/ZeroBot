@@ -118,11 +118,15 @@ class DiscordContext(Context, discord.Client):
 
     # ZeroBot Interface
 
-    @ property
+    @property
+    def protocol(self) -> str:
+        return 'discord'
+
+    @property
     def owner(self) -> DiscordUser:
         return self._owner
 
-    @ owner.setter
+    @owner.setter
     def owner(self, user: DiscordUser):
         if isinstance(user, DiscordUser):
             self._owner = user
