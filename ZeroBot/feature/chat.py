@@ -140,8 +140,13 @@ async def module_on_message(ctx, message):
     if ctx.user == message.source:
         return
 
-    # berate
-    # TODO
+    # Berate
+    if CFG['Berate.Enabled'] and message.source.name in CFG['Berate.UserList']:
+        if random.random() <= CFG['Berate.Chance'] / 100:
+            phrase, action = await fetch_phrase('berate', ['action'])
+            phrase.replace('%0', message.source.name)
+            await ctx.module_message(message.destination, phrase, action)
+            return
 
     # wat
     if PATTERN_WAT.search(message.content):
