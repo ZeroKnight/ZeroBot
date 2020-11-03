@@ -32,7 +32,7 @@ DOTCHARS = '.!?\xA1\xBF\u203D'
 PATTERN_WAT = re.compile(r'(?:h+w+|w+h*)[aou]+t\s*\??\s*$')
 PATTERN_DOTS = re.compile(r'^\s*[' + DOTCHARS + r']+\s*$')
 
-tables = ['berate', 'greetings', 'mentioned', 'questioned']
+tables = ['badcmd', 'berate', 'greetings', 'mentioned', 'questioned']
 recent_phrases = {}
 kicked_from = set()
 
@@ -68,25 +68,30 @@ async def module_unregister():
 
 async def _init_tables():
     await DB.executescript("""
+        CREATE TABLE IF NOT EXISTS "chat_badcmd" (
+            "phrase"    TEXT NOT NULL UNIQUE,
+            "action"    BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            PRIMARY KEY("phrase")
+        ) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS "chat_berate" (
-            "phrase"	TEXT NOT NULL UNIQUE,
-            "action"	BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            "phrase"    TEXT NOT NULL UNIQUE,
+            "action"    BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
             PRIMARY KEY("phrase")
         ) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS "chat_greetings" (
-            "phrase"	TEXT NOT NULL UNIQUE,
-            "action"	BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            "phrase"    TEXT NOT NULL UNIQUE,
+            "action"    BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
             PRIMARY KEY("phrase")
         ) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS "chat_mentioned" (
-            "phrase"	TEXT NOT NULL UNIQUE,
-            "action"	BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            "phrase"    TEXT NOT NULL UNIQUE,
+            "action"    BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
             PRIMARY KEY("phrase")
         ) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS "chat_questioned" (
-            "phrase"	TEXT NOT NULL UNIQUE,
-            "action"	BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
-            "response_type"	INTEGER NOT NULL,
+            "phrase"    TEXT NOT NULL UNIQUE,
+            "action"    BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            "response_type"     INTEGER NOT NULL,
             PRIMARY KEY("phrase")
         ) WITHOUT ROWID;
     """)
@@ -226,6 +231,13 @@ async def module_on_join(ctx, channel, user):
     else:
         phrase, action = await fetch_phrase('greetings', ['action'])
         await ctx.module_message(channel, phrase, action)
+
+
+async def module_on_invalid_command(ctx, cmd_msg):
+    """Handle `Core` invalid-command event."""
+    # Insult a user when they enter a malformed or invalid command.
+    phrase, action = await fetch_phrase('badcmd', ['action'])
+    await ctx.module_message(cmd_msg.destination, phrase, action)
 
 
 async def module_on_kick(ctx, channel, user):
