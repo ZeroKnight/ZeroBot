@@ -47,9 +47,9 @@ async def module_register(core):
     global CORE, CFG, DB, recent_phrases
     CORE = core
 
-    # make database connection and initialize tables if necessary
     DB = await core.database_connect(MOD_ID)
     await DB.create_function('cooldown', 0, lambda: CFG['PhraseCooldown'])
+    _init_tables()
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     CFG = core.load_config('modules')[MODULE_NAME]
@@ -64,6 +64,32 @@ async def module_register(core):
 async def module_unregister():
     """Prepare for shutdown."""
     await CORE.database_disconnect(MOD_ID)
+
+
+def _init_tables():
+    DB.executescript("""
+        CREATE TABLE IF NOT EXISTS "chat_berate" (
+            "phrase"	TEXT NOT NULL UNIQUE,
+            "action"	BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            PRIMARY KEY("phrase")
+        ) WITHOUT ROWID;
+        CREATE TABLE IF NOT EXISTS "chat_greetings" (
+            "phrase"	TEXT NOT NULL UNIQUE,
+            "action"	BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            PRIMARY KEY("phrase")
+        ) WITHOUT ROWID;
+        CREATE TABLE IF NOT EXISTS "chat_mentioned" (
+            "phrase"	TEXT NOT NULL UNIQUE,
+            "action"	BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            PRIMARY KEY("phrase")
+        ) WITHOUT ROWID;
+        CREATE TABLE IF NOT EXISTS "chat_questioned" (
+            "phrase"	TEXT NOT NULL UNIQUE,
+            "action"	BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            "response_type"	INTEGER NOT NULL,
+            PRIMARY KEY("phrase")
+        ) WITHOUT ROWID;
+    """)
 
 
 def _register_commands():
