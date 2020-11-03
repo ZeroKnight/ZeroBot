@@ -254,8 +254,9 @@ async def module_command_fortune(ctx, parsed):
     """Handle `fortune` command."""
     try:
         lines = []
+        args = parsed.args['args'] or []
         proc = await asyncio.create_subprocess_exec(
-            '/usr/bin/fortune', *parsed.args['args'],
+            '/usr/bin/fortune', *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL)
         while data := await proc.stdout.readline():
