@@ -32,6 +32,7 @@ PATTERN_DOTS = re.compile(r'^\s*[' + DOTCHARS + r']+\s*$')
 
 tables = ['berate', 'greetings', 'mentioned', 'questioned']
 recent_phrases = {}
+kicked_from = set()
 
 
 @unique
@@ -189,9 +190,19 @@ async def module_on_message(ctx, message):
 async def module_on_join(ctx, channel, user):
     """Handle `Core` join event."""
     if user == ctx.user:
-        await ctx.module_message(channel.name, 'Hello, world!')
+        if channel in kicked_from:
+            # Don't greet if we've been kicked from here
+            kicked_from.remove(channel)
     else:
-        await ctx.module_message(channel.name, f'Hi there, {user.mention}!')
+        phrase, action = await fetch_phrase('greetings', ['action'])
+        await ctx.module_message(channel, phrase, action)
+
+
+async def module_on_kick(ctx, channel, user):
+    """Handle `Core` kick event."""
+    if user == ctx.user:
+        # Note where we've been kicked from
+        kicked_from.add(channel)
 
 
 async def module_command_say(ctx, parsed):
