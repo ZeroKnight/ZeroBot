@@ -187,3 +187,18 @@ async def module_on_join(ctx, channel, user):
         await ctx.module_message(channel.name, 'Hello, world!')
     else:
         await ctx.module_message(channel.name, f'Hi there, {user.mention}!')
+
+
+async def module_command_say(ctx, parsed):
+    """Handle `say` command."""
+    targets = []
+    if parsed.args['to']:
+        for target in parsed.args['to']:
+            if ctx.protocol == 'discord':
+                target = await ctx.get_target(target)
+            targets.append(target)
+    else:
+        targets.append(parsed.msg.destination)
+    for target in targets:
+        await ctx.module_message(
+            target, ' '.join(parsed.args['msg']), parsed.args['action'])
