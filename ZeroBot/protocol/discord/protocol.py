@@ -170,6 +170,8 @@ class DiscordContext(Context, discord.Client):
 
     async def reply_command_result(self, command, result):
         mention_str = command.invoker.mention
+        if isinstance(result, list):
+            result = '\n'.join(result)
         await command.source.send(f"{mention_str}\n{result}")
 
     async def core_command_help(self, help_cmd, result):

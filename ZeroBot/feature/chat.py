@@ -4,6 +4,8 @@ Allows ZeroBot to chat and respond to conversation in various ways. Also allows
 privileged users to puppet ZeroBot, sending arbitrary messages and actions.
 """
 
+import argparse
+import asyncio
 import random
 import re
 from collections import deque
@@ -49,14 +51,12 @@ async def module_register(core):
 
     DB = await core.database_connect(MOD_ID)
     await DB.create_function('cooldown', 0, lambda: CFG['PhraseCooldown'])
-    _init_tables()
+    await _init_tables()
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     CFG = core.load_config('modules')[MODULE_NAME]
     for table in tables:
         recent_phrases[table] = deque(maxlen=CFG['PhraseCooldown'])
-
-    # check for existence of 'fortune' command in environment
 
     _register_commands()
 
@@ -66,8 +66,8 @@ async def module_unregister():
     await CORE.database_disconnect(MOD_ID)
 
 
-def _init_tables():
-    DB.executescript("""
+async def _init_tables():
+    await DB.executescript("""
         CREATE TABLE IF NOT EXISTS "chat_berate" (
             "phrase"	TEXT NOT NULL UNIQUE,
             "action"	BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
@@ -110,8 +110,12 @@ def _register_commands():
     )
     cmds.append(cmd_say)
 
-    cmd_fortune = CommandParser(
-        'fortune', "Read a fortune from the *nix 'fortune' command")
+    cmd_fortune = CommandParser('fortune', 'Crack open a UNIX fortune cookie')
+    # NOTE: Due to a bug(?) in argparse, this has to be an option, since a lone
+    # positional argument with nargs=REMAINDER still rejects unknown options.
+    cmd_fortune.add_argument(
+        '-a', '--args', nargs=argparse.REMAINDER,
+        help='Arguments to pass to the system `fortune` command')
     cmds.append(cmd_fortune)
 
     CORE.command_register(MOD_ID, *cmds)
@@ -244,3 +248,23 @@ async def module_command_say(ctx, parsed):
     for target in targets:
         await ctx.module_message(
             target, ' '.join(parsed.args['msg']), parsed.args['action'])
+
+
+async def module_command_fortune(ctx, parsed):
+    """Handle `fortune` command."""
+    try:
+        lines = []
+        proc = await asyncio.create_subprocess_exec(
+            '/usr/bin/fortune', *parsed.args['args'],
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL)
+        while data := await proc.stdout.readline():
+            lines.append(data.decode().rstrip())
+        await proc.wait()
+        if proc.returncode != 0:
+            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            return
+        await ctx.reply_command_result(parsed, lines)
+    except OSError:
+        await ctx.reply_command_result(
+            parsed, 'fortune is not available. No cookie for you :(')
