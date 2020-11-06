@@ -36,7 +36,7 @@ from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
                                        ModuleHasNoCommands, ModuleLoadError,
                                        ModuleNotLoaded, ModuleRegisterError,
                                        NoSuchModule, NotACommand,
-                                       ZeroBotConfigError)
+                                       ZeroBotConfigError, ZeroBotModuleError)
 from ZeroBot.config import Config
 from ZeroBot.module import (CoreModule, Module, ProtocolModule,
                             ZeroBotModuleFinder)
@@ -484,7 +484,10 @@ class Core:
         Returns the number of protocols that were successfully loaded.
         """
         for proto in self.config['Core'].get('Protocols', []):
-            await self.load_protocol(proto)
+            try:
+                await self.load_protocol(proto)
+            except ZeroBotModuleError as ex:
+                self.logger.exception(ex)
         return len(self._protocols)
 
     async def _load_features(self) -> int:
@@ -493,7 +496,10 @@ class Core:
         Returns the number of feature modules that were successfully loaded.
         """
         for feature in self.config['Core'].get('Modules', []):
-            await self.load_feature(feature)
+            try:
+                await self.load_feature(feature)
+            except ZeroBotModuleError as ex:
+                self.logger.exception(ex)
         return len(self._features)
 
     def _handle_load_module(self, name: str,
@@ -525,9 +531,9 @@ class Core:
             raise NoSuchModule(
                 f"Could not find {type_str} module '{name}': {ex}",
                 mod_id=name, exc=ex) from None
-        except Exception:
+        except Exception as ex:
             raise ModuleLoadError(f"Failed to load {type_str} module '{name}'",
-                                  mod_id=name)
+                                  mod_id=name) from ex
         self.logger.debug(f'Imported {type_str} module {module!r}')
         return module
 
@@ -558,17 +564,12 @@ class Core:
         if name in self._protocols:
             raise ModuleAlreadyLoaded(
                 f"Protocol module '{name}' is already loaded.", mod_id=name)
-        try:
-            module = self._handle_load_module(name, ProtocolModule)
-        except (ModuleLoadError, NoSuchModule) as ex:
-            self.logger.exception(ex)
-            raise
+        module = self._handle_load_module(name, ProtocolModule)
         config = self.load_config(name)
         try:
             connections = await module.handle.module_register(self, config)
         except Exception as ex:
-            msg = f'Failed to register protocol module {module!r}: {ex}'
-            self.logger.error(msg)
+            msg = f'Failed to register protocol module {module!r}'
             raise ModuleRegisterError(msg, mod_id=name) from ex
         self.logger.info(f"Loaded protocol module '{name}'")
         for ctx, coro in connections:
@@ -604,18 +605,13 @@ class Core:
         if name in self._features:
             raise ModuleAlreadyLoaded(
                 f"Feature module '{name}' is already loaded.", mod_id=name)
-        try:
-            module = self._handle_load_module(name, Module)
-        except (ModuleLoadError, NoSuchModule) as ex:
-            self.logger.exception(ex)
-            raise
+        module = self._handle_load_module(name, Module)
         self._features[name] = module
         try:
             await module.handle.module_register(self)
         except Exception as ex:
             del self._features[name]
-            msg = f'Failed to register feature module {module!r}: {ex}'
-            self.logger.error(msg)
+            msg = f'Failed to register feature module {module!r}'
             raise ModuleRegisterError(msg, mod_id=name) from ex
         self.logger.info(f"Loaded feature module '{name}'")
         return module
@@ -650,7 +646,6 @@ class Core:
             except KeyError:
                 msg = (f"Cannot reload feature module '{feature}' that is not "
                        'already loaded.')
-                self.logger.error(msg)
                 raise ModuleNotLoaded(msg, mod_id=name) from None
         else:
             raise TypeError("feature type expects 'str' or 'Module', not "
@@ -1283,8 +1278,9 @@ class Core:
                     module = await getattr(self, f"{subcmd}_{mtype}")(mod_id)
                 except NoSuchModule:
                     status = mcs.NO_SUCH_MOD
-                except (ModuleLoadError, ModuleRegisterError):
+                except (ModuleLoadError, ModuleRegisterError) as ex:
                     status = getattr(mcs, f'{subcmd.upper()}_FAIL')
+                    self.logger.exception(ex)
                 except ModuleAlreadyLoaded:
                     status = mcs.ALREADY_LOADED
                 except ModuleNotLoaded:
