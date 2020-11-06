@@ -666,11 +666,15 @@ class Core:
                 pass
             self.command_unregister_module(name)
             module.reload()
-            await module.handle.module_register(self)
-        except Exception:
+        except Exception as ex:
             msg = f"Failed to reload feature module '{name}'"
-            self.logger.exception(msg)
-            raise ModuleLoadError(msg, mod_id=name)
+            raise ModuleLoadError(msg, mod_id=name) from ex
+        try:
+            await module.handle.module_register(self)
+        except Exception as ex:
+            msg = f"Failed to re-register feature module '{name}'"
+            raise ModuleRegisterError(msg, mod_id=name) from ex
+
         self.logger.info(f"Reloaded feature module '{name}'")
         return module
 
