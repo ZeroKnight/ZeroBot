@@ -943,8 +943,12 @@ class Core:
         ModuleNotLoaded
             The specified module isn't loaded.
         """
-        await self._db_connections[module_id].close()
-        del self._db_connections[module_id]
+        try:
+            await self._db_connections[module_id].close()
+            del self._db_connections[module_id]
+        except KeyError:
+            raise ModuleNotLoaded(f'Module {module_id} is not loaded.',
+                                  mod_id=module_id) from None
 
     async def database_create_backup(self, target: Union[str, Path] = None):
         """Create a full backup of ZeroBot's active database.
