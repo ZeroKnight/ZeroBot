@@ -84,7 +84,7 @@ class CommandRegistry:
         except KeyError:
             raise ModuleHasNoCommands(
                 f"Module '{module_id}' does not have any registered commands.",
-                mod_id=module_id)
+                mod_id=module_id) from None
 
     def pairs(self) -> Iterator[Tuple[str, List[CommandParser]]]:
         """Generator that yields pairs of module identifiers their parsers."""
@@ -138,7 +138,8 @@ class CommandRegistry:
                     return
         except KeyError:
             raise CommandNotRegistered(
-                f"Command '{command}' is not registered", cmd_name=command)
+                f"Command '{command}' is not registered",
+                cmd_name=command) from None
 
     def modules_registered(self) -> List[Module]:
         """Return a list of `Module`s that have registered commands."""
@@ -523,7 +524,7 @@ class Core:
         except ModuleNotFoundError as ex:
             raise NoSuchModule(
                 f"Could not find {type_str} module '{name}': {ex}",
-                mod_id=name, exc=ex)
+                mod_id=name, exc=ex) from None
         except Exception:
             raise ModuleLoadError(f"Failed to load {type_str} module '{name}'",
                                   mod_id=name)
@@ -650,7 +651,7 @@ class Core:
                 msg = (f"Cannot reload feature module '{feature}' that is not "
                        'already loaded.')
                 self.logger.error(msg)
-                raise ModuleNotLoaded(msg, mod_id=name)
+                raise ModuleNotLoaded(msg, mod_id=name) from None
         else:
             raise TypeError("feature type expects 'str' or 'Module', not "
                             f"'{type(feature)}'")
@@ -847,7 +848,7 @@ class Core:
             except KeyError:
                 raise ModuleNotLoaded(
                     f"Module '{module_id}' is not loaded or being loaded.",
-                    mod_id=module_id)
+                    mod_id=module_id) from None
         for cmd in cmds:
             cmd._module = module  # pylint: disable=protected-access
             self._commands.add(module_id, cmd)
