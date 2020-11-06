@@ -656,6 +656,10 @@ class Core:
                             f"'{type(feature)}'")
         try:
             await module.handle.module_unregister()
+        except Exception:
+            self.logger.warning(
+                'Ignoring exception in module_unregister', exc_info=True)
+        try:
             try:
                 await self._db_connections[name].close()
             except KeyError:
