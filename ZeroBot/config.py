@@ -36,7 +36,8 @@ class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
             value = Template(value).safe_substitute(_configvars)
         elif isinstance(value, list):
             for elem in value:
-                elem = Template(elem).safe_substitute(_configvars)
+                if isinstance(elem, str):
+                    elem = Template(elem).safe_substitute(_configvars)
         return value
 
     def __setitem__(self, key, value):
