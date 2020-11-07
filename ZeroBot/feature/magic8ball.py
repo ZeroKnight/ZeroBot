@@ -161,16 +161,16 @@ async def module_command_8ball(ctx, parsed):
         answer = ResponsePart(*(await fetch_part(ResponseType.answer())))
 
     parts = []
-    parts.append(f'*{intro.phrase}*.' if intro.action else intro.phrase)
+    parts.append(f'*{intro.phrase}*' if intro.action else intro.phrase)
+    parts.append('╱')
     parts.append(f'*{prelude.phrase}*,' if prelude.action else prelude.phrase)
     if answer.action:
         join = 'then ' if prelude.action else ''
         parts.append(f'{join}*{answer.phrase}*.')
     else:
-        join = 'the 8-Ball reads: '
-        if prelude.action:
-            join.capitalize()
+        join = 'The 8-Ball reads: '
         parts.append(f'{join}{answer.phrase}')
+    parts.append('╱')
     parts.append(f'*{outro.phrase}*' if outro.action else outro.phrase)
     output = Template(' '.join(parts)).safe_substitute(
         {'zerobot': ctx.user.name, 'asker': parsed.invoker.name})
