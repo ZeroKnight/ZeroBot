@@ -7,6 +7,7 @@ import random
 import re
 from collections import deque, namedtuple
 from enum import Enum, unique
+from string import Template
 from typing import Tuple, Union
 
 from ZeroBot.common import CommandParser
@@ -171,4 +172,6 @@ async def module_command_8ball(ctx, parsed):
             join.capitalize()
         parts.append(f'{join}{answer.phrase}')
     parts.append(f'*{outro.phrase}*' if outro.action else outro.phrase)
-    await ctx.module_message(parsed.msg.destination, ' '.join(parts))
+    output = Template(' '.join(parts)).safe_substitute(
+        {'zerobot': ctx.user.name, 'asker': parsed.invoker.name})
+    await ctx.module_message(parsed.msg.destination, output)
