@@ -25,9 +25,8 @@ CFG = None
 DB = None
 MOD_ID = __name__.rsplit('.', 1)[-1]
 
-# \xa1 and \xbf are the inverted variants of ! and ?
-# \x203D is the interrobang
-DOTCHARS = '.!?\xA1\xBF\u203D'
+DOTCHARS = ('.!?\xA1\xBF\u203C\u203D\u2047\u2048\u2049\u2753\u2754\u2755\u2757'
+            '\u2E2E\uFE56\uFE57\uFF01\uFF1F')
 
 PATTERN_WAT = re.compile(r'(?:h+w+|w+h*)[aou]+t\s*\??\s*$')
 PATTERN_DOTS = re.compile(r'^\s*[' + DOTCHARS + r']+\s*$')
