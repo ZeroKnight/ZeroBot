@@ -38,9 +38,9 @@ kicked_from = set()
 
 @unique
 class QuestionResponse(Enum):
-    Negative = 0
     Positive = 1
-    Neutral = 2
+    Negative = 2
+    Neutral = 3
 
 
 async def module_register(core):
