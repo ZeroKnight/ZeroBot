@@ -5,7 +5,8 @@ Simulates the classic Magic 8-Ball toy, with some ZeroBot twists...
 
 import random
 import re
-from collections import deque, namedtuple
+from collections import deque
+from dataclasses import dataclass
 from enum import Enum, unique
 from string import Template
 from typing import Tuple, Union
@@ -49,8 +50,6 @@ CLASSIC_PHRASES = [
 
 recent_phrases = {}
 
-ResponsePart = namedtuple('ResponsePart', 'phrase, action')
-
 
 @unique
 class ResponseType(Enum):
@@ -66,6 +65,21 @@ class ResponseType(Enum):
     def answer(cls) -> Tuple['ResponseType']:
         """Return a tuple of the three answer types."""
         return cls.Positive, cls.Negative, cls.Neutral
+
+
+@dataclass
+class ResponsePart():
+    """Represents part of an 8-Ball response."""
+
+    text: str
+    action: bool
+    type: ResponseType
+
+    def __str__(self):
+        return self.format()
+
+    def format(self):
+        return f'*{self.text}*' if self.action else self.text
 
 
 async def module_register(core):
@@ -131,7 +145,7 @@ async def fetch_part(rtype: Union[ResponseType, Tuple[ResponseType]]) -> Tuple:
     while row[0] in recent_phrases[name]:
         row = await results.fetchone()
     recent_phrases[name].append(row[0])
-    return row[:2]
+    return row
 
 
 async def module_command_8ball(ctx, parsed):
@@ -156,22 +170,24 @@ async def module_command_8ball(ctx, parsed):
         table = random.choices(
             ['questioned', None], [weight_q, weight_n])[0]
         if table:
-            answer = ResponsePart(*(await fetch_phrase(table, ['action'])))
+            answer = ResponsePart(
+                *(await fetch_phrase(table, ['action', 'response_type'])))
     if phrase is None:
         answer = ResponsePart(*(await fetch_part(ResponseType.answer())))
 
-    parts = []
-    parts.append(f'*{intro.phrase}*' if intro.action else intro.phrase)
-    parts.append('╱')
-    parts.append(f'*{prelude.phrase}*,' if prelude.action else prelude.phrase)
-    if answer.action:
-        join = 'then ' if prelude.action else ''
-        parts.append(f'{join}*{answer.phrase}*.')
+    output = f'{intro} ╱ '
+    if intro.action and prelude.action and answer.action:
+        output = f'*{intro.text}, {prelude.text}, then {answer.text}*'
+    elif answer.action and prelude.action:
+        output += f'*{prelude.text}, then {answer.text}*'
+    elif answer.action:
+        output += f'{prelude} {answer}'
     else:
-        join = 'The 8-Ball reads: '
-        parts.append(f'{join}{answer.phrase}')
-    parts.append('╱')
-    parts.append(f'*{outro.phrase}*' if outro.action else outro.phrase)
-    output = Template(' '.join(parts)).safe_substitute(
+        if prelude.action:
+            output += f'{prelude}, it reads: {answer}'
+        else:
+            output += f'{prelude} It reads: {answer}'
+    output += f'\n{outro}'
+    output = Template(output).safe_substitute(
         {'zerobot': ctx.user.name, 'asker': parsed.invoker.name})
     await ctx.module_message(parsed.msg.destination, output)
