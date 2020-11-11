@@ -169,6 +169,25 @@ async def fetch_phrase(table: str, columns: Iterable[str],
     return row
 
 
+def _resize_phrase_deques():
+    for table in tables:
+        new_len = CFG['PhraseCooldown']
+        if new_len != recent_phrases[table].maxlen:
+            recent_phrases[table] = deque(maxlen=new_len)
+
+
+async def module_on_config_reloaded(ctx, name):
+    """Handle `Core` config reload event."""
+    if name == 'modules':
+        _resize_phrase_deques()
+
+
+async def module_on_config_changed(ctx, name, key, old, new):
+    """Handle `Core` config change event."""
+    if name == 'modules' and key == 'Chat.PhraseCooldown':
+        _resize_phrase_deques()
+
+
 async def module_on_message(ctx, message):
     """Handle `Core` message event."""
     # Don't respond to our own messages.

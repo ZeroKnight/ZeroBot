@@ -148,6 +148,25 @@ async def fetch_part(rtype: Union[ResponseType, Tuple[ResponseType]]) -> Tuple:
     return row
 
 
+def _resize_phrase_deques():
+    for rtype in ResponseType:
+        new_len = CFG['PhraseCooldown']
+        if new_len != recent_phrases[rtype.name].maxlen:
+            recent_phrases[rtype.name] = deque(maxlen=new_len)
+
+
+async def module_on_config_reloaded(ctx, name):
+    """Handle `Core` config reload event."""
+    if name == 'modules':
+        _resize_phrase_deques()
+
+
+async def module_on_config_changed(ctx, name, key, old, new):
+    """Handle `Core` config change event."""
+    if name == 'modules' and key == 'Magic8Ball.PhraseCooldown':
+        _resize_phrase_deques()
+
+
 async def module_command_8ball(ctx, parsed):
     """Handle `8ball` command."""
     question = ' '.join(parsed.args['question'])
