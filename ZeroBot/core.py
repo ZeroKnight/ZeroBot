@@ -1328,23 +1328,34 @@ class Core:
         value = None
         if subcmd.endswith('set'):  # set, reset
             key = parsed.args['key_path']
+            name = parsed.args['config_file']
             try:
-                config = self.configs[parsed.args['config_file']]
+                config = self.configs[name]
             except KeyError:
                 status = ccs.NO_SUCH_CONFIG
             else:
                 try:
+                    old = config.get(key, None) if key is not None else None
                     if subcmd.startswith('re'):
                         if parsed.args['default']:
                             config.unset(key)
                         else:
                             config.reset(key)
                         status = ccs.RESET_OK
+                        if key is not None:
+                            new = config.get(key, None)
+                            await self.module_send_event(
+                                'config_changed', ctx, name, key, old, new)
+                        else:
+                            await self.module_send_event(
+                                'config_reloaded', ctx, name)
                     else:
                         value = parsed.args['value']
                         if value:
                             config[key] = value
                             status = ccs.SET_OK
+                            await self.module_send_event(
+                                'config_changed', ctx, name, key, old, value)
                         else:
                             value = config.get(key)
                             status = ccs.GET_OK
@@ -1389,9 +1400,9 @@ class Core:
             pool = parsed.args['config_file']
             if not pool:
                 pool = self.configs.keys()
-            for config in pool:
+            for name in pool:
                 try:
-                    config = self.configs[config]
+                    config = self.configs[name]
                     config.load()
                 except KeyError:
                     status = ccs.NO_SUCH_CONFIG
@@ -1400,6 +1411,7 @@ class Core:
                     status = ccs.RELOAD_FAIL
                 else:
                     status = ccs.RELOAD_OK
+                    await self.module_send_event('config_reloaded', ctx, name)
                 results.append(ConfigCmdResult(config, status))
         await ctx.core_command_config(parsed, results)
 
