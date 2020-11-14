@@ -172,8 +172,10 @@ async def fetch_phrase(table: str, columns: Iterable[str],
 def _resize_phrase_deques():
     for table in tables:
         new_len = CFG['PhraseCooldown']
-        if new_len != recent_phrases[table].maxlen:
-            recent_phrases[table] = deque(maxlen=new_len)
+        if new_len == recent_phrases[table].maxlen:
+            break
+        recent_phrases[table] = deque(
+            recent_phrases[table].copy(), maxlen=new_len)
 
 
 async def module_on_config_reloaded(ctx, name):

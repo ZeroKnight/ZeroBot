@@ -149,10 +149,12 @@ async def fetch_part(rtype: Union[ResponseType, Tuple[ResponseType]]) -> Tuple:
 
 
 def _resize_phrase_deques():
-    for rtype in ResponseType:
+    for name in ResponseType.__members__.keys():
         new_len = CFG['PhraseCooldown']
-        if new_len != recent_phrases[rtype.name].maxlen:
-            recent_phrases[rtype.name] = deque(maxlen=new_len)
+        if new_len == recent_phrases[name].maxlen:
+            break
+        recent_phrases[name] = deque(
+            recent_phrases[name].copy(), maxlen=new_len)
 
 
 async def module_on_config_reloaded(ctx, name):
