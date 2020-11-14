@@ -9,7 +9,7 @@ from collections import deque
 from dataclasses import dataclass
 from enum import Enum, unique
 from string import Template
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 from ZeroBot.common import CommandParser
 
@@ -74,6 +74,7 @@ class ResponsePart():
     text: str
     action: bool
     type: ResponseType
+    expects_action: Optional[bool] = None
 
     def __str__(self):
         return self.format()
@@ -109,9 +110,10 @@ async def module_unregister():
 async def _init_tables():
     await DB.execute("""
         CREATE TABLE IF NOT EXISTS "magic8ball" (
-            "response"      TEXT NOT NULL UNIQUE,
-            "action"        BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
-            "response_type" INTEGER DEFAULT 1,
+            "response"       TEXT NOT NULL UNIQUE,
+            "action"         BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            "response_type"  INTEGER DEFAULT 1,
+            "expects_action" BOOLEAN CHECK(expects_action IN (NULL,0,1)),
             PRIMARY KEY("response")
         ) WITHOUT ROWID
     """)
@@ -129,24 +131,39 @@ def _register_commands():
     CORE.command_register(MOD_ID, *cmds)
 
 
-async def fetch_part(rtype: Union[ResponseType, Tuple[ResponseType]]) -> Tuple:
+async def fetch_part(rtype: Union[ResponseType, Tuple[ResponseType]],
+                     expects_action: Optional[bool] = None) -> Tuple:
     """Fetch a phrase of a particular response type."""
     if isinstance(rtype, tuple):
         placeholders = ', '.join('?' * len(rtype))
     else:
         rtype = (rtype,)
         placeholders = '?'
+    last_ph = len(rtype) + 1
     results = await DB.execute(f"""
-        SELECT response, action, response_type FROM magic8ball
+        SELECT response, action, response_type, expects_action FROM magic8ball
         WHERE response_type IN ({placeholders})
+            AND CASE
+                WHEN ?{last_ph} NOT NULL THEN action = ?{last_ph}
+                ELSE 1
+            END
         ORDER BY RANDOM() LIMIT cooldown() + 1;
-    """, tuple(x.value for x in rtype))
-    row = await results.fetchone()
-    name = ResponseType(row[2]).name
-    while row[0] in recent_phrases[name]:
-        row = await results.fetchone()
-    recent_phrases[name].append(row[0])
-    return row
+    """, tuple(x.value for x in rtype) + (expects_action,))
+    part = None
+    rows = await results.fetchall()
+    if CFG.get('PhraseCooldown', 0):
+        for row in rows:
+            name = ResponseType(row[2]).name
+            if row[0] not in recent_phrases[name]:
+                part = row
+                recent_phrases[name].append(part[0])
+                break
+        if part is None and len(rows) <= CFG['PhraseCooldown']:
+            # We have fewer phrases than the cooldown limit, so ignore it
+            part = rows[0]
+    else:
+        part = rows[0]
+    return part
 
 
 def _resize_phrase_deques():
@@ -192,10 +209,16 @@ async def module_command_8ball(ctx, parsed):
         table = random.choices(
             ['questioned', None], [weight_q, weight_n])[0]
         if table:
-            answer = ResponsePart(
-                *(await fetch_phrase(table, ['action', 'response_type'])))
+            if prelude.expects_action is not None:
+                sql = 'WHERE action = ?'
+                params = (prelude.expects_action,)
+            else:
+                sql, params = None, None
+            answer = ResponsePart(*(await fetch_phrase(
+                table, ['action', 'response_type'], sql, params)))
     if phrase is None:
-        answer = ResponsePart(*(await fetch_part(ResponseType.answer())))
+        answer = ResponsePart(*(await fetch_part(
+            ResponseType.answer(), prelude.expects_action)))
 
     output = f'{intro} ╱ '
     if intro.action and prelude.action and answer.action:
