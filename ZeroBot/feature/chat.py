@@ -49,13 +49,14 @@ async def module_register(core):
     CORE = core
 
     DB = await core.database_connect(MOD_ID)
-    await DB.create_function('cooldown', 0, lambda: CFG['PhraseCooldown'])
+    await DB.create_function(
+        'cooldown', 0, lambda: CFG.get('PhraseCooldown', 0))
     await _init_tables()
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     CFG = core.load_config('modules')[MODULE_NAME]
     for table in tables:
-        recent_phrases[table] = deque(maxlen=CFG['PhraseCooldown'])
+        recent_phrases[table] = deque(maxlen=CFG.get('PhraseCooldown', 0))
 
     _register_commands()
 

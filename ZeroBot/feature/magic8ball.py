@@ -88,14 +88,15 @@ async def module_register(core):
     CORE = core
 
     DB = await core.database_connect(MOD_ID)
-    await DB.create_function('cooldown', 0, lambda: CFG['PhraseCooldown'])
+    await DB.create_function(
+        'cooldown', 0, lambda: CFG.get('PhraseCooldown', 0))
     await _init_tables()
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     # FIXME: if going the monolithic route, check if it's loaded first
     CFG = core.load_config('modules')['Magic8Ball']
     for rtype in ResponseType:
-        recent_phrases[rtype.name] = deque(maxlen=CFG['PhraseCooldown'])
+        recent_phrases[rtype.name] = deque(maxlen=CFG.get('PhraseCooldown', 0))
 
     _register_commands()
 
