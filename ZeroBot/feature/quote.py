@@ -84,7 +84,7 @@ async def _init_tables():
             "line"            TEXT NOT NULL,
             "participant_id"  INTEGER NOT NULL DEFAULT 0,
             "author_num"      INTEGER NOT NULL DEFAULT 1,
-            "action"          BOOLEAN NOT NULL DEFAULT 0 
+            "action"          BOOLEAN NOT NULL DEFAULT 0
                               CHECK(action IN (0,1)),
             PRIMARY KEY("quote_id", "line_num"),
             FOREIGN KEY("quote_id") REFERENCES "quote"("quote_id")
@@ -100,8 +100,80 @@ async def _init_tables():
 def _register_commands():
     """Create and register our commands."""
     cmds = []
-    cmd_quote = CommandParser('quote', 'Recite a quote.')
+    cmd_quote = CommandParser(
+        'quote', 'Recite a random quote or interact with the quote database.')
+    add_subcmd = cmd_quote.make_adder(metavar='OPERATION', dest='subcmd',
+                                      required=False)
+    subcmd_add = add_subcmd('add', 'Submit a new quote', aliases=['new'])
+    subcmd_add.add_argument(
+        'author',
+        help=('The author of the quote, i.e. the entity being quoted. Must be '
+              'wrapped in quotation marks if it contains spaces.'))
+    subcmd_add.add_argument(
+        'body', nargs='+', help='The contents of the quote')
+    subcmd_add.add_argument(
+        '-s', '--style', choices=[style.name.lower() for style in QuoteStyle],
+        type=str.lower, default='standard',
+        help=('Specify the quote style. The default, "standard" styles the '
+              'quote like a typical IRC client message, e.g. `<Foo> hello`. '
+              '"epigraph" styles the quote as in writing, e.g. '
+              '`"Hello." ―Foo`. "unstyled" applies no formatting and is '
+              'displayed exactly as entered.'))
+    subcmd_add.add_argument(
+        '-m', '--multi', action='store_true',
+        help=('Create a multi-line quote. Each line may be separated with a '
+              'literal newline or a `\\n` sequence. A line can be designated '
+              'as an action by starting it with a `\\a` sequence.'))
+    subcmd_add.add_argument(
+        '-a', '--author', action='append',
+        help='Specifies additional authors for a multi-line quote')
+    subcmd_del = add_subcmd('del', 'Remove a quote from the database',
+                            aliases=['rm', 'remove', 'delete'])
+    subcmd_del.add_argument(
+        'quote', nargs='+',
+        help=('The quote to remove. Must exactly match the body of a quote '
+              '(or a single line of multi-line quote). If the `id` option is '
+              'specified, this is the desired quote ID.'))
+    subcmd_del.add_argument(
+        '-i', '--id', action='store_true',
+        help=('Specify the target quote by ID instead. Multiple IDs may be '
+              'specified this way.'))
+    subcmd_del.add_argument(
+        '-r', '--regex', action='store_true',
+        help=('The `quote` argument is interpreted as a regular expression and'
+              'all matching quotes will be removed. Use with caution!'))
+    subcmd_del.add_argument(
+        '-l', '--line', nargs='?',
+        help=('For multi-line quotes, only remove the line specified by this '
+              'option. If specifying a quote by its body, the value may be '
+              'omitted.'))
+    subcmd_search = add_subcmd(
+        'search', 'Search the quote database for a specific quote',
+        aliases=['find'])
+    subcmd_search.add_argument(
+        'pattern', nargs='?',
+        help=('The search pattern used to match quote body content. If the '
+              'pattern contains spaces, they must be escaped or the pattern '
+              'must be wrapped in quotation marks.'))
+    subcmd_search.add_argument(
+        '-a', '--author',
+        help=('Filter results to the author matching this pattern. The '
+              '`pattern` argument may be omitted if this option is given.'))
+    subcmd_search.add_argument(
+        '-s', '--simple', action='store_true',
+        help=('Patterns are interpreted as simple wildcard strings rather '
+              'than regular expressions. `*`, `?`, and `[...]` are '
+              'supported.'))
     cmds.append(cmd_quote)
+
+    # TBD: Rename? Move into a subcmd of quote?
+    cmd_grab = CommandParser(
+        'grab', 'Quickly add a quote of the last thing someone said')
+    cmd_grab.add_argument(
+        'user', nargs='?',
+        help=('The user to quote. If omitted, will quote the last message in '
+              'the channel.'))
+    cmds.append(cmd_grab)
 
     CORE.command_register(MOD_ID, *cmds)
 
@@ -141,3 +213,9 @@ async def module_on_join(ctx, channel, user):
 
 async def module_command_quote(ctx, parsed):
     """Handle `quote` command."""
+    # NOTE: restrict deletion to owner
+    # TODO: make regex deletion a two-step command; upon invoking, return how
+    # many quotes would be deleted and a list of relevant ids (up to X amount)
+    # require a !quote confirm delete or something like that to actually go
+    # through with it.
+    ...
