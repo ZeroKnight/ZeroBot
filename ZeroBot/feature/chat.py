@@ -160,13 +160,13 @@ async def fetch_phrase(table: str, columns: Iterable[str],
     """
     columns = ('phrase', *columns)
     async with DB.cursor() as cur:
-        results = await cur.execute(
+        await cur.execute(
             f"""SELECT {', '.join(columns)} FROM chat_{table}
             {query}
             ORDER BY RANDOM() LIMIT cooldown() + 1""", parameters)
-        row = await results.fetchone()
+        row = await cur.fetchone()
         while row[0] in recent_phrases[table]:
-            row = await results.fetchone()
+            row = await cur.fetchone()
     recent_phrases[table].append(row[0])
     return row
 
