@@ -164,16 +164,15 @@ def _register_commands():
         help=('Patterns are interpreted as simple wildcard strings rather '
               'than regular expressions. `*`, `?`, and `[...]` are '
               'supported.'))
-    cmds.append(cmd_quote)
-
-    # TBD: Rename? Move into a subcmd of quote?
-    cmd_grab = CommandParser(
-        'grab', 'Quickly add a quote of the last thing someone said')
-    cmd_grab.add_argument(
+    subcmd_quick = add_subcmd(
+        'quick',
+        'Shortcut to quickly add a quote of the last thing someone said',
+        aliases=['grab'])
+    subcmd_quick.add_argument(
         'user', nargs='?',
         help=('The user to quote. If omitted, will quote the last message in '
               'the channel.'))
-    cmds.append(cmd_grab)
+    cmds.append(cmd_quote)
 
     CORE.command_register(MOD_ID, *cmds)
 
