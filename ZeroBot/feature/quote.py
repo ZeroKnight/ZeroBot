@@ -27,6 +27,7 @@ MOD_ID = __name__.rsplit('.', 1)[-1]
 
 # TBD: track per author, or globally by id?
 recent_quotes = {}
+last_lines = {}
 
 
 @unique
@@ -199,9 +200,16 @@ async def module_on_config_changed(ctx, name, key, old, new):
 
 async def module_on_message(ctx, message):
     """Handle `Core` message event."""
-    # TODO: Keep track of the the last thing a user said (and the last thing
-    # said period) to facilitate quick quoting with the `grab` command.
-    ...
+    # Don't keep track of ZeroBot's lines
+    if ctx.user == message.source:
+        return
+    if not message.content or message.content.isspace():
+        return
+    server = message.server.name
+    channel = message.destination.name
+    user = message.source.name
+    last_lines.setdefault(server, {}) \
+              .setdefault(channel, {})[user] = message
 
 
 async def module_on_join(ctx, channel, user):

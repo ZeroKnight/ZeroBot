@@ -130,6 +130,7 @@ class DiscordMessage(zabc.Message, discord.Message):
     def __init__(self, message: discord.Message):
         self.source = message.author
         self.destination = message.channel
+        self.server = message.guild
         self.content = message.content
         self.time = message.created_at
         self._original = message
