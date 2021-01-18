@@ -9,7 +9,7 @@ import asyncio
 import random
 import re
 from collections import deque
-from enum import Enum, unique
+from enum import IntEnum, unique
 
 from ZeroBot.common import CommandParser
 
@@ -31,7 +31,7 @@ last_lines = {}
 
 
 @unique
-class QuoteStyle(Enum):
+class QuoteStyle(IntEnum):
     Standard = 1
     Epigraph = 2
     Unstyled = 3
