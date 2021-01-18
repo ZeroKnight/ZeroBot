@@ -128,6 +128,11 @@ def _register_commands():
     subcmd_add.add_argument(
         '-a', '--author', action='append',
         help='Specifies additional authors for a multi-line quote')
+    subcmd_add.add_argument(
+        '-d', '--date',
+        help=('Submits the quote with the following datestamp instead of the '
+              'current date and time. Time is interpreted as UTC. Expects '
+              'either a Unix timestamp or an ISO 8601 formatted date string.'))
     subcmd_del = add_subcmd('del', 'Remove a quote from the database',
                             aliases=['rm', 'remove', 'delete'])
     subcmd_del.add_argument(
