@@ -193,7 +193,7 @@ async def module_command_8ball(ctx, parsed):
     phrase = None
 
     if not re.search(r'\?[!?]*$', question):
-        phrase, action = await fetch_part(ResponseType.NotAQuestion)
+        phrase, action, *_ = await fetch_part(ResponseType.NotAQuestion)
         await ctx.module_message(parsed.msg.destination, phrase, action)
         return
 
