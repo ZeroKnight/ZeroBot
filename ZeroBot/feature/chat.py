@@ -275,7 +275,7 @@ async def module_command_say(ctx, parsed):
     if parsed.args['to']:
         for target in parsed.args['to']:
             if ctx.protocol == 'discord':
-                target = await ctx.get_target(target)
+                target = ctx.get_target(target)
             targets.append(target)
     else:
         targets.append(parsed.msg.destination)

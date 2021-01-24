@@ -58,17 +58,21 @@ async def module_unregister(contexts, reason: str = None):
 class DiscordContext(Context, discord.Client):
     """Discord implementation of a ZeroBot `Context`."""
 
-    async def get_target(self,
-                         target: str) -> Union[DiscordUser, DiscordChannel]:
+    def get_target(self, target: str) -> Union[DiscordUser, DiscordChannel]:
         """Extract the user or channel object representing the given target."""
         if match := re.match(r'<@!?(\d+)>', target):
-            return self.get_user(match.group(1))
+            args = {'iterable': self.get_all_members(),
+                    'id': int(match.group(1))}
         elif match := re.match(r'<#(\d+)>', target):
-            return self.get_channel(match.group(1))
+            args = {'iterable': self.get_all_channels(),
+                    'id': int(match.group(1))}
         elif target.startswith('#'):
-            return discord.utils.get(self.get_all_channels(), name=target[1:])
+            args = {'iterable': self.get_all_channels(),
+                    'name': target[1:]}
         else:
-            return discord.utils.get(self.get_all_members(), name=target)
+            args = {'iterable': self.get_all_members(),
+                    'name': target}
+        return discord.utils.get(**args)
 
     # Discord Handlers
 
