@@ -18,6 +18,7 @@ from ZeroBot.module import Module, ProtocolModule
 logger = logging.getLogger('ZeroBot.Database')
 
 sqlite3.register_converter('BOOLEAN', lambda x: bool(int(x)))
+sqlite3.converters['DATETIME'] = sqlite3.converters['TIMESTAMP']  # alias
 
 
 class Connection(sqlite3.Connection):
