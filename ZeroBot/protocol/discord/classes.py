@@ -12,6 +12,8 @@ from discord.abc import GuildChannel, PrivateChannel
 import ZeroBot.common.abc as zabc
 from ZeroBot.util import gen_repr
 
+ACTION_PATTERN = re.compile(r'^\*(?:[^*]|(?<=\\)\*)*\*$')
+
 
 class DiscordUser(zabc.User, discord.User):
     """Represents a Discord User."""
@@ -153,6 +155,21 @@ class DiscordMessage(zabc.Message, discord.Message):
 
     def __eq__(self, other):
         return self._original == other._original
+
+    @staticmethod
+    def is_action_str(string: str) -> bool:
+        """Check if the given string is an action."""
+        return bool(ACTION_PATTERN.match(string.strip()))
+
+    @staticmethod
+    def as_action_str(string: str) -> str:
+        """Returns the given string as an action."""
+        return f'*{string}*'
+
+    @staticmethod
+    def strip_action_str(string: str) -> str:
+        """Strip the action formatting from the given string."""
+        return string[1:-1]
 
     @property
     def original(self):
