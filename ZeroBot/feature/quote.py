@@ -28,6 +28,10 @@ CFG = None
 DB = None
 MOD_ID = __name__.rsplit('.', 1)[-1]
 
+MULTILINE_SEP = re.compile(r'(?:\n|\\n|\\ )\s*')
+MULTILINE_AUTHOR = re.compile(r'(?:<(.+)>|(.+):)')
+AUTHOR_PLACEHOLDER = re.compile(r'\\(\d+)')
+
 # TBD: track per author, or globally by id?
 recent_quotes = {}
 last_lines = {}
@@ -679,7 +683,6 @@ async def quote_add(ctx, parsed):
         parsed.args['submitter'] or parsed.invoker.name)
     author = await get_participant(ctx.get_target(parsed.args['author']).name)
     date = parsed.args['date']
-    breakpoint()
     if date is None:
         date = datetime.utcnow()
     elif isinstance(date, str):
@@ -693,6 +696,35 @@ async def quote_add(ctx, parsed):
     style = getattr(QuoteStyle, parsed.args['style'].title())
     quote = Quote(None, submitter, date=date, style=style)
     body = ' '.join(parsed.args['body'])
-    await quote.add_line(body, author, body.startswith(r'\a'))
+
+    if parsed.args['multi']:
+        if style is QuoteStyle.Epigraph:
+            ctx.module_send_event('invalid_command', ctx, parsed.msg)
+        authors = [author] + [
+            await get_participant(a) for a in parsed.args['extra_authors']]
+        lines = MULTILINE_SEP.split(body)
+
+        first = True
+        for line in lines:
+            line = line.strip()
+            # Handle first line specially
+            if first:
+                line_author, line_body = author, line
+                first = False
+            else:
+                line_author, line_body = line.split(maxsplit=1)
+                if match := MULTILINE_AUTHOR.match(line_author):
+                    idx = [a.name for a in authors].index(match[1] or match[2])
+                    line_author = authors[idx]
+                    if style is QuoteStyle.Unstyled:
+                        line_body = line
+                elif match := AUTHOR_PLACEHOLDER.match(line_author):
+                    line_author = authors[int(match[1]) - 1]
+                    if style is QuoteStyle.Unstyled:
+                        line_body = AUTHOR_PLACEHOLDER.sub(line_author, line)
+            await quote.add_line(
+                line_body, line_author, line_body.startswith(r'\a'))
+    else:
+        await quote.add_line(body, author, body.startswith(r'\a'))
     await quote.save()
     await ctx.module_message(parsed.msg.destination, f'Okay, adding: {quote}')
