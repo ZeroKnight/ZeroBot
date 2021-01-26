@@ -9,9 +9,12 @@ import asyncio
 import random
 import re
 from collections import deque
+from datetime import datetime
 from enum import IntEnum, unique
+from typing import List, Optional, Tuple, Union
 
 from ZeroBot.common import CommandParser
+from ZeroBot.database import DBUser
 
 MODULE_NAME = 'Quote'
 MODULE_AUTHOR = 'ZeroKnight'
@@ -35,6 +38,354 @@ class QuoteStyle(IntEnum):
     Standard = 1
     Epigraph = 2
     Unstyled = 3
+
+
+class Participant():
+    """A `Quote` participant: either an author or a submitter.
+
+    Participants may or may not be linked to a `DBUser`.
+
+    Parameters
+    ----------
+    participant_id : int
+        The participant's ID.
+    name : str
+        The name of the participant.
+    user_id : int, optional
+        The participant's user ID, if it has one.
+    user : DBUser, optional
+        The user linked to this participant.
+
+    Attributes
+    ----------
+    id
+    """
+
+    def __init__(self, participant_id: int, name: str, user_id: int = None,
+                 user: DBUser = None):
+        self.id = participant_id
+        self.name = name
+        self.user_id = user_id
+        if user is not None and user.id != self.user_id:
+            raise ValueError(
+                'The given user.id does not match user_id: '
+                f'{user.id=} {self.user_id=}')
+        self.user = user
+
+    def __repr__(self):
+        attrs = ['id', 'name', 'user']
+        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
+        return f'<{self.__class__.__name__} {repr_str}>'
+
+    def __str__(self):
+        return self.name
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    @classmethod
+    async def from_id(cls, participant_id: int) -> Optional['Participant']:
+        """Construct a `Participant` by ID from the database.
+
+        Returns `None` if there was no `Participant` with the given ID.
+
+        Parameters
+        ----------
+        participant_id : int
+            The ID of the participant to fetch.
+        """
+        async with DB.cursor() as cur:
+            await cur.execute(
+                'SELECT * FROM quote_participants WHERE participant_id = ?',
+                (participant_id,))
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        user = await DBUser.from_id(row[-1], DB)
+        return cls(*row[:-1], user)
+
+    @classmethod
+    async def from_name(cls, name) -> Optional['Participant']:
+        """Construct a `Participant` by name from the database.
+
+        Parameters
+        ----------
+        name : str
+            The name of the participant to fetch.
+        """
+        async with DB.cursor() as cur:
+            await cur.execute(
+                'SELECT * FROM quote_participants WHERE name = ?', (name,))
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        user = await DBUser.from_id(row[-1], DB)
+        return cls(*row, user)
+
+    @classmethod
+    async def from_user(cls, user: Union[DBUser, int]) -> 'Participant':
+        """Construct a `Participant` linked to the given user.
+
+        Parameters
+        ----------
+        user : DBUser or int
+            The linked user to search for. May be a `DBUser` object or an `int`
+            referring to a user ID.
+        """
+        try:
+            user_id = user.id
+        except AttributeError:
+            user_id = int(user)
+        async with DB.cursor() as cur:
+            await cur.execute(
+                'SELECT * FROM quote_participants WHERE user_id = ?',
+                (user_id,))
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        if not isinstance(user, DBUser):
+            user = await DBUser.from_id(row[-1], DB)
+        return cls(*row, user)
+
+    async def fetch_user(self) -> DBUser:
+        """Fetch the database user linked to this participant.
+
+        Sets `self.user` to the fetched `DBUser` and returns it.
+        """
+        if self.user_id is None:
+            raise ValueError('Participant has no linked user.')
+        self.user = await DBUser.from_id(self.user_id, DB)
+        return self.user
+
+    async def save(self):
+        """Save this `Participant` to the database."""
+        async with DB.cursor() as cur:
+            await cur.execute(f"""
+                INSERT INTO quote_participants VALUES (?, ?, ?)
+                ON CONFLICT (participant_id) DO UPDATE SET
+                    name = excluded.name,
+                    user_id = excluded.user_id
+            """, (self.id, self.name, self.user_id))
+
+
+class QuoteLine:
+    """A single—possibly the only—line of a quote.
+
+    `QuoteLine` objects make up the body of a given quote. Each line may have
+    its own author and may or may not be an action.
+
+    Parameters
+    - ---------
+    quote_id: int
+        The ID of the `Quote` that this line belongs to.
+    body: str
+        The quoted text.
+    author: Participant
+        The entity being quoted for this line.
+    line_num: int, optional
+        The position of this line in the `Quote`. For single-line quotes this
+        is always `1`, and is also the default.
+    author_num: int, optional
+        The * Nth * unique author to be part of the associated `Quote`. For
+        single-line quotes this is always `1`, and is also the default.
+    action: bool, optional
+        Whether or not the body should be interpreted as an "action" rather
+        than something written or spoken. Defaults to `False`.
+    """
+
+    def __init__(self, quote_id: int, body: str, author: Participant, *,
+                 quote: 'Quote' = None, line_num: int = 1, author_num: int = 1,
+                 action: bool = False):
+        self.quote_id = quote_id
+        self.body = body
+        self.author = author
+        self.line_num = line_num
+        self.author_num = author_num
+        self.action = action
+        if quote is not None and quote.id != self.quote_id:
+            raise ValueError(
+                'The given quote.id does not match quote_id: '
+                f'{quote.id=} {self.quote_id}')
+        self.quote = quote
+
+    def __repr__(self):
+        attrs = ['quote_id', 'line_num', 'body', 'author', 'author_num',
+                 'action']
+        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
+        return f'<{self.__class__.__name__} {repr_str}>'
+
+    def __str__(self):
+        if self.action:
+            return f'* {self.author} {self.body}'
+        else:
+            return f'<{self.author}> {self.body}'
+
+    @classmethod
+    async def from_row(cls, row: Tuple) -> 'QuoteLine':
+        """Construct a `QuoteLine` from a database row.
+
+        Parameters
+        - ---------
+        row: Tuple
+            A row returned from the database.
+        """
+        author = await Participant.from_id(row[3])
+        return cls(
+            quote_id=row[0], line_num=row[1], body=row[2],
+            author=author, author_num=row[4], action=row[5]
+        )
+
+
+class Quote:
+    """A ZeroBot quote.
+
+    Parameters
+    ----------
+    quote_id : int or None
+        The ID of the quote.
+    submitter : Participant
+        The person that submitted this quote.
+    date : datetime, optional
+        The date and time that the quoted content occurred. Defaults to the
+        current date/time.
+    style : QuoteStyle, optional
+        How the quote should be formatted when displayed. Defaults to
+        `QuoteStyle.Standard`.
+
+    Attributes
+    ----------
+    id
+    """
+
+    def __init__(self, quote_id: Optional[int], submitter: Participant, *,
+                 date: datetime = datetime.utcnow(),
+                 style: QuoteStyle = QuoteStyle.Standard):
+        self.id = quote_id
+        self.submitter = submitter
+        self.date = date
+        self.style = style
+        self.lines = []
+
+    def __repr__(self):
+        attrs = ['id', 'submitter', 'date', 'style', 'lines']
+        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
+        return f'<{self.__class__.__name__} {repr_str}>'
+
+    def __str__(self):
+        return '\n'.join(str(line) for line in self.lines)
+
+    @classmethod
+    async def from_row(cls, row: Tuple) -> 'Quote':
+        """Construct a `Quote` from a database row.
+
+        Also fetches the associated `QuoteLine`s.
+
+        Parameters
+        ----------
+        row : Tuple
+            A row returned from the database.
+        """
+        submitter = await Participant.from_id(row[1])
+        quote = cls(
+            quote_id=row[0], submitter=submitter, date=row[2],
+            style=QuoteStyle(row[3])
+        )
+        await quote.fetch_lines()
+        return quote
+
+    async def fetch_lines(self) -> List[QuoteLine]:
+        """Fetch the `QuoteLine`s that make up the quote body.
+
+        Sets `self.lines` to the fetched lines and returns them.
+        """
+        async with DB.cursor() as cur:
+            cur.execute("""
+                SELECT * FROM quote_lines WHERE quote_id = ?
+                ORDER BY line_num
+            """, (self.id))
+            self.lines = [
+                await QuoteLine.from_row(row) for row in await cur.fetchall()]
+        return self.lines
+
+    async def authors(self) -> List[Participant]:
+        """Get a list of authors that are part of this quote.
+
+        Authors in the list are ordered by their `author_num` value.
+        """
+        async with DB.cursor() as cur:
+            await cur.execute("""
+                SELECT DISTINCT participant_id FROM quote_lines
+                WHERE quote_id = ?
+                ORDER BY author_num
+            """, (self.id))
+
+            return [
+                await Participant.from_id(pid) async for pid in cur.fetchall()]
+
+    def get_author_num(self, author: Participant) -> Optional[int]:
+        """Get the ordinal of the given author for this quote.
+
+        In other words, return `QuoteLine.author_num`. If the given author
+        isn't among the quote lines, returns `None`.
+
+        Parameters
+        ----------
+        author : Participant
+            The author to return an ordinal for.
+        """
+        pairs = [(line.author, line.author_num) for line in self.lines]
+        for auth, num in pairs:
+            if auth == author:
+                return num
+        return None
+
+    async def add_line(self, body: str, author: Participant,
+                       action: bool = False):
+        """Add a line to this quote.
+
+        Parameters
+        ----------
+        body : str
+            The contents of the line.
+        author : Participant
+            The author of the line.
+        action : bool, optional
+            Whether or not this line is an action. Defaults to `False`.
+        """
+        line_num = len(self.lines) + 1
+        author_num = self.get_author_num(author)
+        if author_num is not None:
+            author_num += 1
+        else:
+            author_num = 1
+        self.lines.append(
+            QuoteLine(self.id, body, author, quote=self, line_num=line_num,
+                      author_num=author_num, action=action))
+
+    async def save(self):
+        """Save this `Quote` to the database."""
+        async with DB.cursor() as cur:
+            await cur.execute('BEGIN TRANSACTION')
+            await cur.execute("""
+                INSERT INTO quote VALUES (?, ?, ?, ?)
+                ON CONFLICT (quote_id) DO UPDATE SET
+                    submitter = excluded.submitter,
+                    submission_date = excluded.submission_date,
+                    style = excluded.style
+            """, (self.id, self.submitter.id, self.date, self.style.value))
+
+            self.id = cur.lastrowid
+            for line in self.lines:
+                line.quote_id = self.id
+
+            await cur.execute(
+                'DELETE FROM quote_lines WHERE quote_id = ?', (self.id,))
+            params = [(self.id, ql.line_num, ql.body, ql.author.id,
+                       ql.author_num, ql.action) for ql in self.lines]
+            await cur.executemany(
+                'INSERT INTO quote_lines VALUES(?, ?, ?, ?, ?, ?)', params)
+
+            await cur.execute('COMMIT TRANSACTION')
 
 
 async def module_register(core):
