@@ -675,7 +675,8 @@ async def get_participant(name: str) -> Participant:
 # TODO: multi-line quotes
 async def quote_add(ctx, parsed):
     """Add a quote to the database."""
-    submitter = await get_participant(parsed.invoker.name)
+    submitter = await get_participant(
+        parsed.args['submitter'] or parsed.invoker.name)
     author = await get_participant(ctx.get_target(parsed.args['author']).name)
     date = parsed.args['date']
     breakpoint()
