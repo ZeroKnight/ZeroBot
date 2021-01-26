@@ -464,6 +464,19 @@ def _register_commands():
     subcmd_add.add_argument(
         'body', nargs='+', help='The contents of the quote')
     subcmd_add.add_argument(
+        '-a', '--author', action='append', dest='extra_authors',
+        help='Specifies additional authors for a multi-line quote')
+    subcmd_add.add_argument(
+        '-d', '--date',
+        help=('Submits the quote with the following datestamp instead of the '
+              'current date and time. Time is interpreted as UTC. Expects '
+              'either a Unix timestamp or an ISO 8601 formatted date string.'))
+    subcmd_add.add_argument(
+        '-m', '--multi', action='store_true',
+        help=('Create a multi-line quote. Each line may be separated with a '
+              'literal newline or a `\\n` sequence. A line can be designated '
+              'as an action by starting it with a `\\a` sequence.'))
+    subcmd_add.add_argument(
         '-s', '--style', choices=[style.name.lower() for style in QuoteStyle],
         type=str.lower, default='standard',
         help=('Specify the quote style. The default, "standard" styles the '
@@ -472,18 +485,8 @@ def _register_commands():
               '`"Hello." ―Foo`. "unstyled" applies no formatting and is '
               'displayed exactly as entered.'))
     subcmd_add.add_argument(
-        '-m', '--multi', action='store_true',
-        help=('Create a multi-line quote. Each line may be separated with a '
-              'literal newline or a `\\n` sequence. A line can be designated '
-              'as an action by starting it with a `\\a` sequence.'))
-    subcmd_add.add_argument(
-        '-a', '--author', action='append',
-        help='Specifies additional authors for a multi-line quote')
-    subcmd_add.add_argument(
-        '-d', '--date',
-        help=('Submits the quote with the following datestamp instead of the '
-              'current date and time. Time is interpreted as UTC. Expects '
-              'either a Unix timestamp or an ISO 8601 formatted date string.'))
+        '-u', '--submitter',
+        help='Submit a quote on behalf of someone else.')
     subcmd_del = add_subcmd('del', 'Remove a quote from the database',
                             aliases=['rm', 'remove', 'delete'])
     subcmd_del.add_argument(
@@ -521,6 +524,8 @@ def _register_commands():
         help=('Patterns are interpreted as simple wildcard strings rather '
               'than regular expressions. `*`, `?`, and `[...]` are '
               'supported.'))
+    # TODO: Option to specify number of previous quotes to include to make
+    # a multi-line quote
     subcmd_quick = add_subcmd(
         'quick',
         'Shortcut to quickly add a quote of the last thing someone said',
@@ -530,6 +535,8 @@ def _register_commands():
         help=('The user to quote. If omitted, will quote the last message in '
               'the channel.'))
     cmds.append(cmd_quote)
+
+    # TODO: recent, stats, owned, submitted
 
     CORE.command_register(MOD_ID, *cmds)
 
@@ -581,4 +588,110 @@ async def module_command_quote(ctx, parsed):
     # many quotes would be deleted and a list of relevant ids (up to X amount)
     # require a !quote confirm delete or something like that to actually go
     # through with it.
-    ...
+    # TODO: "preview" or "confirm" option? leverage `wait_for` or reactions to
+    # confirm/cancel adding/removing a quote before actually doing it, and give
+    # a preview of what would be added/removed
+    subcmd = parsed.args['subcmd']
+    # TODO: handle command aliases
+    await globals()[f'quote_{subcmd}'](ctx, parsed)
+
+
+async def lookup_user(name: str) -> Optional[DBUser]:
+    """Return the `DBUser` associated with `name`, if one exists.
+
+    Searches for `name` in all relevant tables:
+        - ``users``
+        - ``aliases``
+        - ``quote_participants``
+
+    Parameters
+    ----------
+    name : str
+        The name to search for.
+    """
+    user = None
+    async with DB.cursor() as cur:
+        await cur.execute("""
+            SELECT user_id FROM (
+                SELECT user_id, name FROM users_all_names
+                UNION
+                SELECT user_id, name FROM quote_participants
+            )
+            WHERE name = ?
+        """, (name,))
+        row = await cur.fetchone()
+        if row is not None:
+            user = await DBUser.from_id(row[0], DB)
+        return user
+
+
+async def get_participant(name: str) -> Participant:
+    """Get an existing `Participant` or create a new one.
+
+    Parameters
+    ----------
+    name : str
+        The name to look up.
+    """
+    user = await lookup_user(name)
+    if user is not None:
+        participant = await Participant.from_user(user)
+        if participant is not None:
+            # Sync Participant.name with DBUser.name
+            if participant.name != user.name:
+                participant.name = user.name
+                await participant.save()
+        else:
+            async with DB.cursor() as cur:
+                await cur.execute("""
+                    SELECT * FROM quote_participants AS "qp"
+                    WHERE qp.name IN (
+                        SELECT name FROM users_all_names AS "u"
+                        WHERE u.user_id = ?
+                    )
+                """, (user.id,))
+                row = await cur.fetchone()
+            if row is not None:
+                # A user's name or alias matched a Participant's name. Link the
+                # Participant with this user.
+                assert row[-1] is None, \
+                    f"Participant shouldn't have a user_id here ({row[-1]})"
+                participant_id = row[0]
+            else:
+                # The user has no matching Participant, so create a new one.
+                participant_id = None
+            participant = Participant(participant_id, user.name, user.id, user)
+            await participant.save()
+    else:
+        # Non-user Participant
+        participant = await Participant.from_name(name)
+        if participant is None:
+            # Completely new to the database
+            participant = Participant(None, name)
+    return participant
+
+
+# TODO: protocol-agnostic
+# TODO: multi-line quotes
+async def quote_add(ctx, parsed):
+    """Add a quote to the database."""
+    submitter = await get_participant(parsed.invoker.name)
+    author = await get_participant(ctx.get_target(parsed.args['author']).name)
+    date = parsed.args['date']
+    breakpoint()
+    if date is None:
+        date = datetime.utcnow()
+    elif isinstance(date, str):
+        try:
+            date = datetime.fromisoformat(date)
+        except ValueError:
+            try:
+                date = datetime.utcfromtimestamp(int(date))
+            except ValueError:
+                ctx.module_send_event('invalid_command', ctx, parsed.msg)
+    style = getattr(QuoteStyle, parsed.args['style'].title())
+    quote = Quote(None, submitter, date=date, style=style)
+    body = ' '.join(parsed.args['body'])
+    await quote.add_line(body, author, body.startswith(r'\a'))
+    await quote.save()
+    await ctx.module_message(parsed.msg.destination, f'Okay, adding: {quote}')
