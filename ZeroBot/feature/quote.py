@@ -14,6 +14,7 @@ from enum import IntEnum, unique
 from typing import List, Optional, Tuple, Union
 
 from ZeroBot.common import CommandParser
+from ZeroBot.common.abc import Message
 from ZeroBot.database import DBUser
 
 MODULE_NAME = 'Quote'
@@ -675,6 +676,21 @@ async def get_participant(name: str) -> Participant:
     return participant
 
 
+def handle_action_line(line: str, msg: Message) -> Tuple[bool, str]:
+    """Handles action checking and line modification for ``quote add``.
+
+    Returns a 2-tuple of (is_action, strip_action).
+    """
+    action = False
+    if match := re.match(r'\\a *', line):
+        action = True
+        line = line[match.end():]
+    elif msg.is_action_str(line):
+        action = True
+        line = msg.strip_action_str(line)
+    return action, line
+
+
 # TODO: protocol-agnostic
 # TODO: multi-line quotes
 async def quote_add(ctx, parsed):
@@ -698,12 +714,9 @@ async def quote_add(ctx, parsed):
     body = ' '.join(parsed.args['body'])
 
     if parsed.args['multi']:
-        if style is QuoteStyle.Epigraph:
-            ctx.module_send_event('invalid_command', ctx, parsed.msg)
         authors = [author] + [
             await get_participant(a) for a in parsed.args['extra_authors']]
         lines = MULTILINE_SEP.split(body)
-
         first = True
         for line in lines:
             line = line.strip()
@@ -722,9 +735,10 @@ async def quote_add(ctx, parsed):
                     line_author = authors[int(match[1]) - 1]
                     if style is QuoteStyle.Unstyled:
                         line_body = AUTHOR_PLACEHOLDER.sub(line_author, line)
-            await quote.add_line(
-                line_body, line_author, line_body.startswith(r'\a'))
+            action, line_body = handle_action_line(line_body, parsed.msg)
+            await quote.add_line(line_body, line_author, action)
     else:
-        await quote.add_line(body, author, body.startswith(r'\a'))
+        action, body = handle_action_line(body, parsed.msg)
+        await quote.add_line(body, author, action)
     await quote.save()
     await ctx.module_message(parsed.msg.destination, f'Okay, adding: {quote}')
