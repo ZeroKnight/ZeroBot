@@ -327,22 +327,26 @@ class Quote:
             return [
                 await Participant.from_id(pid) async for pid in cur.fetchall()]
 
-    def get_author_num(self, author: Participant) -> Optional[int]:
+    def get_author_num(self, author: Participant) -> int:
         """Get the ordinal of the given author for this quote.
 
-        In other words, return `QuoteLine.author_num`. If the given author
-        isn't among the quote lines, returns `None`.
+        In other words, return `QuoteLine.author_num` for this author. If the
+        given author isn't among the quote lines, returns the next available
+        ordinal value. If there are no lines yet, returns ``1``.
 
         Parameters
         ----------
         author : Participant
             The author to return an ordinal for.
         """
-        pairs = [(line.author, line.author_num) for line in self.lines]
-        for auth, num in pairs:
-            if auth == author:
-                return num
-        return None
+        if not self.lines:
+            return 1
+        seen = set()
+        for line in self.lines:
+            if line.author == author:
+                return line.author_num
+            seen.add(line.author_num)
+        return max(seen) + 1
 
     async def add_line(self, body: str, author: Participant,
                        action: bool = False):
@@ -359,10 +363,6 @@ class Quote:
         """
         line_num = len(self.lines) + 1
         author_num = self.get_author_num(author)
-        if author_num is not None:
-            author_num += 1
-        else:
-            author_num = 1
         self.lines.append(
             QuoteLine(self.id, body, author, quote=self, line_num=line_num,
                       author_num=author_num, action=action))
@@ -692,7 +692,6 @@ def handle_action_line(line: str, msg: Message) -> Tuple[bool, str]:
 
 
 # TODO: protocol-agnostic
-# TODO: multi-line quotes
 async def quote_add(ctx, parsed):
     """Add a quote to the database."""
     submitter = await get_participant(
