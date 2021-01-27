@@ -728,15 +728,17 @@ async def quote_add(ctx, parsed):
                 first = False
             else:
                 line_author, line_body = line.split(maxsplit=1)
-                if match := MULTILINE_AUTHOR.match(line_author):
-                    idx = [a.name for a in authors].index(match[1] or match[2])
-                    line_author = authors[idx]
-                    if style is QuoteStyle.Unstyled:
-                        line_body = line
-                elif match := AUTHOR_PLACEHOLDER.match(line_author):
+                if match := AUTHOR_PLACEHOLDER.match(line_author):
                     line_author = authors[int(match[1]) - 1]
                     if style is QuoteStyle.Unstyled:
                         line_body = AUTHOR_PLACEHOLDER.sub(line_author, line)
+                else:
+                    if match := MULTILINE_AUTHOR.match(line_author):
+                        line_author = match[1] or match[2]
+                    line_author = next(
+                        a for a in authors if a.name == line_author)
+                    if style is QuoteStyle.Unstyled:
+                        line_body = line
             action, line_body = handle_action_line(line_body, parsed.msg)
             await quote.add_line(line_body, line_author, action)
     else:
