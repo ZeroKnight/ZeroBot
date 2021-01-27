@@ -29,7 +29,7 @@ CFG = None
 DB = None
 MOD_ID = __name__.rsplit('.', 1)[-1]
 
-MULTILINE_SEP = re.compile(r'(?:\n|\\n|\\ )\s*')
+MULTILINE_SEP = re.compile(r'(?:\n|\\n)\s*')
 MULTILINE_AUTHOR = re.compile(r'(?:<(.+)>|(.+):)')
 AUTHOR_PLACEHOLDER = re.compile(r'\\(\d+)')
 
