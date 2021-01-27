@@ -14,6 +14,7 @@ import datetime
 import logging
 import logging.config
 import os
+import shlex
 import sys
 import time
 from argparse import ArgumentError, ArgumentTypeError, _SubParsersAction
@@ -1104,13 +1105,13 @@ class Core:
             except asyncio.CancelledError:
                 coro.close()
 
+        invoker = cmd_msg.source
+        dest = cmd_msg.destination
         cmd_str = cmd_msg.content
         if not cmd_str.startswith(self.cmdprefix):
             raise NotACommand(f'Not a command string: {cmd_str}')
-        name, *args = cmd_str.split(' ')
+        name, *args = shlex.split(cmd_str)
         name = name.lstrip(self.cmdprefix)
-        invoker = cmd_msg.source
-        dest = cmd_msg.destination
         if delay:
             self.logger.debug(
                 f"Received delayed command from '{invoker}' at '{dest}': "
