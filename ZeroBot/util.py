@@ -5,7 +5,9 @@ you *probably* want `ZeroBot.common` instead.
 """
 
 import operator
+import re
 from functools import reduce
+from io import StringIO
 from typing import Any, Iterable, List, Mapping, Union
 
 
@@ -67,3 +69,50 @@ def map_reduce(key_path: Union[str, List[str]],
     if isinstance(key_path, str):
         key_path = key_path.split('.')
     return reduce(operator.getitem, key_path, mapping)
+
+
+def shellish_split(string: str) -> List[str]:
+    """Perform shell-like word splitting on the given string.
+
+    A bit more arbitrary and simplistic compared to ``shlex``, as it does *too*
+    much for ZeroBot's command needs. Only a limited set of escape sequences
+    have an effect, the rest are ignored and left as-is. Only double-quotes
+    group arguments, as apostrophes are very common in chat.
+    """
+    words = []
+    escaped = False
+    quoted = False
+    with StringIO(string) as buffer, StringIO() as word:
+        while char := buffer.read(1):
+            if char == '"':
+                if escaped:
+                    word.write(char)
+                    escaped = False
+                else:
+                    quoted = not quoted
+            elif char == '\\':
+                if escaped:
+                    word.write(char)
+                escaped = not escaped
+            elif char == ' ':
+                if escaped or quoted:
+                    word.write(char)
+                    escaped = False
+                else:
+                    words.append(word.getvalue())
+                    word.seek(0)
+                    word.truncate()
+            else:
+                if escaped:
+                    # Only interested in certain escapes, so the backslash
+                    # stays in the string.
+                    word.write('\\')
+                    escaped = False
+                word.write(char)
+        if quoted:
+            raise ValueError("Unclosed quote")
+        if escaped:
+            # Include trailing backslash
+            word.write('\\')
+        words.append(word.getvalue())
+    return words
