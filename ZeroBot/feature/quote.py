@@ -270,6 +270,7 @@ class Quote:
         self.date = date
         self.style = style
         self.lines = []
+        self.authors = []
 
     def __repr__(self):
         attrs = ['id', 'submitter', 'date', 'style', 'lines']
@@ -312,10 +313,11 @@ class Quote:
                 await QuoteLine.from_row(row) for row in await cur.fetchall()]
         return self.lines
 
-    async def authors(self) -> List[Participant]:
-        """Get a list of authors that are part of this quote.
+    async def fetch_authors(self) -> List[Participant]:
+        """Fetch the authors that are part of this quote.
 
-        Authors in the list are ordered by their `author_num` value.
+        Authors in the list are ordered by their `author_num` value. Sets
+        `self.authors` to the fetched authors and returns them.
         """
         async with DB.cursor() as cur:
             await cur.execute("""
@@ -324,8 +326,9 @@ class Quote:
                 ORDER BY author_num
             """, (self.id))
 
-            return [
+            self.authors = [
                 await Participant.from_id(pid) async for pid in cur.fetchall()]
+        return self.authors
 
     def get_author_num(self, author: Participant) -> int:
         """Get the ordinal of the given author for this quote.
