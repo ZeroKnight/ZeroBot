@@ -1110,7 +1110,11 @@ class Core:
         cmd_str = cmd_msg.content
         if not cmd_str.startswith(self.cmdprefix):
             raise NotACommand(f'Not a command string: {cmd_str}')
-        name, *args = shlex.split(cmd_str)
+        # Modified shlex.split; ignores newline chars
+        s = shlex.shlex(cmd_str, posix=True)
+        s.whitespace = s.whitespace[:-1]
+        s.whitespace_split = True
+        name, *args = list(s)
         name = name.lstrip(self.cmdprefix)
         if delay:
             self.logger.debug(
