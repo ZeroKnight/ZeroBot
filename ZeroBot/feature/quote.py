@@ -611,6 +611,22 @@ async def module_command_quote(ctx, parsed):
     await globals()[f'quote_{subcmd}'](ctx, parsed)
 
 
+def read_datestamp(datestamp: str) -> Optional[datetime]:
+    """Try to create a `datetime` object from `datestamp`.
+
+    Expects an ISO 8601 formatted date/time string or a UNIX timestamp. Returns
+    `None` if the string could not be converted.
+    """
+    try:
+        date = datetime.fromisoformat(datestamp)
+    except ValueError:
+        try:
+            date = datetime.utcfromtimestamp(int(datestamp))
+        except ValueError:
+            return None
+    return date.replace(microsecond=0)
+
+
 async def lookup_user(name: str) -> Optional[DBUser]:
     """Return the `DBUser` associated with `name`, if one exists.
 
@@ -706,21 +722,17 @@ async def quote_add(ctx, parsed):
     """Add a quote to the database."""
     submitter = await get_participant(
         parsed.args['submitter'] or parsed.invoker.name)
-    author = await get_participant(ctx.get_target(parsed.args['author']).name)
-    date = parsed.args['date']
-    if date is None:
-        date = datetime.utcnow()
-    elif isinstance(date, str):
-        try:
-            date = datetime.fromisoformat(date)
-        except ValueError:
-            try:
-                date = datetime.utcfromtimestamp(int(date))
-            except ValueError:
-                ctx.module_send_event('invalid_command', ctx, parsed.msg)
     style = getattr(QuoteStyle, parsed.args['style'].title())
-    quote = Quote(None, submitter, date=date, style=style)
+    if parsed.args['date']:
+        date = read_datestamp(parsed.args['date'])
+        if date is None:
+            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            return
+    else:
+        date = datetime.utcnow().replace(microsecond=None)
+    author = await get_participant(ctx.get_target(parsed.args['author']).name)
     body = ' '.join(parsed.args['body'])
+    quote = Quote(None, submitter, date=date, style=style)
 
     if parsed.args['multi']:
         authors = [author] + [
@@ -729,11 +741,12 @@ async def quote_add(ctx, parsed):
         first = True
         for line in lines:
             line = line.strip()
-            # Handle first line specially
             if first:
+                # Handle first line specially
                 line_author, line_body = author, line
                 first = False
             else:
+                # Successive lines; extract line authors
                 line_author, line_body = line.split(maxsplit=1)
                 if match := AUTHOR_PLACEHOLDER.match(line_author):
                     line_author = authors[int(match[1]) - 1]
