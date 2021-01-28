@@ -35,7 +35,18 @@ AUTHOR_PLACEHOLDER = re.compile(r'\\(\d+)')
 
 # TBD: track per author, or globally by id?
 recent_quotes = {}
-last_lines = {}
+last_messages = None
+
+
+class LastMessageStore(dict):
+    """Storage for the last message sent by users per channel, per server.
+
+    Used by the `quote quick` command.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.most_recent = None
 
 
 @unique
@@ -400,7 +411,7 @@ class Quote:
 
 async def module_register(core):
     """Initialize module."""
-    global CORE, CFG, DB, recent_quotes
+    global CORE, CFG, DB, recent_quotes, last_messages
     CORE = core
 
     DB = await core.database_connect(MOD_ID)
@@ -411,6 +422,7 @@ async def module_register(core):
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     CFG = core.load_config('modules')[MODULE_NAME]
     # recent_quotes[...] = deque(maxlen=CFG.get('QuoteCooldown', 0))
+    last_messages = LastMessageStore()
 
     _register_commands()
 
@@ -594,8 +606,9 @@ async def module_on_message(ctx, message):
     server = message.server.name
     channel = message.destination.name
     user = message.source.name
-    last_lines.setdefault(server, {}) \
-              .setdefault(channel, {})[user] = message
+    last_messages.setdefault(server, {}) \
+                 .setdefault(channel, {})[user] = message
+    last_messages.most_recent = message
 
 
 async def module_on_join(ctx, channel, user):
@@ -791,10 +804,7 @@ async def quote_quick(ctx, parsed):
     else:
         date = datetime.utcnow().replace(microsecond=0)
 
-    if parsed.args['user']:
-        # TODO
-        ...
-    elif parsed.args['id']:
+    if parsed.args['id']:
         # TODO: Protocol-agnostic interface
         import discord
         types = [discord.ChannelType.text, discord.ChannelType.private]
@@ -817,6 +827,28 @@ async def quote_quick(ctx, parsed):
             # No message found
             await CORE.module_send_event('invalid_command', ctx, parsed.msg)
             return
+    else:
+        # Most recent line quoting
+        if parsed.args['user']:
+            try:
+                server = parsed.msg.server.name
+                channel = parsed.msg.destination.name
+                target = last_messages[server][channel][parsed.args['user']]
+            except KeyError:
+                # Haven't seen this person send a message yet.
+                await CORE.module_send_event(
+                    'invalid_command', ctx, parsed.msg)
+                return
+        else:
+            target = last_messages.most_recent
+        if target is None:
+            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            return
+        author = await get_participant(target.author.name)
+        if parsed.args['date'] is None:
+            date = target.created_at.replace(microsecond=0)
+        body = target.content
+
     quote = Quote(None, submitter, date=date, style=style)
     action, body = handle_action_line(body, parsed.msg)
     await quote.add_line(body, author, action)
