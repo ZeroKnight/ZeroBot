@@ -464,7 +464,29 @@ def _register_commands():
         'quote', 'Recite a random quote or interact with the quote database.')
     add_subcmd = cmd_quote.make_adder(metavar='OPERATION', dest='subcmd',
                                       required=False)
-    subcmd_add = add_subcmd('add', 'Submit a new quote', aliases=['new'])
+
+    # Common arguments/options
+    adding_options = CommandParser()
+    adding_options.add_argument(
+        '-d', '--date',
+        help=('Submits the quote with the following datestamp instead of the '
+              'current (or deduced) date and time. **Time is interpreted as '
+              'UTC.** Expects either a Unix timestamp or an ISO 8601 '
+              'formatted date string.'))
+    adding_options.add_argument(
+        '-s', '--style', choices=[style.name.lower() for style in QuoteStyle],
+        type=str.lower, default='standard',
+        help=('Specify the quote style. The default, "standard" styles the '
+              'quote like a typical IRC client message, e.g. `<Foo> hello`. '
+              '"epigraph" styles the quote as in writing, e.g. '
+              '`"Hello." ―Foo`. "unstyled" applies no formatting and is '
+              'displayed exactly as entered.'))
+    adding_options.add_argument(
+        '-u', '--submitter',
+        help='Submit a quote on behalf of someone else.')
+
+    subcmd_add = add_subcmd('add', 'Submit a new quote', aliases=['new'],
+                            parents=[adding_options])
     subcmd_add.add_argument(
         'author',
         help=('The author of the quote, i.e. the entity being quoted. Must be '
@@ -475,26 +497,10 @@ def _register_commands():
         '-a', '--author', action='append', dest='extra_authors',
         help='Specifies additional authors for a multi-line quote')
     subcmd_add.add_argument(
-        '-d', '--date',
-        help=('Submits the quote with the following datestamp instead of the '
-              'current date and time. Time is interpreted as UTC. Expects '
-              'either a Unix timestamp or an ISO 8601 formatted date string.'))
-    subcmd_add.add_argument(
         '-m', '--multi', action='store_true',
         help=('Create a multi-line quote. Each line may be separated with a '
               'literal newline or a `\\n` sequence. A line can be designated '
               'as an action by starting it with a `\\a` sequence.'))
-    subcmd_add.add_argument(
-        '-s', '--style', choices=[style.name.lower() for style in QuoteStyle],
-        type=str.lower, default='standard',
-        help=('Specify the quote style. The default, "standard" styles the '
-              'quote like a typical IRC client message, e.g. `<Foo> hello`. '
-              '"epigraph" styles the quote as in writing, e.g. '
-              '`"Hello." ―Foo`. "unstyled" applies no formatting and is '
-              'displayed exactly as entered.'))
-    subcmd_add.add_argument(
-        '-u', '--submitter',
-        help='Submit a quote on behalf of someone else.')
     subcmd_del = add_subcmd('del', 'Remove a quote from the database',
                             aliases=['rm', 'remove', 'delete'])
     subcmd_del.add_argument(
@@ -536,8 +542,9 @@ def _register_commands():
     # a multi-line quote
     subcmd_quick = add_subcmd(
         'quick',
-        'Shortcut to quickly add a quote of the last thing someone said',
-        aliases=['grab'])
+        ('Shortcut to quickly add a quote of the last thing someone said '
+         'or create one automatically from an existing message.'),
+        aliases=['grab'], parents=[adding_options])
     subcmd_quick.add_argument(
         'user', nargs='?',
         help=('The user to quote. If omitted, will quote the last message in '
