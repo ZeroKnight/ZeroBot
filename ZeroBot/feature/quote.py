@@ -738,8 +738,8 @@ async def quote_add(ctx, parsed):
             await CORE.module_send_event('invalid_command', ctx, parsed.msg)
             return
     else:
-        date = datetime.utcnow().replace(microsecond=None)
-    author = await get_participant(ctx.get_target(parsed.args['author']).name)
+        date = datetime.utcnow().replace(microsecond=0)
+    author = await get_participant(parsed.args['author'])
     body = ' '.join(parsed.args['body'])
     quote = Quote(None, submitter, date=date, style=style)
 
