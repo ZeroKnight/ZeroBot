@@ -757,8 +757,8 @@ async def quote_add(ctx, parsed):
     quote = Quote(None, submitter, date=date, style=style)
 
     if parsed.args['multi']:
-        authors = [author] + [
-            await get_participant(a) for a in parsed.args['extra_authors']]
+        extra = parsed.args['extra_authors'] or []
+        authors = [author] + [await get_participant(a) for a in extra]
         lines = MULTILINE_SEP.split(body)
         first = True
         for line in lines:
