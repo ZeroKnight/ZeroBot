@@ -545,10 +545,16 @@ def _register_commands():
         ('Shortcut to quickly add a quote of the last thing someone said '
          'or create one automatically from an existing message.'),
         aliases=['grab'], parents=[adding_options])
-    subcmd_quick.add_argument(
+    subcmd_quick_group = subcmd_quick.add_mutually_exclusive_group()
+    subcmd_quick_group.add_argument(
         'user', nargs='?',
         help=('The user to quote. If omitted, will quote the last message in '
               'the channel.'))
+    subcmd_quick_group.add_argument(
+        '-i', '--id',
+        help=('For protocols that support it (like Discord), specify a '
+              'message ID to add a quote automatically. Determines author, '
+              'body, and date/time from the message data.'))
     cmds.append(cmd_quote)
 
     # TODO: recent, stats, owned, submitted
@@ -764,5 +770,52 @@ async def quote_add(ctx, parsed):
     else:
         action, body = handle_action_line(body, parsed.msg)
         await quote.add_line(body, author, action)
+
+    await quote.save()
+    await ctx.module_message(parsed.msg.destination, f'Okay, adding: {quote}')
+
+
+async def quote_quick(ctx, parsed):
+    """Shortcuts for adding a quote to the database."""
+    submitter = await get_participant(
+        parsed.args['submitter'] or parsed.invoker.name)
+    style = getattr(QuoteStyle, parsed.args['style'].title())
+    if parsed.args['date']:
+        date = read_datestamp(parsed.args['date'])
+        if date is None:
+            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            return
+    else:
+        date = datetime.utcnow().replace(microsecond=0)
+
+    if parsed.args['user']:
+        # TODO
+        ...
+    elif parsed.args['id']:
+        # TODO: Protocol-agnostic interface
+        import discord
+        types = [discord.ChannelType.text, discord.ChannelType.private]
+        channels = [parsed.msg.destination]
+        for channel in ctx.get_all_channels():
+            if channel.type in types and channel != channels[0]:
+                channels.append(channel)
+        for channel in channels:
+            try:
+                target = await channel.fetch_message(int(parsed.args['id']))
+            except (discord.NotFound, discord.Forbidden):
+                continue
+            else:
+                author = await get_participant(target.author.name)
+                if parsed.args['date'] is None:
+                    date = target.created_at.replace(microsecond=0)
+                body = target.content
+                break
+        else:
+            # No message found
+            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            return
+    quote = Quote(None, submitter, date=date, style=style)
+    action, body = handle_action_line(body, parsed.msg)
+    await quote.add_line(body, author, action)
     await quote.save()
     await ctx.module_message(parsed.msg.destination, f'Okay, adding: {quote}')
