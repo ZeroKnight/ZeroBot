@@ -165,12 +165,14 @@ class Participant():
     async def save(self):
         """Save this `Participant` to the database."""
         async with DB.cursor() as cur:
-            await cur.execute(f"""
+            await cur.execute("""
                 INSERT INTO quote_participants VALUES (?, ?, ?)
                 ON CONFLICT (participant_id) DO UPDATE SET
                     name = excluded.name,
                     user_id = excluded.user_id
             """, (self.id, self.name, self.user_id))
+            self.id = cur.lastrowid
+            await DB.commit()
 
 
 class QuoteLine:
@@ -705,6 +707,7 @@ async def get_participant(name: str) -> Participant:
         if participant is None:
             # Completely new to the database
             participant = Participant(None, name)
+            await participant.save()
     return participant
 
 
