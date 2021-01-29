@@ -32,6 +32,13 @@ MOD_ID = __name__.rsplit('.', 1)[-1]
 MULTILINE_SEP = re.compile(r'(?:\n|\\n)\s*')
 MULTILINE_AUTHOR = re.compile(r'(?:<(.+)>|(.+):)')
 AUTHOR_PLACEHOLDER = re.compile(r'\\(\d+)')
+WILDCARD_MAP = {
+    ord('*'): '%',
+    ord('?'): '_',
+    ord('%'): '\\%',
+    ord('_'): '\\_',
+    ord('\\'): r'\\'
+}
 
 recent_quotes = {}
 last_messages = None
@@ -550,7 +557,7 @@ def _register_commands():
         'search', 'Search the quote database for a specific quote',
         aliases=['find'])
     subcmd_search.add_argument(
-        'pattern', nargs='?',
+        'pattern', nargs='*',
         help=('The search pattern used to match quote body content. If the '
               'pattern contains spaces, they must be escaped or the pattern '
               'must be wrapped in quotation marks.'))
@@ -559,10 +566,17 @@ def _register_commands():
         help=('Filter results to the author matching this pattern. The '
               '`pattern` argument may be omitted if this option is given.'))
     subcmd_search.add_argument(
-        '-s', '--simple', action='store_true',
+        '-b', '--basic', action='store_true',
         help=('Patterns are interpreted as simple wildcard strings rather '
               'than regular expressions. `*`, `?`, and `[...]` are '
               'supported.'))
+    subcmd_search.add_argument(
+        '-i', '--id', type=int,
+        help='Fetch the quote with the given ID.')
+    subcmd_search.add_argument(
+        '-u', '--submitter',
+        help=('Filter results to the submitter matching this pattern. The '
+              '`pattern` argument may be omitted if this option is given.'))
     # TODO: Option to specify number of previous quotes to include to make
     # a multi-line quote
     subcmd_quick = add_subcmd(
@@ -840,6 +854,58 @@ async def quote_add(ctx, parsed):
 
     await quote.save()
     await ctx.module_message(parsed.msg.destination, f'Okay, adding: {quote}')
+
+
+async def quote_search(ctx, parsed):
+    """Fetch a quote from the database matching search criteria."""
+    if not any(
+            parsed.args[a] for a in ('pattern', 'id', 'author', 'submitter')):
+        # Technically equivalent to `!quote` but less efficient
+        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        return
+    if parsed.args['id']:
+        query = ("""
+            SELECT * FROM quote WHERE quote_id = ?
+            ORDER BY RANDOM() LIMIT cooldown() + 1
+        """, (parsed.args['id'],))
+    else:
+        sql = """
+            SELECT quote_id, submitter, submission_date, style FROM quote
+            JOIN quote_lines USING (quote_id)
+            JOIN quote_participants AS "authors" USING (participant_id)
+            JOIN quote_participants AS "submitters"
+                ON submitter = submitters.participant_id
+        """
+        if parsed.args['basic']:
+            pattern = (' '.join(
+                parsed.args['pattern'] or []) or '*').translate(WILDCARD_MAP)
+            author_pat = (
+                parsed.args['author'] or '*').translate(WILDCARD_MAP)
+            submitter_pat = (
+                parsed.args['submitter'] or '*').translate(WILDCARD_MAP)
+            sql += """
+                WHERE line LIKE ? AND
+                      authors.name LIKE ? AND
+                      submitters.name LIKE ?
+                ORDER BY RANDOM() LIMIT cooldown() + 1
+            """
+        else:
+            pattern = ' '.join(parsed.args['pattern'] or []) or '.*'
+            author_pat = parsed.args['author'] or '.*'
+            submitter_pat = parsed.args['submitter'] or '.*'
+            sql += """
+                WHERE line REGEXP ? AND
+                      authors.name REGEXP ? AND
+                      submitters.name REGEXP ?
+                ORDER BY RANDOM() LIMIT cooldown() + 1
+            """
+        query = (sql, (pattern, author_pat, submitter_pat))
+    quote = await fetch_quote(*query)
+    if quote is None:
+        await ctx.reply_command_result(
+            parsed, "Couldn't find any quotes matching that pattern.")
+        return
+    await ctx.module_message(parsed.msg.destination, quote)
 
 
 async def quote_quick(ctx, parsed):
