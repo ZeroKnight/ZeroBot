@@ -576,7 +576,7 @@ def _register_commands():
         help=('The user to quote. If omitted, will quote the last message in '
               'the channel.'))
     subcmd_quick_group.add_argument(
-        '-i', '--id',
+        '-i', '--id', type=int,
         help=('For protocols that support it (like Discord), specify a '
               'message ID to add a quote automatically. Determines author, '
               'body, and date/time from the message data.'))
@@ -853,7 +853,7 @@ async def quote_quick(ctx, parsed):
                 channels.append(channel)
         for channel in channels:
             try:
-                target = await channel.fetch_message(int(parsed.args['id']))
+                target = await channel.fetch_message(parsed.args['id'])
             except (discord.NotFound, discord.Forbidden):
                 continue
             else:
