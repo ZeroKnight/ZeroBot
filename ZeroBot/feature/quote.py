@@ -649,7 +649,7 @@ async def module_command_quote(ctx, parsed):
             await ctx.reply_command_result(
                 parsed, 'Uh, there are no quotes...')
             return
-        await ctx.module_message(parsed.msg.destination, str(quote))
+        await ctx.module_message(parsed.msg.destination, quote)
 
 
 async def get_random_quote() -> Optional[Quote]:
