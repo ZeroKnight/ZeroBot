@@ -652,15 +652,19 @@ async def module_command_quote(ctx, parsed):
         await ctx.module_message(parsed.msg.destination, quote)
 
 
-async def get_random_quote() -> Optional[Quote]:
-    """Fetch a random quote from the database."""
+async def fetch_quote(sql: str, params: Tuple = None) -> Optional[Quote]:
+    """Fetch a quote from the database, respecting cooldowns.
+
+    The parameters are the same as in an `aiosqlite.Cursor.execute` call, which
+    this coroutine wraps. All quote fetches should use this coroutine as
+    a base, as it handles quote cooldowns and other necessary state.
+    """
+    if not all(token in sql for token in ('LIMIT', 'cooldown()')):
+        raise ValueError("Query must include a LIMIT with 'cooldown()'")
+    # TODO: per-author cooldowns
     async with DB.cursor() as cur:
-        await cur.execute("""
-            SELECT * FROM quote
-            ORDER BY RANDOM() LIMIT cooldown() + 1
-        """)
+        await cur.execute(sql, params)
         row = await cur.fetchone()
-        # TODO: per-author cooldowns
         while row and row[0] in recent_quotes['global']:
             row = await cur.fetchone()
     if row is not None:
@@ -669,6 +673,14 @@ async def get_random_quote() -> Optional[Quote]:
     else:
         quote = None
     return quote
+
+
+async def get_random_quote() -> Optional[Quote]:
+    """Fetch a random quote from the database."""
+    return await fetch_quote("""
+        SELECT * FROM quote
+        ORDER BY RANDOM() LIMIT cooldown() + 1
+    """)
 
 
 def read_datestamp(datestamp: str) -> Optional[datetime]:
