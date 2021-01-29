@@ -318,10 +318,10 @@ class Quote:
         Sets `self.lines` to the fetched lines and returns them.
         """
         async with DB.cursor() as cur:
-            cur.execute("""
+            await cur.execute("""
                 SELECT * FROM quote_lines WHERE quote_id = ?
                 ORDER BY line_num
-            """, (self.id))
+            """, (self.id,))
             self.lines = [
                 await QuoteLine.from_row(row) for row in await cur.fetchall()]
         return self.lines
