@@ -6,10 +6,11 @@ Interface to ZeroBot's SQLite 3 database backend.
 import asyncio
 import json
 import logging
+import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterator, Optional, Tuple, Union
+from typing import AnyStr, Dict, Iterator, Optional, Tuple, Union
 
 import aiosqlite
 
@@ -19,6 +20,14 @@ logger = logging.getLogger('ZeroBot.Database')
 
 sqlite3.register_converter('BOOLEAN', lambda x: bool(int(x)))
 sqlite3.converters['DATETIME'] = sqlite3.converters['TIMESTAMP']  # alias
+
+
+# Why does Python not include this?
+def regexp(pattern: AnyStr, string: AnyStr) -> bool:
+    """SQLite REGEXP implementation."""
+    if pattern is None or string is None:
+        return False
+    return re.search(pattern, string) is not None
 
 
 class Connection(sqlite3.Connection):
@@ -265,6 +274,7 @@ async def create_connection(database: Union[str, Path], module: Module,
         loop=loop, uri=True, factory=Connection,
         detect_types=sqlite3.PARSE_DECLTYPES, **kwargs)
     conn.setName(module.identifier)
+    await conn.create_function('REGEXP', 2, regexp)
     conn._connection._module = module  # pylint: disable=protected-access
     conn._connection._dbpath = database  # pylint: disable=protected-access
     return conn
