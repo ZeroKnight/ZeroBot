@@ -33,7 +33,6 @@ MULTILINE_SEP = re.compile(r'(?:\n|\\n)\s*')
 MULTILINE_AUTHOR = re.compile(r'(?:<(.+)>|(.+):)')
 AUTHOR_PLACEHOLDER = re.compile(r'\\(\d+)')
 
-# TBD: track per author, or globally by id?
 recent_quotes = {}
 last_messages = None
 
@@ -291,7 +290,14 @@ class Quote:
         return f'<{self.__class__.__name__} {repr_str}>'
 
     def __str__(self):
-        return '\n'.join(str(line) for line in self.lines)
+        if self.style is QuoteStyle.Standard:
+            return '\n'.join(str(line) for line in self.lines)
+        if self.style is QuoteStyle.Epigraph:
+            formatted = '\n'.join(line.body for line in self.lines)
+            return f'"{formatted}" —{self.lines[0].author.name}'
+        if self.style is QuoteStyle.Unstyled:
+            return '\n'.join(line.body for line in self.lines)
+        raise ValueError(f'Invalid QuoteStyle: {self.style}')
 
     @classmethod
     async def from_row(cls, row: Tuple) -> 'Quote':
@@ -414,15 +420,20 @@ async def module_register(core):
     global CORE, CFG, DB, recent_quotes, last_messages
     CORE = core
 
-    DB = await core.database_connect(MOD_ID)
-    await DB.create_function(
-        'cooldown', 0, lambda: CFG.get('QuoteCooldown', 0))
-    await _init_tables()
-
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     CFG = core.load_config('modules')[MODULE_NAME]
-    # recent_quotes[...] = deque(maxlen=CFG.get('QuoteCooldown', 0))
+    recent_quotes['global'] = deque(maxlen=CFG.get('Cooldown.Count', 0))
+    # TODO: per-author cooldowns
     last_messages = LastMessageStore()
+
+    def cooldown() -> int:
+        if CFG.get('Cooldown.PerAuthor', False):
+            return CFG.get('Cooldown.CountPerAuthor', 0)
+        return CFG.get('Cooldown.Count', 0)
+
+    DB = await core.database_connect(MOD_ID)
+    await DB.create_function('cooldown', 0, cooldown)
+    await _init_tables()
 
     _register_commands()
 
@@ -628,8 +639,36 @@ async def module_command_quote(ctx, parsed):
     # confirm/cancel adding/removing a quote before actually doing it, and give
     # a preview of what would be added/removed
     subcmd = parsed.args['subcmd']
-    # TODO: handle command aliases
-    await globals()[f'quote_{subcmd}'](ctx, parsed)
+    if subcmd:
+        # TODO: handle command aliases
+        await globals()[f'quote_{subcmd}'](ctx, parsed)
+    else:
+        # Recite a random quote
+        quote = await get_random_quote()
+        if quote is None:
+            await ctx.reply_command_result(
+                parsed, 'Uh, there are no quotes...')
+            return
+        await ctx.module_message(parsed.msg.destination, str(quote))
+
+
+async def get_random_quote() -> Optional[Quote]:
+    """Fetch a random quote from the database."""
+    async with DB.cursor() as cur:
+        await cur.execute("""
+            SELECT * FROM quote
+            ORDER BY RANDOM() LIMIT cooldown() + 1
+        """)
+        row = await cur.fetchone()
+        # TODO: per-author cooldowns
+        while row and row[0] in recent_quotes['global']:
+            row = await cur.fetchone()
+    if row is not None:
+        quote = await Quote.from_row(row)
+        recent_quotes['global'].append(row[0])
+    else:
+        quote = None
+    return quote
 
 
 def read_datestamp(datestamp: str) -> Optional[datetime]:
