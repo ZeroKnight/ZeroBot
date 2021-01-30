@@ -27,7 +27,10 @@ def regexp(pattern: AnyStr, string: AnyStr) -> bool:
     """SQLite REGEXP implementation."""
     if pattern is None or string is None:
         return False
-    return re.search(pattern, string) is not None
+    try:
+        return re.search(pattern, string) is not None
+    except re.error:
+        return False
 
 
 class Connection(sqlite3.Connection):
