@@ -571,6 +571,9 @@ def _register_commands():
               'than regular expressions. `*`, `?`, and `[...]` are '
               'supported.'))
     subcmd_search.add_argument(
+        '-c', '--case-sensitive', action='store_true',
+        help='Forces search pattern to be case sensitive.')
+    subcmd_search.add_argument(
         '-i', '--id', type=int,
         help='Fetch the quote with the given ID.')
     subcmd_search.add_argument(
@@ -666,7 +669,8 @@ async def module_command_quote(ctx, parsed):
         await ctx.module_message(parsed.msg.destination, quote)
 
 
-async def fetch_quote(sql: str, params: Tuple = None) -> Optional[Quote]:
+async def fetch_quote(sql: str, params: Tuple = None,
+                      case_sensitive: bool = False) -> Optional[Quote]:
     """Fetch a quote from the database, respecting cooldowns.
 
     The parameters are the same as in an `aiosqlite.Cursor.execute` call, which
@@ -677,7 +681,11 @@ async def fetch_quote(sql: str, params: Tuple = None) -> Optional[Quote]:
         raise ValueError("Query must include a LIMIT with 'cooldown()'")
     # TODO: per-author cooldowns
     async with DB.cursor() as cur:
+        if case_sensitive:
+            await cur.execute('PRAGMA case_sensitive_like = 1')
         await cur.execute(sql, params)
+        if case_sensitive:
+            await cur.execute('PRAGMA case_sensitive_like = 0')
         row = await cur.fetchone()
         while row and row[0] in recent_quotes['global']:
             row = await cur.fetchone()
@@ -863,6 +871,7 @@ async def quote_search(ctx, parsed):
         # Technically equivalent to `!quote` but less efficient
         await CORE.module_send_event('invalid_command', ctx, parsed.msg)
         return
+    case_sensitive = parsed.args['case_sensitive']
     if parsed.args['id']:
         query = ("""
             SELECT * FROM quote WHERE quote_id = ?
@@ -893,13 +902,17 @@ async def quote_search(ctx, parsed):
             pattern = ' '.join(parsed.args['pattern'] or []) or '.*'
             author_pat = parsed.args['author'] or '.*'
             submitter_pat = parsed.args['submitter'] or '.*'
+            if not case_sensitive:
+                pattern = f'(?i:{pattern})'
+                author_pat = f'(?i:{author_pat})'
+                submitter_pat = f'(?i:{submitter_pat})'
             sql += """
                 WHERE line REGEXP ? AND
                       authors.name REGEXP ? AND
                       submitters.name REGEXP ?
                 ORDER BY RANDOM() LIMIT cooldown() + 1
             """
-        query = (sql, (pattern, author_pat, submitter_pat))
+        query = (sql, (pattern, author_pat, submitter_pat), case_sensitive)
     quote = await fetch_quote(*query)
     if quote is None:
         await ctx.reply_command_result(
