@@ -894,33 +894,37 @@ async def quote_search(ctx, parsed):
                 ON submitter = submitters.participant_id
         """
         if parsed.args['basic']:
-            pattern = (' '.join(
-                parsed.args['pattern'] or []) or '*').translate(WILDCARD_MAP)
-            author_pat = (
-                parsed.args['author'] or '*').translate(WILDCARD_MAP)
-            submitter_pat = (
-                parsed.args['submitter'] or '*').translate(WILDCARD_MAP)
+            def wrap(pattern: str) -> str:
+                return f'%{pattern}%' if pattern != '%' else '%'
+
+            pattern = wrap((' '.join(
+                parsed.args['pattern'] or []) or '*').translate(WILDCARD_MAP))
+            author_pat = wrap((
+                parsed.args['author'] or '*').translate(WILDCARD_MAP))
+            submitter_pat = wrap((
+                parsed.args['submitter'] or '*').translate(WILDCARD_MAP))
             sql += """
                 WHERE line LIKE ? AND
                       authors.name_list LIKE ? AND
                       submitters.name_list LIKE ?
                 ORDER BY RANDOM() LIMIT cooldown() + 1
             """
+            query = (sql, (pattern, author_pat, submitter_pat), case_sensitive)
         else:
-            re_flags = 'm' if case_sensitive else 'mi'
-            pattern = ' '.join(parsed.args['pattern'] or []) or '.*'
-            pattern = f'(?{re_flags}:{pattern})'
-            author_pat = parsed.args['author'] or '.*'
-            author_pat = f'(?{re_flags}:{author_pat})'
-            submitter_pat = parsed.args['submitter'] or '.*'
-            submitter_pat = f'(?{re_flags}:{submitter_pat})'
+            def wrap(pattern: str) -> str:
+                re_flags = 'm' if case_sensitive else 'mi'
+                return f'(?{re_flags}:{pattern})'
+
+            pattern = wrap(' '.join(parsed.args['pattern'] or []) or '.*')
+            author_pat = wrap(parsed.args['author'] or '.*')
+            submitter_pat = wrap(parsed.args['submitter'] or '.*')
             sql += """
                 WHERE line REGEXP ? AND
                       authors.name_list REGEXP ? AND
                       submitters.name_list REGEXP ?
                 ORDER BY RANDOM() LIMIT cooldown() + 1
             """
-        query = (sql, (pattern, author_pat, submitter_pat), case_sensitive)
+            query = (sql, (pattern, author_pat, submitter_pat))
     quote = await fetch_quote(*query)
     if quote is None:
         await ctx.reply_command_result(
