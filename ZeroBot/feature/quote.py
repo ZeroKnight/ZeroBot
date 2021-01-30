@@ -879,10 +879,18 @@ async def quote_search(ctx, parsed):
         """, (parsed.args['id'],))
     else:
         sql = """
-            SELECT quote_id, submitter, submission_date, style FROM quote
+            WITH participant_names AS
+            (
+                SELECT participant_id,
+                       group_concat(name, char(10)) AS "name_list"
+                FROM quote_participants_all_names
+                GROUP BY participant_id
+            )
+            SELECT quote_id, submitter, submission_date, style
+            FROM quote
             JOIN quote_lines USING (quote_id)
-            JOIN quote_participants AS "authors" USING (participant_id)
-            JOIN quote_participants AS "submitters"
+            JOIN participant_names AS "authors" USING (participant_id)
+            JOIN participant_names AS "submitters"
                 ON submitter = submitters.participant_id
         """
         if parsed.args['basic']:
@@ -894,22 +902,22 @@ async def quote_search(ctx, parsed):
                 parsed.args['submitter'] or '*').translate(WILDCARD_MAP)
             sql += """
                 WHERE line LIKE ? AND
-                      authors.name LIKE ? AND
-                      submitters.name LIKE ?
+                      authors.name_list LIKE ? AND
+                      submitters.name_list LIKE ?
                 ORDER BY RANDOM() LIMIT cooldown() + 1
             """
         else:
+            re_flags = 'm' if case_sensitive else 'mi'
             pattern = ' '.join(parsed.args['pattern'] or []) or '.*'
+            pattern = f'(?{re_flags}:{pattern})'
             author_pat = parsed.args['author'] or '.*'
+            author_pat = f'(?{re_flags}:{author_pat})'
             submitter_pat = parsed.args['submitter'] or '.*'
-            if not case_sensitive:
-                pattern = f'(?i:{pattern})'
-                author_pat = f'(?i:{author_pat})'
-                submitter_pat = f'(?i:{submitter_pat})'
+            submitter_pat = f'(?{re_flags}:{submitter_pat})'
             sql += """
                 WHERE line REGEXP ? AND
-                      authors.name REGEXP ? AND
-                      submitters.name REGEXP ?
+                      authors.name_list REGEXP ? AND
+                      submitters.name_list REGEXP ?
                 ORDER BY RANDOM() LIMIT cooldown() + 1
             """
         query = (sql, (pattern, author_pat, submitter_pat), case_sensitive)
