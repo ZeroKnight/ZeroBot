@@ -16,6 +16,7 @@ from typing import List, Optional, Tuple, Union
 from ZeroBot.common import CommandParser
 from ZeroBot.common.abc import Message
 from ZeroBot.database import DBUser
+from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP
 
 MODULE_NAME = 'Quote'
 MODULE_AUTHOR = 'ZeroKnight'
@@ -580,8 +581,6 @@ def _register_commands():
         '-u', '--submitter',
         help=('Filter results to the submitter matching this pattern. The '
               '`pattern` argument may be omitted if this option is given.'))
-    # TODO: Option to specify number of previous quotes to include to make
-    # a multi-line quote
     subcmd_quick = add_subcmd(
         'quick',
         ('Shortcut to quickly add a quote of the last thing someone said '
@@ -597,6 +596,10 @@ def _register_commands():
         help=('For protocols that support it (like Discord), specify a '
               'message ID to add a quote automatically. Determines author, '
               'body, and date/time from the message data.'))
+    subcmd_quick.add_argument(
+        '-n', '--num-previous', type=int, default=0,
+        help=('Include `n` messages before the target messsage to make a '
+              'multi-line quote.'))
     cmds.append(cmd_quote)
 
     # TODO: recent, stats, owned, submitted
@@ -935,6 +938,7 @@ async def quote_search(ctx, parsed):
 
 async def quote_quick(ctx, parsed):
     """Shortcuts for adding a quote to the database."""
+    lines = []
     submitter = await get_participant(
         parsed.args['submitter'] or parsed.invoker.name)
     style = getattr(QuoteStyle, parsed.args['style'].title())
@@ -991,8 +995,17 @@ async def quote_quick(ctx, parsed):
             date = target.created_at.replace(microsecond=0)
         body = target.content
 
-    quote = Quote(None, submitter, date=date, style=style)
     action, body = handle_action_line(body, parsed.msg)
-    await quote.add_line(body, author, action)
+    lines.append((body, author, action))
+    # TODO: protocol-agnostic
+    nprev = parsed.args['num_previous']
+    async for msg in target.channel.history(limit=nprev, before=target):
+        author = await get_participant(msg.author.name)
+        action, body = handle_action_line(msg.content, DiscordMessage(msg))
+        lines.append((body, author, action))
+
+    quote = Quote(None, submitter, date=date, style=style)
+    for line in reversed(lines):
+        await quote.add_line(*line)
     await quote.save()
     await ctx.module_message(parsed.msg.destination, f'Okay, adding: {quote}')
