@@ -1236,6 +1236,11 @@ class Core:
 
         if parsed.args['command']:
             help_args = parsed.args['command']
+            if len(help_args) > 1 and any(
+                    arg.lower() == 'help' for arg in help_args[1:]):
+                await ctx.reply_command_result(
+                    parsed, "I'm afraid that you're far beyond any help...")
+                return
             try:
                 request = self._commands[help_args[0]]
             except KeyError:

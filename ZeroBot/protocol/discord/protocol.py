@@ -287,7 +287,11 @@ def _format_help_MOD(embed, help_cmd, result):
 
 
 def _format_help_ALL(embed, help_cmd, result):
-    embed.description = '**Available Commands**:'
+    prefix = CORE.cmdprefix
+    embed.description = (
+        f'💡 *Tip*: Type `{prefix}help help` to learn how to use the '
+        f'{prefix}help command.')
+    embed.description += '\n\n**Available Commands**:'
     for mod_id, cmds in result.cmds.items():
         section = f'\n\nModule [**{mod_id}**]'
         if help_cmd.args['full']:
