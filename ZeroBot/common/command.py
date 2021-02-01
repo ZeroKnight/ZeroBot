@@ -224,6 +224,8 @@ class CommandHelp:
         An enum type representing the type of help request.
     name : str, optional
         The command or module name that the help is about.
+    aliases : list, optional
+        If applicable, a list of aliases for this command.
     description : str, optional
         The command or module description
     usage : str, optional
@@ -251,9 +253,11 @@ class CommandHelp:
     name: str = None
     description: str = None
     usage: str = None
+    aliases: List[str] = field(default_factory=list)
     args: Dict[str, Tuple[Optional[str], bool]] = field(default_factory=dict)
     opts: Dict[Tuple[str, ...],
-               Optional[Tuple[str, str]]] = field(default_factory=dict)
+               Optional[
+                   Tuple[str, Optional[str]]]] = field(default_factory=dict)
     cmds: Dict[str, Dict[str, str]] = field(default_factory=dict)
     subcmds: Dict[str, 'CommandHelp'] = field(default_factory=dict, repr=False)
     parent: 'CommandHelp' = None

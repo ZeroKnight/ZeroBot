@@ -240,27 +240,36 @@ def _format_help_CMD(embed, help_cmd, result):
     embed.title += f' — {result.name}'
     embed.description = (f'**Usage**: `{result.usage}`\n\n'
                          f'{result.description}')
-    if result.args or result.opts:
+    if result.args:
         embed.description += '\n\n**Arguments**:'
         for arg, (help_str, is_sub) in result.args.items():
             embed.description += f'\n> **{arg}**'
             if help_str:
-                embed.description += f'\n> ```\n> {help_str}```'
-            else:
-                embed.description += '\n> '
-            if is_sub:
-                embed.description += '\n> *Subcommand*\n> ```'
+                embed.description += f'\n> {help_str}\n> '
+            elif is_sub:
+                embed.description += ' - *Subcommand*'
                 for name, sub_help in result.subcmds.items():
                     desc = sub_help.description
-                    embed.description += f'\n> {name} - {desc}'
-                embed.description += '```'
+                    embed.description += f'\n> .. **{name}**'
+                    if sub_help.aliases:
+                        aliases = ', '.join(sub_help.aliases)
+                        embed.description += f' ({aliases})\n> '
+                    if desc:
+                        embed.description += f'{desc}\n> '
+            else:
+                embed.description += '\n> '
+        embed.description = embed.description.rstrip(' \n>')
+    if result.opts:
+        embed.description += '\n\n**Options**:'
         for names, info in result.opts.items():
             opts = ', '.join(f'**{name}**' for name in names)
             val_name, opt_desc = info
             if val_name is not None:
-                opts = f'{opts} {val_name}'
-            embed.description += (f'\n> {opts}'
-                                  f'\n> ```\n> {opt_desc}```')
+                opts = f'{opts} `{val_name}`'
+            embed.description += f'\n> {opts}\n> '
+            if opt_desc:
+                embed.description += f'{opt_desc}\n> '
+        embed.description = embed.description.rstrip(' \n>')
 
 
 def _format_help_MOD(embed, help_cmd, result):
@@ -271,9 +280,10 @@ def _format_help_MOD(embed, help_cmd, result):
         for cmd, help_str in result.cmds[result.name].items():
             embed.description += f'\n> **{cmd}**\n> '
             if help_str:
-                embed.description += f'```\n> {help_str}```'
+                embed.description += f'{help_str}\n> '
     else:
-        embed.description += '*\n\n*No commands available*'
+        embed.description += '\n\n*No commands available*'
+    embed.description = embed.description.rstrip(' \n>')
 
 
 def _format_help_ALL(embed, help_cmd, result):
