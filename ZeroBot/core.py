@@ -1270,7 +1270,7 @@ class Core:
         """Implementation for Core `module` command."""
         mcs = ModuleCmdStatus
         results = []
-        subcmd = parsed.args['subcmd']
+        subcmd = parsed.subcmd
         if subcmd.endswith('load'):  # load, reload
             mtype = parsed.args['mtype']
             if parsed.args['mtype'] == 'protocol' and subcmd == 'reload':
@@ -1329,7 +1329,7 @@ class Core:
             return
         ccs = ConfigCmdStatus
         results = []
-        subcmd = parsed.args['subcmd']
+        subcmd = parsed.subcmd
         value = None
         if subcmd.endswith('set'):  # set, reset
             key = parsed.args['key_path']

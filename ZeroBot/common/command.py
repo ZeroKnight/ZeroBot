@@ -161,12 +161,30 @@ class ParsedCommand:
         The parser that created this instance.
     msg : Message
         The original message encompassing the command.
+    invoker
+    source
+    subcmd
     """
 
     name: str
     args: Dict[str, Any]
     parser: CommandParser
     msg: Message
+
+    def __post_init__(self):
+        # pylint: disable=protected-access
+        try:
+            action = self.parser._actions[0]
+        except IndexError:
+            self._subcmd = None
+        else:
+            if isinstance(action, _SubParsersAction):
+                # name_map = action._name_parser_map
+                name_map = action.choices
+                canon_parser = name_map[self.args[action.dest]]
+                self._subcmd = canon_parser.name.split()[-1]
+            else:
+                self._subcmd = None
 
     @property
     def invoker(self) -> User:
@@ -180,6 +198,17 @@ class ParsedCommand:
         Can be either directly from a user, or from a user within a channel.
         """
         return self.msg.destination
+
+    @property
+    def subcmd(self) -> Optional[str]:
+        """The invoked subcommand name, if one was invoked.
+
+        For subcommands with aliases, the name returned is always the canonical
+        name that the aliases are associated with. For this reason, this
+        attribute should be preferred to extracting the subcommand name from
+        `ParsedCommand.args`.
+        """
+        return self._subcmd
 
 
 @dataclass

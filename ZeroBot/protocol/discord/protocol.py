@@ -181,7 +181,7 @@ class DiscordContext(Context, discord.Client):
         await help_cmd.source.send(embed=embed)
 
     async def core_command_module(self, command, results):
-        subcmd = command.args['subcmd']
+        subcmd = command.subcmd
         embed = discord.Embed(title=f'Module {subcmd}')
         if subcmd.endswith('load'):
             await _handle_module_load(embed, command, results)
@@ -189,7 +189,7 @@ class DiscordContext(Context, discord.Client):
             await _handle_module_query(embed, command, results)
 
     async def core_command_config(self, command, results):
-        subcmd = command.args['subcmd']
+        subcmd = command.subcmd
         embed = discord.Embed(title=f'Config {subcmd}')
         if subcmd.endswith('set'):
             _handle_config_set_reset(embed, command, results[0])
@@ -311,7 +311,7 @@ def _format_help_NO_SUCH_SUBCMD(embed, help_cmd, result):
 
 async def _handle_module_load(embed, command, results):
     mcs = ModuleCmdStatus
-    subcmd = command.args['subcmd']
+    subcmd = command.subcmd
     lines = []
     had_ok, had_fail = False, False
     for res in results:
@@ -348,7 +348,7 @@ async def _handle_module_load(embed, command, results):
 
 
 async def _handle_module_query(embed, command, results):
-    subcmd = command.args['subcmd']
+    subcmd = command.subcmd
     embed.color = discord.Color.teal()
     if subcmd == 'list':
         categories = command.args['category']
@@ -387,7 +387,7 @@ async def _handle_module_query(embed, command, results):
 
 def _handle_config_save_reload(embed, command, results):
     ccs = ConfigCmdStatus
-    subcmd = command.args['subcmd']
+    subcmd = command.subcmd
     lines = []
     had_ok, had_fail = False, False
     for res in results:
@@ -419,7 +419,7 @@ def _handle_config_save_reload(embed, command, results):
 
 def _handle_config_set_reset(embed, command, result):
     ccs = ConfigCmdStatus
-    subcmd = command.args['subcmd']
+    subcmd = command.subcmd
     ok = ccs.is_ok(result.status)
     embed.color = discord.Color.green() if ok else discord.Color.red()
     if subcmd.endswith('set'):
