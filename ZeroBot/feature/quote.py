@@ -658,10 +658,8 @@ async def module_command_quote(ctx, parsed):
     # TODO: "preview" or "confirm" option? leverage `wait_for` or reactions to
     # confirm/cancel adding/removing a quote before actually doing it, and give
     # a preview of what would be added/removed
-    subcmd = parsed.args['subcmd']
-    if subcmd:
-        # TODO: handle command aliases
-        await globals()[f'quote_{subcmd}'](ctx, parsed)
+    if parsed.subcmd:
+        await globals()[f'quote_{parsed.subcmd}'](ctx, parsed)
     else:
         # Recite a random quote
         quote = await get_random_quote()
