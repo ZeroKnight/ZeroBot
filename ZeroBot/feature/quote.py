@@ -509,10 +509,10 @@ def _register_commands():
     adding_options.add_argument(
         '-s', '--style', choices=[style.name.lower() for style in QuoteStyle],
         type=str.lower, default='standard',
-        help=('Specify the quote style. The default, "standard" styles the '
+        help=('Specify the quote style. The default, **standard** styles the '
               'quote like a typical IRC client message, e.g. `<Foo> hello`. '
-              '"epigraph" styles the quote as in writing, e.g. '
-              '`"Hello." ―Foo`. "unstyled" applies no formatting and is '
+              '**epigraph** styles the quote as in writing, e.g. '
+              '`"Hello." ―Foo`. **unstyled** applies no formatting and is '
               'displayed exactly as entered.'))
     adding_options.add_argument(
         '-u', '--submitter',
