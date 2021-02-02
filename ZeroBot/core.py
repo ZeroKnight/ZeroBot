@@ -1199,17 +1199,29 @@ class Core:
             usage, desc = request.format_help().split('\n\n')[:2]
             usage = usage.partition(' ')[2]
             desc = desc.rstrip()
-            args, opts, subcmds = {}, {}, {}
+            args, opts, subcmds, aliases = {}, {}, {}, []
+            prev_arg = ()
             for arg in request._get_positional_actions():
                 name = arg.metavar or arg.dest
                 if isinstance(arg, _SubParsersAction):
                     args[name] = (arg.help, True)
+                    prev_sub = ()
                     for subname, subparser in arg.choices.items():
-                        subcmds[subname] = _create_commandhelp(subparser)
-                        # Don't include parent command in subcommand name
-                        subcmds[subname].name = subname
+                        # Aliases follow the canonical name
+                        if prev_sub and subparser is prev_sub[1]:
+                            subcmds[prev_sub[0]].aliases.append(subname)
+                        else:
+                            subcmds[subname] = _create_commandhelp(subparser)
+                            # Don't include parent command in subcommand name
+                            subcmds[subname].name = subname
+                            prev_sub = (subname, subparser)
                 else:
-                    args[name] = (arg.help, False)
+                    # Aliases follow the canonical name
+                    if prev_arg and arg is prev_arg[1]:
+                        args[prev_arg[0]].aliases.append(name)
+                    else:
+                        args[name] = (arg.help, False)
+                        prev_arg = (name, arg)
             for opt in request._get_optional_actions():
                 names = tuple(opt.option_strings)
                 if opt.nargs == 0 or opt.const:
@@ -1219,10 +1231,16 @@ class Core:
                     metavar = opt.metavar or opt.dest
                 opts[names] = (metavar, opt.help)
             return CommandHelp(HelpType.CMD, request.name, desc, usage,
-                               args=args, opts=opts, subcmds=subcmds)
+                               aliases=aliases, args=args, opts=opts,
+                               subcmds=subcmds)
 
         if parsed.args['command']:
             help_args = parsed.args['command']
+            if len(help_args) > 1 and any(
+                    arg.lower() == 'help' for arg in help_args[1:]):
+                await ctx.reply_command_result(
+                    parsed, "I'm afraid that you're far beyond any help...")
+                return
             try:
                 request = self._commands[help_args[0]]
             except KeyError:
@@ -1270,7 +1288,7 @@ class Core:
         """Implementation for Core `module` command."""
         mcs = ModuleCmdStatus
         results = []
-        subcmd = parsed.args['subcmd']
+        subcmd = parsed.subcmd
         if subcmd.endswith('load'):  # load, reload
             mtype = parsed.args['mtype']
             if parsed.args['mtype'] == 'protocol' and subcmd == 'reload':
@@ -1329,7 +1347,7 @@ class Core:
             return
         ccs = ConfigCmdStatus
         results = []
-        subcmd = parsed.args['subcmd']
+        subcmd = parsed.subcmd
         value = None
         if subcmd.endswith('set'):  # set, reset
             key = parsed.args['key_path']
