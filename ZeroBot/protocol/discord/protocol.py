@@ -314,11 +314,13 @@ def _format_help_NO_SUCH_MOD(embed, help_cmd, result):
 
 def _format_help_NO_SUCH_SUBCMD(embed, help_cmd, result):
     embed.color = discord.Color.red()
-    subcmds = list(result.parent.subcmds.keys())
+    subcmds = result.parent.subcmds
+    subcmd_list = [
+        f"**{sub}** ({', '.join(subcmds[sub].aliases)})" for sub in subcmds.keys()]
     if subcmds:
-        embed.description = (f'**{result.parent.name}** has no subcommand '
-                             f'**{result.name}**. Valid subcommands:\n> '
-                             + ', '.join(subcmds))
+        embed.description = (f'`{result.parent.name}` has no subcommand '
+                             f'`{result.name}`. Valid subcommands:\n> '
+                             + ', '.join(subcmd_list))
     else:
         embed.description = f'**{result.parent.name}** has no subcommands.'
 
