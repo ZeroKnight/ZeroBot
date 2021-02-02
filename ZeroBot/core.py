@@ -1236,8 +1236,7 @@ class Core:
 
         if parsed.args['command']:
             help_args = parsed.args['command']
-            if len(help_args) > 1 and any(
-                    arg.lower() == 'help' for arg in help_args[1:]):
+            if len(help_args) > 1 and help_args[0:2] == ['help'] * 2:
                 await ctx.reply_command_result(
                     parsed, "I'm afraid that you're far beyond any help...")
                 return
@@ -1252,7 +1251,7 @@ class Core:
                 for sub_request in help_args:
                     try:
                         parent = subcmd
-                        subcmd = cmd_help.subcmds[sub_request]
+                        subcmd = cmd_help.get_subcmd(sub_request)
                     except KeyError:
                         cmd_help = CommandHelp(HelpType.NO_SUCH_SUBCMD,
                                                sub_request, parent=parent)

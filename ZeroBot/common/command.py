@@ -261,3 +261,19 @@ class CommandHelp:
     cmds: Dict[str, Dict[str, str]] = field(default_factory=dict)
     subcmds: Dict[str, 'CommandHelp'] = field(default_factory=dict, repr=False)
     parent: 'CommandHelp' = None
+
+    def get_subcmd(self, name: str) -> 'CommandHelp':
+        """Get the `CommandHelp` object for the given subcommand.
+
+        `name` may be an alias, in which case it is resolved to the appropriate
+        subcommand.
+        """
+        try:
+            return self.subcmds[name]
+        except KeyError:
+            # Try looking up by alias
+            for sub_name, sub_help in self.subcmds.items():
+                for alias in sub_help.aliases:
+                    if name == alias:
+                        return self.subcmds[sub_name]
+            raise
