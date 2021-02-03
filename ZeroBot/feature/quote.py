@@ -8,6 +8,7 @@ reporting quote database statistics.
 import asyncio
 import random
 import re
+import textwrap
 from collections import deque
 from datetime import datetime
 from enum import IntEnum, unique
@@ -517,6 +518,15 @@ def _register_commands():
     adding_options.add_argument(
         '-u', '--submitter',
         help='Submit a quote on behalf of someone else.')
+    pattern_options = CommandParser()
+    pattern_options.add_argument(
+        '-b', '--basic', action='store_true',
+        help=('Patterns are interpreted as simple wildcard strings rather '
+              'than regular expressions. `*`, `?`, and `[...]` are '
+              'supported.'))
+    pattern_options.add_argument(
+        '-c', '--case-sensitive', action='store_true',
+        help='Forces search pattern to be case sensitive.')
 
     subcmd_add = add_subcmd('add', 'Submit a new quote', aliases=['new'],
                             parents=[adding_options])
@@ -554,9 +564,24 @@ def _register_commands():
         help=('For multi-line quotes, only remove the line specified by this '
               'option. If specifying a quote by its body, the value may be '
               'omitted.'))
+    subcmd_recent = add_subcmd(
+        'recent', 'Display the most recently added quotes',
+        parents=[pattern_options])
+    subcmd_recent.add_argument(
+        'pattern', nargs='?',
+        help=('Show the most recent quotes by the author matching the given '
+              'pattern. If omitted, shows the most recently added quotes '
+              'instead.'))
+    subcmd_recent.add_argument(
+        '-n', '--count', type=int, default=1,
+        help=('Display the `n` most recent quotes. Defaults to 1, with 5 '
+              'being the maximum.'))
+    subcmd_recent.add_argument(
+        '-u', '--submitter', action='store_true',
+        help='Show the most recent quotes by submitter instead of by author.')
     subcmd_search = add_subcmd(
         'search', 'Search the quote database for a specific quote',
-        aliases=['find'])
+        aliases=['find'], parents=[pattern_options])
     subcmd_search.add_argument(
         'pattern', nargs='*',
         help=('The search pattern used to match quote body content. If the '
@@ -566,14 +591,6 @@ def _register_commands():
         '-a', '--author',
         help=('Filter results to the author matching this pattern. The '
               '`pattern` argument may be omitted if this option is given.'))
-    subcmd_search.add_argument(
-        '-b', '--basic', action='store_true',
-        help=('Patterns are interpreted as simple wildcard strings rather '
-              'than regular expressions. `*`, `?`, and `[...]` are '
-              'supported.'))
-    subcmd_search.add_argument(
-        '-c', '--case-sensitive', action='store_true',
-        help='Forces search pattern to be case sensitive.')
     subcmd_search.add_argument(
         '-i', '--id', type=int,
         help='Fetch the quote with the given ID.')
@@ -813,6 +830,20 @@ def handle_action_line(line: str, msg: Message) -> Tuple[bool, str]:
     return action, line
 
 
+def prepare_pattern(pattern: str, case_sensitive: bool = False,
+                    basic: bool = False) -> str:
+    """Prepare a pattern from a command for use in a query."""
+    if basic:
+        pattern = (pattern or '*').translate(WILDCARD_MAP)
+        pattern = f'%{pattern}%' if pattern != '%' else '%'
+    else:
+        # The `m` flag is included because of the use of
+        # `group_concat(name, char(10))` in queries needing to match aliases.
+        re_flags = 'm' if case_sensitive else 'mi'
+        pattern = f"(?{re_flags}:{pattern or '.*'})"
+    return pattern
+
+
 # TODO: protocol-agnostic
 async def quote_add(ctx, parsed):
     """Add a quote to the database."""
@@ -865,6 +896,64 @@ async def quote_add(ctx, parsed):
     await ctx.module_message(parsed.msg.destination, f'Okay, adding: {quote}')
 
 
+async def quote_recent(ctx, parsed):
+    """Fetch the most recently added quotes."""
+    pattern = parsed.args['pattern']
+    case_sensitive = parsed.args['case_sensitive']
+    basic = parsed.args['basic']
+    count = min(parsed.args['count'], 5)
+    if count < 1:
+        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        return
+    if pattern:
+        target = 'submitters' if parsed.args['submitter'] else 'authors'
+        search_method = 'LIKE' if basic else 'REGEXP'
+        where = f'WHERE {target}.name_list {search_method} ?'
+    else:
+        where = ''
+    sql = f"""
+        WITH participant_names AS (
+            SELECT participant_id,
+                   group_concat(name, char(10)) AS "name_list"
+            FROM quote_participants_all_names
+            GROUP BY participant_id
+        )
+        SELECT quote_id, submitter, submission_date, style
+        FROM (
+            SELECT *, row_number() OVER (PARTITION BY quote_id) AS "seqnum"
+            FROM quote
+            JOIN quote_lines USING (quote_id)
+            JOIN participant_names AS "authors" USING (participant_id)
+            JOIN participant_names AS "submitters"
+                ON submitter = submitters.participant_id
+            {where}
+        )
+        WHERE seqnum = 1  -- Don't include multiple lines from the same quote
+        ORDER BY submission_date DESC LIMIT ?
+    """
+    if pattern:
+        pattern = prepare_pattern(pattern, case_sensitive, basic)
+        query = (sql, (pattern, count))
+    else:
+        query = (sql, (count,))
+    async with DB.cursor() as cur:
+        if case_sensitive:
+            await cur.execute('PRAGMA case_sensitive_like = 1')
+        await cur.execute(*query)
+        if case_sensitive:
+            await cur.execute('PRAGMA case_sensitive_like = 0')
+        quotes = [await Quote.from_row(row) for row in await cur.fetchall()]
+    results = []
+    if count > 1:
+        wrapper = textwrap.TextWrapper(
+            width=160, max_lines=1, placeholder=' **[...]**')
+        for n, quote in enumerate(quotes, 1):
+            results.append(f'**[{n}]** {wrapper.fill(str(quote))}')
+    else:
+        results.append(str(quotes[0]))
+    await ctx.reply_command_result(parsed, results)
+
+
 async def quote_search(ctx, parsed):
     """Fetch a quote from the database matching search criteria."""
     if not any(
@@ -880,8 +969,7 @@ async def quote_search(ctx, parsed):
         """, (parsed.args['id'],))
     else:
         sql = """
-            WITH participant_names AS
-            (
+            WITH participant_names AS (
                 SELECT participant_id,
                        group_concat(name, char(10)) AS "name_list"
                 FROM quote_participants_all_names
@@ -895,15 +983,12 @@ async def quote_search(ctx, parsed):
                 ON submitter = submitters.participant_id
         """
         if parsed.args['basic']:
-            def wrap(pattern: str) -> str:
-                return f'%{pattern}%' if pattern != '%' else '%'
-
-            pattern = wrap((' '.join(
-                parsed.args['pattern'] or []) or '*').translate(WILDCARD_MAP))
-            author_pat = wrap((
-                parsed.args['author'] or '*').translate(WILDCARD_MAP))
-            submitter_pat = wrap((
-                parsed.args['submitter'] or '*').translate(WILDCARD_MAP))
+            pattern = prepare_pattern(
+                ' '.join(parsed.args['pattern'] or []), basic=True)
+            author_pat = prepare_pattern(
+                parsed.args['author'], basic=True)
+            submitter_pat = prepare_pattern(
+                parsed.args['submitter'], basic=True)
             sql += """
                 WHERE line LIKE ? AND
                       authors.name_list LIKE ? AND
@@ -912,13 +997,11 @@ async def quote_search(ctx, parsed):
             """
             query = (sql, (pattern, author_pat, submitter_pat), case_sensitive)
         else:
-            def wrap(pattern: str) -> str:
-                re_flags = 'm' if case_sensitive else 'mi'
-                return f'(?{re_flags}:{pattern})'
-
-            pattern = wrap(' '.join(parsed.args['pattern'] or []) or '.*')
-            author_pat = wrap(parsed.args['author'] or '.*')
-            submitter_pat = wrap(parsed.args['submitter'] or '.*')
+            pattern = prepare_pattern(
+                ' '.join(parsed.args['pattern'] or []), case_sensitive)
+            author_pat = prepare_pattern(parsed.args['author'], case_sensitive)
+            submitter_pat = prepare_pattern(
+                parsed.args['submitter'], case_sensitive)
             sql += """
                 WHERE line REGEXP ? AND
                       authors.name_list REGEXP ? AND
