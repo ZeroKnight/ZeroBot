@@ -976,11 +976,13 @@ async def quote_search(ctx, parsed):
                 GROUP BY participant_id
             )
             SELECT quote_id, submitter, submission_date, style
-            FROM quote
-            JOIN quote_lines USING (quote_id)
-            JOIN participant_names AS "authors" USING (participant_id)
-            JOIN participant_names AS "submitters"
-                ON submitter = submitters.participant_id
+            FROM (
+                SELECT *, row_number() OVER (PARTITION BY quote_id) AS "seqnum"
+                FROM quote
+                JOIN quote_lines USING (quote_id)
+                JOIN participant_names AS "authors" USING (participant_id)
+                JOIN participant_names AS "submitters"
+                    ON submitter = submitters.participant_id
         """
         if parsed.args['basic']:
             pattern = prepare_pattern(
@@ -989,26 +991,23 @@ async def quote_search(ctx, parsed):
                 parsed.args['author'], basic=True)
             submitter_pat = prepare_pattern(
                 parsed.args['submitter'], basic=True)
-            sql += """
-                WHERE line LIKE ? AND
-                      authors.name_list LIKE ? AND
-                      submitters.name_list LIKE ?
-                ORDER BY RANDOM() LIMIT cooldown() + 1
-            """
-            query = (sql, (pattern, author_pat, submitter_pat), case_sensitive)
+            search_method = 'LIKE'
         else:
             pattern = prepare_pattern(
                 ' '.join(parsed.args['pattern'] or []), case_sensitive)
             author_pat = prepare_pattern(parsed.args['author'], case_sensitive)
             submitter_pat = prepare_pattern(
                 parsed.args['submitter'], case_sensitive)
-            sql += """
-                WHERE line REGEXP ? AND
-                      authors.name_list REGEXP ? AND
-                      submitters.name_list REGEXP ?
-                ORDER BY RANDOM() LIMIT cooldown() + 1
-            """
-            query = (sql, (pattern, author_pat, submitter_pat))
+            search_method = 'REGEXP'
+        sql += f"""
+                WHERE line {search_method} ? AND
+                      authors.name_list {search_method} ? AND
+                      submitters.name_list {search_method} ?
+            )
+            WHERE seqnum = 1  -- Don't include multiple lines from the same quote
+            ORDER BY RANDOM() LIMIT cooldown() + 1
+        """
+        query = (sql, (pattern, author_pat, submitter_pat), case_sensitive)
     quote = await fetch_quote(*query)
     if quote is None:
         await ctx.reply_command_result(
