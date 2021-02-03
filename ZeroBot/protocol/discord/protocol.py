@@ -253,9 +253,9 @@ def _format_help_CMD(embed, help_cmd, result):
                     embed.description += f'\n> .. **{name}**'
                     if sub_help.aliases:
                         aliases = ', '.join(sub_help.aliases)
-                        embed.description += f' ({aliases})\n> '
+                        embed.description += f' ({aliases})'
                     if desc:
-                        embed.description += f'{desc}\n> '
+                        embed.description += f'\n> {desc}\n> '
             else:
                 embed.description += '\n> '
         embed.description = embed.description.rstrip(' \n>')
