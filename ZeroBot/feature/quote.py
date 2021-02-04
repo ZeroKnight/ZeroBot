@@ -21,7 +21,7 @@ from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP
 
 MODULE_NAME = 'Quote'
 MODULE_AUTHOR = 'ZeroKnight'
-MODULE_VERSION = '0.2'
+MODULE_VERSION = '0.4'
 MODULE_LICENSE = 'MIT'
 MODULE_DESC = ('Archive, search, and recite humorous, inspiring, or '
                '(especially) out-of-context quotes.')
