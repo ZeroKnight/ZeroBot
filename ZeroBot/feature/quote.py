@@ -43,18 +43,7 @@ WILDCARD_MAP = {
 }
 
 recent_quotes = {}
-last_messages = None
-
-
-class LastMessageStore(dict):
-    """Storage for the last message sent by users per channel, per server.
-
-    Used by the `quote quick` command.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.most_recent = None
+last_messages = {}
 
 
 @unique
@@ -426,14 +415,13 @@ class Quote:
 
 async def module_register(core):
     """Initialize module."""
-    global CORE, CFG, DB, recent_quotes, last_messages
+    global CORE, CFG, DB, recent_quotes
     CORE = core
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     CFG = core.load_config('modules')[MODULE_NAME]
     recent_quotes['global'] = deque(maxlen=CFG.get('Cooldown.Count', 0))
     # TODO: per-author cooldowns
-    last_messages = LastMessageStore()
 
     def cooldown() -> int:
         if CFG.get('Cooldown.PerAuthor', False):
@@ -651,12 +639,10 @@ async def module_on_message(ctx, message):
         return
     if not message.content or message.content.isspace():
         return
-    server = message.server.name
+    server = message.server.name or '__DM__'
     channel = message.destination.name
-    user = message.source.name
-    last_messages.setdefault(server, {}) \
-                 .setdefault(channel, {})[user] = message
-    last_messages.most_recent = message
+    last_messages.setdefault(ctx.protocol, {}) \
+                 .setdefault(server, {})[channel] = message
 
 
 async def module_on_join(ctx, channel, user):
@@ -1019,6 +1005,10 @@ async def quote_search(ctx, parsed):
 async def quote_quick(ctx, parsed):
     """Shortcuts for adding a quote to the database."""
     lines = []
+    cached = False
+    user = parsed.args['user']
+    if user is not None:
+        user = user.lstrip('@')
     submitter = await get_participant(
         parsed.args['submitter'] or parsed.invoker.name)
     style = getattr(QuoteStyle, parsed.args['style'].title())
@@ -1030,56 +1020,66 @@ async def quote_quick(ctx, parsed):
     else:
         date = datetime.utcnow().replace(microsecond=0)
 
-    if parsed.args['id']:
+    # Try cache first
+    if not parsed.args['id'] and not user:
+        server = parsed.msg.server.name or '__DM__'
+        channel = parsed.msg.destination.name
+        try:
+            msg = last_messages[ctx.protocol][server][channel]
+        except KeyError:
+            pass
+        else:
+            if msg is not None:
+                cached = True
+
+    if not cached:
         # TODO: Protocol-agnostic interface
         import discord
         types = [discord.ChannelType.text, discord.ChannelType.private]
-        channels = [parsed.msg.destination]
+        channels = [parsed.msg.destination]  # Search origin channel first
         for channel in ctx.get_all_channels():
             if channel.type in types and channel != channels[0]:
                 channels.append(channel)
-        for channel in channels:
-            try:
-                target = await channel.fetch_message(parsed.args['id'])
-            except (discord.NotFound, discord.Forbidden):
-                continue
+        if parsed.args['id']:
+            for channel in channels:
+                try:
+                    msg = await channel.fetch_message(parsed.args['id'])
+                    break
+                except (discord.NotFound, discord.Forbidden):
+                    continue
             else:
-                author = await get_participant(target.author.name)
-                if parsed.args['date'] is None:
-                    date = target.created_at.replace(microsecond=0)
-                body = target.content
-                break
-        else:
-            # No message found
-            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
-            return
-    else:
-        # Most recent line quoting
-        if parsed.args['user']:
-            try:
-                server = parsed.msg.server.name
-                channel = parsed.msg.destination.name
-                target = last_messages[server][channel][parsed.args['user']]
-            except KeyError:
-                # Haven't seen this person send a message yet.
+                # No message found
                 await CORE.module_send_event(
                     'invalid_command', ctx, parsed.msg)
                 return
+        elif user:
+            # Last message in channel by user
+            user = parsed.msg.server.get_member_named(user)
+            if user is None:
+                # Don't bother checking history if given a bad username
+                await CORE.module_send_event(
+                    'invalid_command', ctx, parsed.msg)
+                return
+            limit = 100
+            msg = await channels[0].history(limit=limit).get(author=user)
+            if not msg:
+                await ctx.reply_command_result(
+                    parsed, ("Couldn't find a message from that user in "
+                             f'the last {limit} messages.'))
+                return
         else:
-            target = last_messages.most_recent
-        if target is None:
-            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
-            return
-        author = await get_participant(target.author.name)
-        if parsed.args['date'] is None:
-            date = target.created_at.replace(microsecond=0)
-        body = target.content
+            # Last message in channel
+            msg = (await channels[0].history(limit=2).flatten())[-1]
 
-    action, body = handle_action_line(body, parsed.msg)
+    author = await get_participant(msg.author.name)
+    if parsed.args['date'] is None:
+        date = msg.created_at.replace(microsecond=0)
+    action, body = handle_action_line(msg.clean_content, DiscordMessage(msg))
     lines.append((body, author, action))
+
     # TODO: protocol-agnostic
     nprev = parsed.args['num_previous']
-    async for msg in target.channel.history(limit=nprev, before=target):
+    async for msg in msg.channel.history(limit=nprev, before=msg):
         author = await get_participant(msg.author.name)
         action, body = handle_action_line(msg.content, DiscordMessage(msg))
         lines.append((body, author, action))
