@@ -126,7 +126,7 @@ class DiscordChannel(zabc.Channel, discord.TextChannel):
         return self._original
 
 
-class DiscordMessage(zabc.Message, discord.Message):
+class DiscordMessage(discord.Message, zabc.Message):
     """Represents a Discord message of any type."""
 
     def __init__(self, message: discord.Message):

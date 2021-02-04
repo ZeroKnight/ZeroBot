@@ -141,6 +141,15 @@ class Message(ProtocolDetails, metaclass=ABCMeta):
     def strip_action_str(string: str) -> str:
         """Strip the action formatting from the given string."""
 
+    @property
+    @abstractmethod
+    def clean_content(self) -> str:
+        """Return a "clean" version of the message content.
+
+        Specifically, mentions are converted into the proper name they
+        represent. For example, in Discord, `<@{id}>` becomes `username`.
+        """
+
     def is_action(self) -> bool:
         """Check whether the message is an action."""
         return self.is_action_str(self.content)

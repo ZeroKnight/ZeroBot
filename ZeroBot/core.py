@@ -1107,7 +1107,7 @@ class Core:
 
         invoker = cmd_msg.source
         dest = cmd_msg.destination
-        cmd_str = cmd_msg.content
+        cmd_str = cmd_msg.clean_content
         if not cmd_str.startswith(self.cmdprefix):
             raise NotACommand(f'Not a command string: {cmd_str}')
         try:
