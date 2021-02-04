@@ -29,7 +29,10 @@ CFG = None
 
 logger = logging.getLogger('ZeroBot.Discord')
 
-has_discriminator = re.compile(r'#\d{4}$')
+USER_MENTION = re.compile(r'<@!?(\d+)>')
+CHANNEL_MENTION = re.compile(r'<#(\d+)>')
+ROLE_MENTION = re.compile(r'<@&(\d+)>')
+HAS_DISCRIMINATOR = re.compile(r'#\d{4}$')
 
 
 async def module_register(core, cfg):
@@ -60,10 +63,10 @@ class DiscordContext(Context, discord.Client):
 
     def get_target(self, target: str) -> Union[DiscordUser, DiscordChannel]:
         """Extract the user or channel object representing the given target."""
-        if match := re.match(r'<@!?(\d+)>', target):
+        if match := USER_MENTION.match(target):
             args = {'iterable': self.get_all_members(),
                     'id': int(match.group(1))}
-        elif match := re.match(r'<#(\d+)>', target):
+        elif match := CHANNEL_MENTION.match(target):
             args = {'iterable': self.get_all_channels(),
                     'id': int(match.group(1))}
         elif target.startswith('#'):
@@ -86,7 +89,7 @@ class DiscordContext(Context, discord.Client):
 
         # Find and set owner
         owner_str = CFG['Owner']
-        if has_discriminator.search(owner_str):
+        if HAS_DISCRIMINATOR.search(owner_str):
             for guild in self.guilds:
                 if (member := guild.get_member_named(owner_str)) is not None:
                     self._owner = member
