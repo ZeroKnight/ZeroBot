@@ -155,6 +155,7 @@ class VersionInfo:
     version: str
     release_date: datetime.date
     author: str
+    home: str
 
 
 ModuleCmdResult = namedtuple('ModuleCmdResult',
@@ -1439,7 +1440,9 @@ class Core:
 
     async def module_command_version(self, ctx, parsed):
         """Implementation for Core `version` command."""
-        info = VersionInfo(ZeroBot.__version__, 'N/A', ZeroBot.__author__)
+        info = VersionInfo(
+            ZeroBot.__version__, 'N/A', ZeroBot.__author__,
+            'https://github.com/ZeroKnight/ZeroBot')
         await ctx.core_command_version(parsed, info)
 
     async def module_command_quit(self, ctx, parsed):

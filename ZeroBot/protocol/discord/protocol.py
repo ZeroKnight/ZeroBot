@@ -199,12 +199,13 @@ class DiscordContext(Context, discord.Client):
 
     async def core_command_version(self, command, info):
         embed = discord.Embed(title='Version Info',
-                              color=discord.Color.gold())
+                              color=discord.Color.gold(),
+                              url=info.home)
         embed.description = f'**ZeroBot v{info.version}**'
+        embed.set_thumbnail(url=self.user.avatar_url)
         embed.add_field(name='Release Date', value=info.release_date)
         embed.set_footer(text='Hacked together over the years by '
                          f'{info.author} with love.')
-        # TODO: Set thumbnail to whatever avatar we come up with for ZeroBot
         await command.source.send(embed=embed)
 
     async def core_command_cancel(self, command, cancelled, wait_id, waiting):
