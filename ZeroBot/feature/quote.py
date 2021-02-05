@@ -921,7 +921,7 @@ async def quote_recent(ctx, parsed):
     pattern = parsed.args['pattern']
     case_sensitive = parsed.args['case_sensitive']
     basic = parsed.args['basic']
-    count = min(parsed.args['count'], 5)
+    count = min(parsed.args['count'], CFG['MaxCount'])
     if count < 1:
         await CORE.module_send_event('invalid_command', ctx, parsed.msg)
         return
