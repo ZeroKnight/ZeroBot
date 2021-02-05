@@ -175,16 +175,14 @@ class ParsedCommand:
         # pylint: disable=protected-access
         try:
             action = self.parser._actions[0]
-        except IndexError:
-            self._subcmd = None
-        else:
             if isinstance(action, _SubParsersAction):
-                # name_map = action._name_parser_map
                 name_map = action.choices
                 canon_parser = name_map[self.args[action.dest]]
                 self._subcmd = canon_parser.name.split()[-1]
             else:
                 self._subcmd = None
+        except (KeyError, IndexError):
+            self._subcmd = None
 
     @property
     def invoker(self) -> User:
