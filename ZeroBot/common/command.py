@@ -208,6 +208,30 @@ class ParsedCommand:
         """
         return self._subcmd
 
+    def nested_subcmd(self, depth: int = 2) -> Optional[str]:
+        """Get the name of a nested subcommand.
+
+        Like the `subcmd` property, the name returned is always the canonical
+        name for the subcommand. The `depth` parameter determines how many
+        levels of nesting to traverse; the default of ``2`` gets the first
+        nested subcommand. As a consequence, a value of ``1`` is the same as
+        `subcmd`.
+        """
+        # pylint: disable=protected-access
+        current = 0
+        subparser = self.parser
+        try:
+            while current < depth:
+                action = subparser._actions[0]
+                if isinstance(action, _SubParsersAction):
+                    subparser = action.choices[self.args[action.dest]]
+                    current += 1
+                else:
+                    return None
+            return subparser.name.split()[-1]
+        except (IndexError, KeyError, TypeError):
+            return None
+
 
 @dataclass
 class CommandHelp:
