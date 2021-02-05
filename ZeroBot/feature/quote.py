@@ -586,6 +586,42 @@ def _register_commands():
         '-u', '--submitter',
         help=('Filter results to the submitter matching this pattern. The '
               '`pattern` argument may be omitted if this option is given.'))
+    subcmd_stats = add_subcmd(
+        'stats', 'Query various statistics about the quote database.')
+    subcmd_stats.add_argument(
+        'user', nargs='?',
+        help=('Retrieve stats for the given user. If omitted, return stats '
+              'for yourself.'))
+    subcmd_stats.add_argument(
+        '-g', '--global', action='store_true',
+        help='Retrieve general stats about the quote database as a whole.')
+    subcmd_stats.add_argument(
+        '-l', '--leaderboard', '--top', action='store_true',
+        help='Shows the top users for the chosen criteria.')
+    subcmd_stats.add_argument(
+        '-n', '--count', type=int, default=3,
+        help='Influences the number of results displayed. Defaults to 3.')
+    subcmd_stats.add_argument(
+        '-s', '--sort',
+        help=('Determines how the stats output should be sorted. This option '
+              'expects a comma-delimited list of criteria to sort on, where '
+              'each criteria is given as its respective option short name. '
+              'Ex: `--sort q,u` to sort by quotes, then submissions.'))
+    subcmd_stats.add_argument(
+        '-q', '--quotes', action='store_true',
+        help='Show total number of quotes in stats output.')
+    subcmd_stats.add_argument(
+        '-u', '--submissions', action='store_true',
+        help='Show total number of submissions in stats output.')
+    subcmd_stats.add_argument(
+        '-e', '--self-submissions', action='store_true',
+        help='Show total number of self-submitted quotes in stats output.')
+    subcmd_stats.add_argument(
+        '-p', '--percent', action='store_true',
+        help='Show percentage of database totals for displayed criteria.')
+    subcmd_stats.add_argument(
+        '-y', '--per-year', action='store_true',
+        help='Show number per year for displayed criteria.')
     subcmd_quick = add_subcmd(
         'quick',
         ('Shortcut to quickly add a quote of the last thing someone said '
@@ -606,8 +642,6 @@ def _register_commands():
         help=('Include `n` messages before the target messsage to make a '
               'multi-line quote.'))
     cmds.append(cmd_quote)
-
-    # TODO: recent, stats, owned, submitted
 
     CORE.command_register(MOD_ID, *cmds)
 
