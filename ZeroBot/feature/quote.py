@@ -6,6 +6,7 @@ reporting quote database statistics.
 """
 
 import asyncio
+import itertools
 import random
 import re
 import textwrap
@@ -1034,6 +1035,113 @@ async def quote_search(ctx, parsed):
             parsed, "Couldn't find any quotes matching that pattern.")
         return
     await ctx.module_message(parsed.msg.destination, quote)
+
+
+async def quote_stats(ctx, parsed):
+    """Query various statistics about the quote database."""
+    count = min(parsed.args['count'], CFG['MaxCount'])
+    if count < 1:
+        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        return
+    if parsed.args['leaderboard']:
+        await quote_stats_leaderboard(ctx, parsed, count)
+        return
+    if parsed.args['global']:
+        await ctx.module_message(parsed.msg.destination, 'I peed.')
+    else:
+        # user stats
+        pass
+
+
+async def quote_stats_leaderboard(ctx, parsed, count):
+    """Leaderboard statistics."""
+    criteria = {
+        'q': 'Number of Quotes',
+        'u': 'Number of Submissions',
+        'p': 'Percent of Total'
+    }
+    selection = [parsed.args[x] for x in ('quotes', 'submissions', 'percent')]
+    if selection == [False] * 3:
+        # No criteria given, use defaults
+        selection = [True, True, False]
+        if parsed.args['sort'] is None:
+            sort = ['q', 'u']
+
+    chosen = list(itertools.compress(criteria.values(), selection))
+    if parsed.args['sort'] is not None:
+        sort = parsed.args['sort'].split(',')
+        if not all(key in criteria.keys() for key in sort):
+            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            return
+        chosen_sort = ', '.join(f'"{criteria[x]}" DESC' for x in sort)
+    else:
+        # No sort specified, so mirror the chosen criteria
+        chosen_sort = ', '.join(f'"{x}" DESC' for x in chosen)
+    chosen = ', '.join(f'"{x}"' for x in chosen)
+
+    if parsed.args['global']:
+        # Show `count` top users
+        async with DB.cursor() as cur:
+            await cur.execute(f"""
+                WITH ranked AS (
+                    SELECT *, row_number() OVER (
+                        ORDER BY {chosen_sort}
+                    ) AS "Rank"
+                    FROM quote_leaderboard
+                )
+                SELECT Rank, Name, {chosen}
+                FROM ranked
+                ORDER BY {chosen_sort}
+                LIMIT ?
+            """, (count,))
+            rows = await cur.fetchall()
+    else:
+        # Show `count` users around target user
+        if parsed.args['user']:
+            user = await get_participant(parsed.args['user'].lstrip('@'))
+        else:
+            user = await get_participant(parsed.invoker.name)
+        async with DB.cursor() as cur:
+            await cur.execute(f"""
+                WITH pivot AS (
+                    SELECT *, count() FILTER (WHERE Name = ?1) OVER (
+                        ORDER BY {chosen_sort}
+                        ROWS BETWEEN ?2 PRECEDING AND ?2 FOLLOWING
+                    ) AS "included",
+                    row_number() OVER (
+                        ORDER BY {chosen_sort}
+                    ) AS "Rank"
+                    FROM quote_leaderboard
+                )
+                SELECT Rank, Name, {chosen}
+                FROM pivot
+                WHERE included = 1
+                ORDER BY {chosen_sort}
+            """, (user.name, parsed.args['count']))
+            rows = await cur.fetchall()
+
+    # Generate table
+    # TODO: factor out into function
+    lines = []
+    headers = rows[0].keys()
+    widths = [[len(str(col)) for col in row] for row in rows]
+    min_widths = [max(x) for x in zip(*widths)]
+    line, rule = '', ''
+    for i, col in enumerate(headers):
+        # Create header
+        line += f'| {col:^{min_widths[i]}} '
+        min_width = max(len(headers[i]), min_widths[i])
+        rule += f"|{'-' * (min_width + 2)}"
+    lines.append(f'{line}|')
+    lines.append(f'{rule}|')
+    for row in rows:
+        line = ''
+        for i, col in enumerate(row):
+            min_width = max(len(headers[i]), min_widths[i])
+            line += f'| {col:{min_width}} '
+        lines.append(f'{line}|')
+    result = '\n'.join(lines)
+    await ctx.module_message(parsed.msg.destination, f'```\n{result}\n```')
 
 
 async def quote_quick(ctx, parsed):
