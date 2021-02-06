@@ -1136,9 +1136,14 @@ async def quote_stats_leaderboard(ctx, parsed, count):
     lines.append(f'{rule}|')
     for row in rows:
         line = ''
+        is_target = user is not None and row['Name'] == user.name
         for i, col in enumerate(row):
             min_width = max(len(headers[i]), min_widths[i])
-            line += f'| {col:{min_width}} '
+            if i == 0 and is_target:
+                col = f'* {col}'
+                line += f'| {col:>{min_width}} '
+            else:
+                line += f'| {col:{min_width}} '
         lines.append(f'{line}|')
     result = '\n'.join(lines)
     await ctx.module_message(parsed.msg.destination, f'```\n{result}\n```')
