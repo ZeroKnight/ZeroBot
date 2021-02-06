@@ -1093,21 +1093,38 @@ async def quote_stats(ctx, parsed):
 
 async def quote_stats_leaderboard(ctx, parsed, count):
     """Leaderboard statistics."""
+    def flatten(iterable):
+        for elem in iterable:
+            if isinstance(elem, list):
+                yield from elem
+            else:
+                yield elem
+
+    percents = []
     criteria = {
         'q': 'Number of Quotes',
         'u': 'Number of Submissions',
-        'p': 'Percent of Total'
+        'p': percents
     }
     selection = [parsed.args[x] for x in ('quotes', 'submissions', 'percent')]
-    if selection == [False] * 3:
+    if selection[:2] == [False] * 2:
         # No criteria given, use defaults
-        selection = [True, True, False]
+        selection = [True, True, selection[-1]]
         if parsed.args['sort'] is None:
             sort = ['q', 'u']
 
-    chosen = list(itertools.compress(criteria.values(), selection))
+    if selection[2]:  # Show percentages
+        percent_names = 'Quote %', 'Submission %'
+        percents.extend(itertools.compress(percent_names, selection[:2]))
+
+    chosen = list(flatten(itertools.compress(criteria.values(), selection)))
     if parsed.args['sort'] is not None:
         sort = parsed.args['sort'].split(',')
+        try:
+            # pseudo-criteria; the actual sort is based on the chosen criteria
+            sort.remove('p')
+        except ValueError:
+            pass
         if not all(key in criteria.keys() for key in sort):
             await CORE.module_send_event('invalid_command', ctx, parsed.msg)
             return
@@ -1133,6 +1150,7 @@ async def quote_stats_leaderboard(ctx, parsed, count):
                 LIMIT ?
             """, (count,))
             rows = await cur.fetchall()
+        table = '\n'.join(generate_table(rows))
     else:
         # Show `count` users around target user
         if parsed.args['user']:
@@ -1157,7 +1175,7 @@ async def quote_stats_leaderboard(ctx, parsed, count):
                 ORDER BY {chosen_sort}
             """, (user.name, parsed.args['count']))
             rows = await cur.fetchall()
-    table = '\n'.join(generate_table(rows, (1, user.name)))
+        table = '\n'.join(generate_table(rows, (1, user.name)))
     await ctx.module_message(parsed.msg.destination, f'```\n{table}\n```')
 
 
