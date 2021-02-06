@@ -9,11 +9,12 @@ import asyncio
 import itertools
 import random
 import re
+import sqlite3
 import textwrap
 from collections import deque
 from datetime import datetime
 from enum import IntEnum, unique
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 from ZeroBot.common import CommandParser
 from ZeroBot.common.abc import Message
@@ -865,6 +866,43 @@ def prepare_pattern(pattern: str, case_sensitive: bool = False,
     return pattern
 
 
+def generate_table(rows: List[sqlite3.Row],
+                   target: Tuple[int, Any] = None) -> List[str]:
+    """Generate a Markdown-like table out of the given rows.
+
+    The optional `target` parameter expects a tuple of the form
+    ``(col#, value)``. If the given column number in any row has a value that
+    matches `value`, the first column in that row will include a `*` to mark
+    the column of interest.
+    """
+    # Generate table
+    # TODO: factor out into function
+    lines = []
+    headers = rows[0].keys()
+    widths = [[len(str(col)) for col in row] for row in rows]
+    min_widths = [max(x) for x in zip(*widths)]
+    line, rule = '', ''
+    for i, col in enumerate(headers):
+        # Create header
+        line += f'| {col:^{min_widths[i]}} '
+        min_width = max(len(headers[i]), min_widths[i])
+        rule += f"|{'-' * (min_width + 2)}"
+    lines.append(f'{line}|')
+    lines.append(f'{rule}|')
+    for row in rows:
+        line = ''
+        is_target = target is not None and row[target[0]] == target[1]
+        for i, col in enumerate(row):
+            min_width = max(len(headers[i]), min_widths[i])
+            if i == 0 and is_target:
+                col = f'* {col}'
+                line += f'| {col:>{min_width}} '
+            else:
+                line += f'| {col:{min_width}} '
+        lines.append(f'{line}|')
+    return lines
+
+
 # TODO: protocol-agnostic
 async def quote_add(ctx, parsed):
     """Add a quote to the database."""
@@ -1119,34 +1157,8 @@ async def quote_stats_leaderboard(ctx, parsed, count):
                 ORDER BY {chosen_sort}
             """, (user.name, parsed.args['count']))
             rows = await cur.fetchall()
-
-    # Generate table
-    # TODO: factor out into function
-    lines = []
-    headers = rows[0].keys()
-    widths = [[len(str(col)) for col in row] for row in rows]
-    min_widths = [max(x) for x in zip(*widths)]
-    line, rule = '', ''
-    for i, col in enumerate(headers):
-        # Create header
-        line += f'| {col:^{min_widths[i]}} '
-        min_width = max(len(headers[i]), min_widths[i])
-        rule += f"|{'-' * (min_width + 2)}"
-    lines.append(f'{line}|')
-    lines.append(f'{rule}|')
-    for row in rows:
-        line = ''
-        is_target = user is not None and row['Name'] == user.name
-        for i, col in enumerate(row):
-            min_width = max(len(headers[i]), min_widths[i])
-            if i == 0 and is_target:
-                col = f'* {col}'
-                line += f'| {col:>{min_width}} '
-            else:
-                line += f'| {col:{min_width}} '
-        lines.append(f'{line}|')
-    result = '\n'.join(lines)
-    await ctx.module_message(parsed.msg.destination, f'```\n{result}\n```')
+    table = '\n'.join(generate_table(rows, (1, user.name)))
+    await ctx.module_message(parsed.msg.destination, f'```\n{table}\n```')
 
 
 async def quote_quick(ctx, parsed):
