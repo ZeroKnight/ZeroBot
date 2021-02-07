@@ -1244,7 +1244,10 @@ async def quote_stats_leaderboard(ctx, parsed, count):
                 ORDER BY {chosen_sort}
             """, (pattern, parsed.args['count']))
             rows = await cur.fetchall()
-        name = rows[parsed.args['count']]['Name']
+        for row in rows:
+            if re.match(pattern, row['Name']):
+                name = row['Name']
+                break
         table = '\n'.join(generate_table(rows, (1, name)))
     await ctx.module_message(parsed.msg.destination, f'```\n{table}\n```')
 
