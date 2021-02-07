@@ -71,6 +71,15 @@ def map_reduce(key_path: Union[str, List[str]],
     return reduce(operator.getitem, key_path, mapping)
 
 
+def flatten(iterable):
+    """Simple generator that flattens nested lists and tuples."""
+    for elem in iterable:
+        if isinstance(elem, (list, tuple)):
+            yield from elem
+        else:
+            yield elem
+
+
 def shellish_split(string: str) -> List[str]:
     """Perform shell-like word splitting on the given string.
 

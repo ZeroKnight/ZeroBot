@@ -20,6 +20,7 @@ from ZeroBot.common import CommandParser
 from ZeroBot.common.abc import Message
 from ZeroBot.database import DBUser
 from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP
+from ZeroBot.util import flatten
 
 MODULE_NAME = 'Quote'
 MODULE_AUTHOR = 'ZeroKnight'
@@ -1093,13 +1094,6 @@ async def quote_stats(ctx, parsed):
 
 async def quote_stats_leaderboard(ctx, parsed, count):
     """Leaderboard statistics."""
-    def flatten(iterable):
-        for elem in iterable:
-            if isinstance(elem, list):
-                yield from elem
-            else:
-                yield elem
-
     percents = []
     criteria = {
         'q': 'Number of Quotes',
