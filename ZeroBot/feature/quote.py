@@ -1108,7 +1108,7 @@ async def quote_stats_leaderboard(ctx, parsed, count):
             sort = ['q', 'u']
 
     if selection[2]:  # Show percentages
-        percent_names = 'Quote %', 'Submission %'
+        percent_names = ['Quote %', 'Submission %']
         percents.extend(itertools.compress(percent_names, selection[:2]))
 
     chosen = list(flatten(itertools.compress(criteria.values(), selection)))
@@ -1147,14 +1147,18 @@ async def quote_stats_leaderboard(ctx, parsed, count):
         table = '\n'.join(generate_table(rows))
     else:
         # Show `count` users around target user
-        if parsed.args['user']:
-            user = await get_participant(parsed.args['user'].lstrip('@'))
-        else:
-            user = await get_participant(parsed.invoker.name)
+        pattern = prepare_pattern(
+            parsed.args['user'] or parsed.invoker.name)
         async with DB.cursor() as cur:
             await cur.execute(f"""
-                WITH pivot AS (
-                    SELECT *, count() FILTER (WHERE Name = ?1) OVER (
+                WITH participant_names AS (
+                    SELECT participant_id,
+                           group_concat(name, char(10)) AS "name_list"
+                    FROM quote_participants_all_names
+                    GROUP BY participant_id
+                ),
+                pivot AS (
+                    SELECT *, count() FILTER (WHERE name_list REGEXP ?1) OVER (
                         ORDER BY {chosen_sort}
                         ROWS BETWEEN ?2 PRECEDING AND ?2 FOLLOWING
                     ) AS "included",
@@ -1162,14 +1166,17 @@ async def quote_stats_leaderboard(ctx, parsed, count):
                         ORDER BY {chosen_sort}
                     ) AS "Rank"
                     FROM quote_leaderboard
+                    JOIN quote_participants USING (name)
+                    JOIN participant_names USING (participant_id)
                 )
                 SELECT Rank, Name, {chosen}
                 FROM pivot
                 WHERE included = 1
                 ORDER BY {chosen_sort}
-            """, (user.name, parsed.args['count']))
+            """, (pattern, parsed.args['count']))
             rows = await cur.fetchall()
-        table = '\n'.join(generate_table(rows, (1, user.name)))
+        name = rows[parsed.args['count']]['Name']
+        table = '\n'.join(generate_table(rows, (1, name)))
     await ctx.module_message(parsed.msg.destination, f'```\n{table}\n```')
 
 
