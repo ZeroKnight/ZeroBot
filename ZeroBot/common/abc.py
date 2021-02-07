@@ -117,12 +117,50 @@ class Message(ProtocolDetails, metaclass=ABCMeta):
         The time that the message was sent, in UTC.
     """
 
+    # pylint: disable=no-member
+
     @abstractmethod
     def __eq__(self, other):
         raise NotImplementedError
 
     def __len__(self):
-        return len(self.content)  # pylint: disable=no-member
+        return len(self.content)
+
+    @staticmethod
+    @abstractmethod
+    def is_action_str(string: str) -> bool:
+        """Check if the given string is an action."""
+
+    @staticmethod
+    @abstractmethod
+    def as_action_str(string: str) -> str:
+        """Returns the given string as an action."""
+
+    @staticmethod
+    @abstractmethod
+    def strip_action_str(string: str) -> str:
+        """Strip the action formatting from the given string."""
+
+    @property
+    @abstractmethod
+    def clean_content(self) -> str:
+        """Return a "clean" version of the message content.
+
+        Specifically, mentions are converted into the proper name they
+        represent. For example, in Discord, `<@{id}>` becomes `username`.
+        """
+
+    def is_action(self) -> bool:
+        """Check whether the message is an action."""
+        return self.is_action_str(self.content)
+
+    def as_action(self) -> str:
+        """Returns the message as an action."""
+        return self.as_action_str(self.content)
+
+    def strip_action(self) -> str:
+        """Strip the action formatting from the message."""
+        return self.strip_action_str(self.content)
 
 
 class Channel(ProtocolDetails, metaclass=ABCMeta):
