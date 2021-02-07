@@ -1085,11 +1085,80 @@ async def quote_stats(ctx, parsed):
     if parsed.args['leaderboard']:
         await quote_stats_leaderboard(ctx, parsed, count)
         return
+    if parsed.args['global'] and parsed.args['user']:
+        # These are mutually exclusive arguments
+        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        return
+
+    selection = [parsed.args[x] for x in (
+        'quotes', 'submissions', 'self_submissions', 'per_year', 'percent'
+    )]
+    if selection[:-1] == [False] * 4:
+        # No criteria given, use defaults
+        selection = [True] * 5
+
+    # This logic is a bit ugly, but I don't have a better idea at the moment.
+    percents = []
+    criteria = {
+        'q': 'Number of Quotes',
+        'u': 'Number of Submitters',
+        'e': 'Self-Submissions',
+        'y': ['Quotes this Year', 'Avg. Yearly Quotes'],
+        'p': percents
+    }
+    percent_names = ['Self-Sub %']
+    if not parsed.args['global']:
+        criteria['u'] = 'Number of Submissions'
+        criteria['y'] += ['Submissions this Year', 'Avg. Yearly Subs']
+        percent_names = ['Quote %', 'Submission %', 'Self-Sub %']
+        if selection[-2]:  # Show year stats
+            criteria['y'] = list(itertools.compress(
+                criteria['y'],
+                flatten([[selection[0]] * 2, [selection[1]] * 2])))
+    if selection[-1]:  # Show percentages
+        percents.extend(itertools.compress(percent_names, selection[:-2]))
+
+    chosen = flatten(itertools.compress(criteria.values(), selection))
+    chosen = ', '.join(f'"{x}"' for x in chosen)
+
     if parsed.args['global']:
-        await ctx.module_message(parsed.msg.destination, 'I peed.')
+        async with DB.cursor() as cur:
+            await cur.execute(f'SELECT {chosen} FROM quote_stats_global')
+            row = await cur.fetchone()
+        result = ['**Database Stats**']
+        zipped = zip(row.keys(), row)
     else:
-        # user stats
-        pass
+        pattern = prepare_pattern(
+            parsed.args['user'] or parsed.invoker.name)
+        async with DB.cursor() as cur:
+            await cur.execute(f"""
+                WITH participant_names AS (
+                    SELECT participant_id,
+                           group_concat(name, char(10)) AS "name_list"
+                    FROM quote_participants_all_names
+                    GROUP BY participant_id
+                )
+                SELECT stats.Name, {chosen}
+                FROM quote_stats_user AS "stats"
+                JOIN quote_participants USING (name)
+                JOIN participant_names AS "pn" USING (participant_id)
+                WHERE pn.name_list REGEXP ?
+            """, (pattern,))
+            row = await cur.fetchone()
+        result = [f"**Stats for {row['Name']}**"]
+        zipped = zip(row.keys()[1:], row[1:])
+    result.append('```')
+    pairs = list(zip(*[iter(zipped)] * 2))
+    max_n, max_v = [], []
+    for i in range(2):
+        max_n.append(max(len(str(x[i][0])) for x in pairs) + 1)
+        max_v.append(max(len(str(x[i][1])) for x in pairs))
+    for stat1, stat2 in pairs:
+        line = (f"{stat1[0] + ':':<{max_n[0]}} {stat1[1]:<{max_v[0]}}   "
+                f"{stat2[0] + ':':<{max_n[1]}} {stat2[1]:<{max_v[1]}}")
+        result.append(line)
+    result.append('```')
+    await ctx.module_message(parsed.msg.destination, '\n'.join(result))
 
 
 async def quote_stats_leaderboard(ctx, parsed, count):
