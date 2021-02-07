@@ -21,7 +21,7 @@ from collections import ChainMap, namedtuple
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Iterator, List, Optional, Tuple, Type, Union
+from typing import Iterator, List, Tuple, Type, Union
 
 import appdirs
 from toml import TomlDecodeError
@@ -130,7 +130,7 @@ class CommandRegistry:
         """
         try:
             cmd = self._registry['by_name'].pop(command)
-            for module in self._registry['by_module'].keys():
+            for module in self._registry['by_module']:
                 try:
                     self._registry['by_module'][module].remove(cmd)
                 except ValueError:

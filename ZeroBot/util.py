@@ -5,7 +5,6 @@ you *probably* want `ZeroBot.common` instead.
 """
 
 import operator
-import re
 from functools import reduce
 from io import StringIO
 from typing import Any, Iterable, List, Mapping, Union

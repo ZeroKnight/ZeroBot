@@ -14,7 +14,7 @@ from typing import AnyStr, Dict, Iterator, Optional, Tuple, Union
 
 import aiosqlite
 
-from ZeroBot.module import Module, ProtocolModule
+from ZeroBot.module import Module
 
 logger = logging.getLogger('ZeroBot.Database')
 

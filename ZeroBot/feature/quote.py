@@ -5,9 +5,7 @@ Includes a variety of commands for searching and managing quotes, as well as
 reporting quote database statistics.
 """
 
-import asyncio
 import itertools
-import random
 import re
 import sqlite3
 import textwrap

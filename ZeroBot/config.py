@@ -7,14 +7,13 @@ from collections import ChainMap, UserDict
 from copy import deepcopy
 from pathlib import Path
 from string import Template
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Mapping, Union
 
 import toml
 
 import ZeroBot
 from ZeroBot.common.exceptions import (ConfigDecodeError, ConfigEncodeError,
                                        ConfigReadError, ConfigWriteError)
-from ZeroBot.util import map_reduce
 
 _configvars = {
     'botversion': ZeroBot.__version__
@@ -231,7 +230,7 @@ class Config(ConfigDict):
                 f"Failed to parse config file at '{self.path}'",
                 config_name=self.path.stem) from ex
         except OSError as ex:
-            raise ConfigReadErrror(
+            raise ConfigReadError(
                 f"Could not read config file at '{self.path}'",
                 config_name=self.path.stem) from ex
         self._last_state = ConfigDict(deepcopy(self.data))
