@@ -39,10 +39,11 @@ class Counter:
     """
 
     def __init__(self, name: str, description: str, announcement: str = None,
-                 count: int = 0, *, triggers: List[str] = None,
-                 restrictions: List[str] = None, blacklist: List[str] = None,
-                 created_at: datetime = None, last_triggered: datetime = None,
-                 last_user: DBUser = None, last_channel: str = None):
+                 count: int = 0, *, enabled: bool = True, muted: bool = False,
+                 triggers: List[str] = None, restrictions: List[str] = None,
+                 blacklist: List[str] = None, created_at: datetime = None,
+                 last_triggered: datetime = None, last_user: DBUser = None,
+                 last_channel: str = None):
         now = datetime.utcnow().replace(microsecond=0)
         self.name = name
         self.description = description
@@ -51,6 +52,8 @@ class Counter:
         else:
             self.announcement = None
         self.count = count
+        self.enabled = enabled
+        self.muted = muted
         self.triggers = [re.compile(trigger) for trigger in (triggers or [])]
         self.restrictions = restrictions or []
         self.blacklist = blacklist or []
@@ -113,6 +116,13 @@ class Counter:
         announcement string.
         """
         return self.announcement.safe_substitute(kwargs, count=self.count)
+
+    def should_announce(self) -> bool:
+        """Check whether this counter should be announced or not.
+
+        Counter announcements can be disabled globally or per-counter.
+        """
+        return CFG['Announce'] or self.muted
 
     async def increment(self, n: int = 1, user: Union[DBUser, str] = None,
                         channel: str = None):
@@ -244,6 +254,7 @@ async def load_counters() -> int:
             'name': name,
             'description': instance.get('Description', 'No description'),
             'announcement': instance.get('AnnounceString'),
+            'muted': instance.get('Announce', False),
             'triggers': instance.get('Triggers', []),
             'restrictions': instance.get('RestrictedTo', []),
             'blacklist': instance.get('Blacklist', [])
@@ -267,6 +278,22 @@ async def add_counter(counter):
             'INSERT INTO counter VALUES(?, ?, ?, ?, ?, ?)', parameters)
 
 
+async def module_on_config_reloaded(ctx, name):
+    """Handle `Core` config reload event."""
+    if name == 'modules':
+        load_counters()
+
+
+async def module_on_config_changed(ctx, name, key, old, new):
+    """Handle `Core` config change event."""
+    if name == 'modules' and key.startswith('Counter.Instance'):
+        counter_name, attr = key.split('.', maxsplit=3)[2:]
+        counter = counters[counter_name]
+        logger.info(f"Setting Counter '{counter_name}' attribute {attr} to "
+                    f'{new} (was {old}).')
+        setattr(counter, attr, new)
+
+
 async def module_on_message(ctx, message):
     """Handle `Core` message event."""
     sender = message.source
@@ -279,12 +306,15 @@ async def module_on_message(ctx, message):
         return
 
     for counter in counters.values():
+        if not counter.enabled:
+            continue
         if (counter.can_trigger(sender.name)
                 and counter.check(message.clean_content)):
             # TBD: do something similar to quote_participants for `last_user`?
             await counter.increment(user=sender.name, channel=channel)
-            announcement = counter.get_announcement(user=sender.name)
-            await ctx.module_message(message.destination, announcement)
+            if counter.should_announce():
+                announcement = counter.get_announcement(user=sender.name)
+                await ctx.module_message(message.destination, announcement)
 
 
 # TODO: How to handle `$user` when manually incrementing a restricted counter?
