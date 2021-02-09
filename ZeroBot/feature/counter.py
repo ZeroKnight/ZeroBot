@@ -150,7 +150,7 @@ class Counter:
                     WHERE name = ?
                 """, (user,))
                 row = await cur.fetchone()
-            user = await DBUser.from_id(row['user_id'], DB)
+                user = await DBUser.from_id(row['user_id'], DB)
 
             await cur.execute("""
                 UPDATE counter SET
