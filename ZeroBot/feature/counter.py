@@ -249,13 +249,12 @@ async def load_counters() -> int:
     """
     loaded = 0
     for name, instance in CFG['Instance'].items():
-        if not (instance.get('Enabled') or CFG.get('Enabled')):
-            continue
         args = {
             'name': name,
             'description': instance.get('Description', 'No description'),
             'announcement': instance.get('AnnounceString'),
-            'muted': instance.get('Announce', False),
+            'enabled': instance.get('Enabled'),
+            'muted': instance.get('Announce'),
             'triggers': instance.get('Triggers', []),
             'restrictions': instance.get('RestrictedTo', []),
             'blacklist': instance.get('Blacklist', [])
