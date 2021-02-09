@@ -674,8 +674,14 @@ async def module_on_message(ctx, message):
         return
     if not message.content or message.content.isspace():
         return
-    server = message.server.name or '__DM__'
-    channel = message.destination.name
+    # TODO: Proper 'DirectMessage' class
+    try:
+        server = message.server.name
+    except AttributeError:
+        server = '__DM__'
+        channel = message.destination.recipient.name
+    else:
+        channel = message.destination.name
     last_messages.setdefault(ctx.protocol, {}) \
                  .setdefault(server, {})[channel] = message
 
