@@ -54,7 +54,8 @@ class Counter:
         self.count = count
         self.enabled = enabled
         self.muted = muted
-        self.triggers = [re.compile(trigger) for trigger in (triggers or [])]
+        self.triggers = [
+            re.compile(trigger, re.I) for trigger in (triggers or [])]
         self.restrictions = restrictions or []
         self.blacklist = blacklist or []
         self.created_at = created_at or now
