@@ -277,6 +277,7 @@ async def add_counter(counter):
             'last_channel'))
         await cur.execute(
             'INSERT INTO counter VALUES(?, ?, ?, ?, ?, ?)', parameters)
+        await DB.commit()
 
 
 async def module_on_config_reloaded(ctx, name):
