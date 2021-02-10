@@ -1260,13 +1260,13 @@ async def quote_quick(ctx, parsed):
     """Shortcuts for adding a quote to the database."""
     lines = []
     cached = False
-    if user := parsed.args['user'] is not None:
+    if (user := parsed.args['user']) is not None:
         user = user.lstrip('@')
     submitter = await get_participant(
         parsed.args['submitter'] or parsed.invoker.name)
     style = getattr(QuoteStyle, parsed.args['style'].title())
     if parsed.args['date']:
-        if date := read_datestamp(parsed.args['date']) is None:
+        if (date := read_datestamp(parsed.args['date'])) is None:
             await CORE.module_send_event('invalid_command', ctx, parsed.msg)
             return
     else:
