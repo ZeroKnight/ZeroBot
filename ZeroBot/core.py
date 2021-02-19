@@ -334,7 +334,9 @@ class Core:
         for handler in log_sec['Handlers'].values():
             # Normalize file paths
             if 'filename' in handler:
-                handler['filename'] = Path(handler['filename']).expanduser()
+                log_file = Path(handler['filename']).expanduser()
+                log_file.parent.mkdir(parents=True, exist_ok=True)
+                handler['filename'] = log_file
 
         logging.config.dictConfig({
             'version': 1,  # dictConfig schema version (required)
