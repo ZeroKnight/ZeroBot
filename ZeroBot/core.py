@@ -14,6 +14,7 @@ import datetime
 import logging
 import logging.config
 import os
+import signal
 import sys
 import time
 from argparse import ArgumentError, ArgumentTypeError, _SubParsersAction
@@ -223,6 +224,8 @@ class Core:
         self._delayed_command_count = 0
         self._shutdown_reason = None
         self._restarting = False
+
+        signal.signal(signal.SIGTERM, lambda x, y: self.quit('Terminated'))
 
         # Read config
         if config_dir:
