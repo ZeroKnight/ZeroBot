@@ -194,15 +194,17 @@ async def module_on_config_changed(ctx, name, key, old, new):
 
 async def module_on_message(ctx, message):
     """Handle `Core` message event."""
+    sender = message.source
+
     # Don't respond to our own messages.
-    if ctx.user == message.source:
+    if ctx.user == sender or not CFG.get('Enabled'):
         return
 
     # Berate
-    if CFG['Berate.Enabled'] and message.source.name in CFG['Berate.UserList']:
+    if CFG.get('Berate.Enabled') and sender.name in CFG.get('Berate.UserList'):
         if random.random() <= CFG['Berate.Chance'] / 100:
             phrase, action = await fetch_phrase('berate', ['action'])
-            phrase.replace('%0', message.source.name)
+            phrase.replace('%0', sender.name)
             await ctx.module_message(message.destination, phrase, action)
             return
 
@@ -222,30 +224,34 @@ async def module_on_message(ctx, message):
         return
 
     # Answer Questions
-    for pattern in CFG.get('Questioned.Triggers'):
-        # Check against bare name and mention string to handle protocols where
-        # these may differ, like Discord.
-        pattern = pattern.replace(r'\z', f'{ctx.user.mention_pattern()}')
-        if re.search(pattern, message.content, re.I):
-            if re.search(r'would you kindly', message.content, re.I):
-                phrase, action = await fetch_phrase(
-                    'questioned', ['action'],
-                    'WHERE response_type = ?',
-                    (QuestionResponse.Positive.value,))
-            else:
-                phrase, action = await fetch_phrase('questioned', ['action'])
-            await ctx.module_message(message.destination, phrase, action)
-            return
+    if CFG.get('Questioned.Enabled'):
+        for pattern in CFG.get('Questioned.Triggers'):
+            # Check against bare name and mention string to handle protocols
+            # where these may differ, like Discord.
+            pattern = pattern.replace(r'\z', f'{ctx.user.mention_pattern()}')
+            if re.search(pattern, message.content, re.I):
+                if re.search(r'would you kindly', message.content, re.I):
+                    phrase, action = await fetch_phrase(
+                        'questioned', ['action'],
+                        'WHERE response_type = ?',
+                        (QuestionResponse.Positive.value,))
+                else:
+                    phrase, action = await fetch_phrase(
+                        'questioned', ['action'])
+                await ctx.module_message(message.destination, phrase, action)
+                return
 
     # Respond to being mentioned... oddly
     # NOTE: Needs to be LOW priority
-    if ctx.user.mentioned(message):
+    if CFG.get('Mentioned.Enabled') and ctx.user.mentioned(message):
         phrase, action = await fetch_phrase('mentioned', ['action'])
         await ctx.module_message(message.destination, phrase, action)
 
 
 async def module_on_join(ctx, channel, user):
     """Handle `Core` join event."""
+    if not (CFG.get('Enabled') and CFG.get('Greet.Enabled')):
+        return
     if user == ctx.user:
         if channel in kicked_from:
             # Don't greet if we've been kicked from here
@@ -258,6 +264,8 @@ async def module_on_join(ctx, channel, user):
 async def module_on_invalid_command(ctx, cmd_msg):
     """Handle `Core` invalid-command event."""
     # Insult a user when they enter a malformed or invalid command.
+    if not (CFG.get('Enabled') and CFG.get('BadCmd.Enabled')):
+        return
     phrase, action = await fetch_phrase('badcmd', ['action'])
     await ctx.module_message(cmd_msg.destination, phrase, action)
 
