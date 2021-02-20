@@ -648,11 +648,11 @@ def _register_commands():
 
 
 def _resize_quote_deque():
-    new_len = CFG['QuoteCooldown']
-    if new_len == recent_quotes[...].maxlen:
+    new_len = CFG.get('Cooldown.Count', 30)
+    if new_len == recent_quotes['global'].maxlen:
         return
-    recent_quotes[...] = deque(
-        recent_quotes[...].copy(), maxlen=new_len)
+    recent_quotes['global'] = deque(
+        recent_quotes['global'].copy(), maxlen=new_len)
 
 
 async def module_on_config_reloaded(ctx, name):
@@ -663,7 +663,7 @@ async def module_on_config_reloaded(ctx, name):
 
 async def module_on_config_changed(ctx, name, key, old, new):
     """Handle `Core` config change event."""
-    if name == 'modules' and key == 'Quote.QuoteCooldown':
+    if name == 'modules' and key == 'Quote.Cooldown.Count':
         _resize_quote_deque()
 
 

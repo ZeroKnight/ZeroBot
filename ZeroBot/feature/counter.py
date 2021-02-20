@@ -282,7 +282,7 @@ async def add_counter(counter):
 async def module_on_config_reloaded(ctx, name):
     """Handle `Core` config reload event."""
     if name == 'modules':
-        load_counters()
+        await load_counters()
 
 
 async def module_on_config_changed(ctx, name, key, old, new):
