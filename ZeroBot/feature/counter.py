@@ -253,8 +253,8 @@ async def load_counters() -> int:
             'name': name,
             'description': instance.get('Description', 'No description'),
             'announcement': instance.get('AnnounceString'),
-            'enabled': instance.get('Enabled'),
-            'muted': instance.get('Announce'),
+            'enabled': instance.get('Enabled', True),
+            'muted': instance.get('Announce', True),
             'triggers': instance.get('Triggers', []),
             'restrictions': instance.get('RestrictedTo', []),
             'blacklist': instance.get('Blacklist', [])
