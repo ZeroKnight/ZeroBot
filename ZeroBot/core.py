@@ -1372,18 +1372,31 @@ class Core:
                         status = ccs.RESET_OK
                         if key is not None:
                             new = config.get(key, None)
-                            await self.module_send_event(
-                                'config_changed', ctx, name, key, old, new)
+                            try:
+                                await self.module_send_event(
+                                    'config_changed', ctx, name, key, old, new)
+                            except Exception:
+                                self.logger.exception(
+                                    'Uncaught exception in config_changed handler')
                         else:
-                            await self.module_send_event(
-                                'config_reloaded', ctx, name)
+                            try:
+                                await self.module_send_event(
+                                    'config_reloaded', ctx, name)
+                            except Exception:
+                                self.logger.exception(
+                                    'Uncaught exception in config_reloaded handler')
                     else:
                         value = parsed.args['value']
                         if value:
                             config[key] = value
                             status = ccs.SET_OK
-                            await self.module_send_event(
-                                'config_changed', ctx, name, key, old, value)
+                            try:
+                                await self.module_send_event(
+                                    'config_changed', ctx, name, key, old,
+                                    value)
+                            except Exception:
+                                self.logger.exception(
+                                    'Uncaught exception in config_changed handler')
                         else:
                             value = config.get(key)
                             status = ccs.GET_OK
@@ -1439,7 +1452,12 @@ class Core:
                     status = ccs.RELOAD_FAIL
                 else:
                     status = ccs.RELOAD_OK
-                    await self.module_send_event('config_reloaded', ctx, name)
+                    try:
+                        await self.module_send_event(
+                            'config_reloaded', ctx, name)
+                    except Exception:
+                        self.logger.exception(
+                            'Uncaught exception in config_reloaded handler')
                 results.append(ConfigCmdResult(config, status))
         await ctx.core_command_config(parsed, results)
 
