@@ -8,7 +8,7 @@ import logging
 import re
 from datetime import datetime
 from string import Template
-from typing import List, Union
+from typing import Iterable, List, Union
 
 from ZeroBot.common import CommandParser
 from ZeroBot.database import DBUser
@@ -279,6 +279,35 @@ async def add_counter(counter):
         await DB.commit()
 
 
+def or_join(iterable: Iterable, separator: str = ', ') -> str:
+    """Pretty print a list of names.
+
+    Similar to `str.join`, but the final element is prefixed with "or ".
+    If `iterable` contains only two elements, no separator will be included,
+    only the "or ".
+
+    Parameters
+    ----------
+    iterable : Iterable
+        An iterable of elements to join.
+    separator : str, optional
+        A string to separate each element of `iterable`. Defaults to ", ".
+
+    Returns
+    -------
+    str
+        A string of joined elements similar to `str.join`.
+    """
+    length = len(iterable)
+    if not length:
+        return ''
+    if length == 1:
+        return str(iterable[0])
+    if length == 2:
+        return f'{iterable[0]} or {iterable[1]}'
+    return separator.join(iterable[:-1]) + f' or {iterable[-1]}'
+
+
 async def module_on_config_reloaded(ctx, name):
     """Handle `Core` config reload event."""
     if name == 'modules':
@@ -337,7 +366,10 @@ async def module_command_count(ctx, parsed):
     if parsed.args['quiet']:
         response = 'Okay, done.'
     else:
-        response = counter.get_announcement()
+        user = None
+        if len(counter.restrictions) > 0:
+            user = or_join(counter.restrictions)
+        response = counter.get_announcement(user=user)
     await ctx.module_message(parsed.source, response)
 
 
@@ -351,7 +383,10 @@ async def module_command_counters(ctx, parsed):
         except KeyError:
             await CORE.module_send_event('invalid_command', ctx, parsed.msg)
             return
-        response = counter.get_announcement()
+        user = None
+        if len(counter.restrictions) > 0:
+            user = or_join(counter.restrictions)
+        response = counter.get_announcement(user=user)
     elif subcmd == 'list':
         lines = []
         if parsed.args['counter']:
