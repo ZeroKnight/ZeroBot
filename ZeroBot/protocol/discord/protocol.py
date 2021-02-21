@@ -129,7 +129,8 @@ class DiscordContext(Context, discord.Client):
                                        message.channel)
             log_msg = '{0} <{1.author}> {1.content}'.format(source, message)
         logger.info(log_msg)
-        if message.content.startswith(CORE.cmdprefix):
+        if (message.content.startswith(CORE.cmdprefix)
+                and message.source != self.user):
             await CORE.module_commanded(DiscordMessage(message), self)
         else:
             await CORE.module_send_event('message', self,
