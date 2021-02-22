@@ -396,8 +396,8 @@ async def module_command_counters(ctx, parsed):
             target_counters = counters
         for name, counter in target_counters.items():
             lines.append(
-                f'\n[**{name}**] - {counter.count}\n{counter.description}')
-        response = '**Available Counters**' + '\n'.join(lines)
+                f'[**{name}**] ({counter.count}) - {counter.description}')
+        response = '**Available Counters**\n' + '\n'.join(lines)
     elif subcmd == 'info':
         try:
             counter = counters[parsed.args['counter']]
