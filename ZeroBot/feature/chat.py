@@ -165,9 +165,9 @@ async def fetch_phrase(table: str, columns: Iterable[str],
             {query}
             ORDER BY RANDOM() LIMIT cooldown() + 1""", parameters)
         row = await cur.fetchone()
-        while row[0] in recent_phrases[table]:
+        while row['phrase'] in recent_phrases[table]:
             row = await cur.fetchone()
-    recent_phrases[table].append(row[0])
+    recent_phrases[table].append(row['phrase'])
     return row
 
 

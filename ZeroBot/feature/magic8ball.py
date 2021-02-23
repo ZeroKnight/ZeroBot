@@ -153,10 +153,10 @@ async def fetch_part(rtype: Union[ResponseType, Tuple[ResponseType]],
     rows = await results.fetchall()
     if CFG.get('PhraseCooldown', 0):
         for row in rows:
-            name = ResponseType(row[2]).name
-            if row[0] not in recent_phrases[name]:
+            name = ResponseType(row['response_type']).name
+            if row['response'] not in recent_phrases[name]:
                 part = row
-                recent_phrases[name].append(part[0])
+                recent_phrases[name].append(part['response'])
                 break
         if part is None and len(rows) <= CFG['PhraseCooldown']:
             # We have fewer phrases than the cooldown limit, so ignore it
