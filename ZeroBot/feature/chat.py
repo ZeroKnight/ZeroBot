@@ -51,7 +51,7 @@ async def module_register(core):
     DB = await core.database_connect(MOD_ID)
     await DB.create_function(
         'cooldown', 0, lambda: CFG.get('PhraseCooldown', 0))
-    await _init_tables()
+    await _init_database()
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     CFG = core.load_config('modules')[MODULE_NAME]
@@ -66,7 +66,7 @@ async def module_unregister():
     await CORE.database_disconnect(MOD_ID)
 
 
-async def _init_tables():
+async def _init_database():
     await DB.executescript("""
         CREATE TABLE IF NOT EXISTS "chat_badcmd" (
             "phrase"    TEXT NOT NULL UNIQUE,
@@ -94,6 +94,9 @@ async def _init_tables():
             "response_type"     INTEGER NOT NULL,
             PRIMARY KEY("phrase")
         ) WITHOUT ROWID;
+
+        CREATE INDEX IF NOT EXISTS "idx_chat_questioned_response_type"
+        ON "chat_questioned" ("response_type" ASC);
     """)
 
 

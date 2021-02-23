@@ -172,7 +172,7 @@ async def module_register(core):
     CFG = core.load_config('modules')[MODULE_NAME]
 
     DB = await core.database_connect(MOD_ID)
-    await _init_tables()
+    await _init_database()
     loaded = await load_counters()
     if loaded:
         logger.info(f'Loaded {loaded} Counters')
@@ -187,7 +187,7 @@ async def module_unregister():
     await CORE.database_disconnect(MOD_ID)
 
 
-async def _init_tables():
+async def _init_database():
     await DB.execute("""
         CREATE TABLE IF NOT EXISTS "counter" (
             "name"           TEXT NOT NULL UNIQUE,

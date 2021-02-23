@@ -91,7 +91,7 @@ async def module_register(core):
     DB = await core.database_connect(MOD_ID)
     await DB.create_function(
         'cooldown', 0, lambda: CFG.get('PhraseCooldown', 0))
-    await _init_tables()
+    await _init_database()
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     # FIXME: if going the monolithic route, check if it's loaded first
@@ -107,15 +107,18 @@ async def module_unregister():
     await CORE.database_disconnect(MOD_ID)
 
 
-async def _init_tables():
-    await DB.execute("""
+async def _init_database():
+    await DB.executescript("""
         CREATE TABLE IF NOT EXISTS "magic8ball" (
             "response"       TEXT NOT NULL UNIQUE,
             "action"         BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
             "response_type"  INTEGER DEFAULT 1,
             "expects_action" BOOLEAN CHECK(expects_action IN (NULL,0,1)),
             PRIMARY KEY("response")
-        ) WITHOUT ROWID
+        ) WITHOUT ROWID;
+
+        CREATE INDEX IF NOT EXISTS "idx_magic8ball_response_type"
+        ON "magic8ball" ("response_type" ASC);
     """)
 
 

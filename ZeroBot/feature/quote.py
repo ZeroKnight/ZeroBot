@@ -431,7 +431,7 @@ async def module_register(core):
 
     DB = await core.database_connect(MOD_ID)
     await DB.create_function('cooldown', 0, cooldown)
-    await _init_tables()
+    await _init_database()
 
     _register_commands()
 
@@ -441,7 +441,7 @@ async def module_unregister():
     await CORE.database_disconnect(MOD_ID)
 
 
-async def _init_tables():
+async def _init_database():
     await DB.executescript("""
         CREATE TABLE IF NOT EXISTS "quote_participants" (
             "participant_id"  INTEGER NOT NULL,
@@ -477,6 +477,150 @@ async def _init_tables():
                 ON DELETE SET DEFAULT
                 ON UPDATE CASCADE
         ) WITHOUT ROWID;
+
+        CREATE VIEW IF NOT EXISTS quote_leaderboard AS
+        SELECT authors.name AS "Name",
+               COUNT(DISTINCT quote_id) AS "Number of Quotes",
+                   ifnull(numsubs, 0) AS "Number of Submissions",
+                   ROUND(100.0 * COUNT(DISTINCT quote_id) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Quote %",
+                   ROUND(100.0 * ifnull(numsubs, 0) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Submission %"
+        FROM quote_lines
+        JOIN quote_participants AS "authors" USING (participant_id)
+        LEFT JOIN (
+                SELECT name, COUNT(quote_id) AS "numsubs"
+                FROM quote
+                JOIN quote_participants ON participant_id = submitter
+                GROUP BY submitter
+        ) AS "submissions"
+                ON authors.name = submissions.name
+        GROUP BY authors.name;
+
+        CREATE VIEW IF NOT EXISTS quote_merged AS
+        SELECT quote_id AS "Quote ID",
+               line_num AS "Line #",
+                   authors.name AS "Author",
+                   line AS "Line",
+               submission_date AS "Submission Date",
+                   submitters.name AS "Submitter",
+                   action AS "Action?",
+                   style AS "Style"
+        FROM quote
+        JOIN quote_lines USING (quote_id)
+        JOIN quote_participants AS "submitters" ON submitter = submitters.participant_id
+        JOIN quote_participants AS "authors" USING (participant_id);
+
+        CREATE VIEW IF NOT EXISTS quote_participants_all_names AS
+        SELECT participant_id, name FROM quote_participants
+        UNION
+        SELECT participant_id, users.name FROM users
+        JOIN quote_participants USING(user_id)
+        UNION
+        SELECT participant_id, alias FROM aliases
+        JOIN quote_participants USING(user_id);
+
+        CREATE VIEW IF NOT EXISTS quote_stats_global AS
+        WITH self AS (
+            SELECT quote_id, 1 AS "selfsub"
+            FROM quote
+            JOIN quote_lines USING (quote_id)
+                GROUP BY quote_id
+            HAVING submitter = participant_id AND COUNT(line_num) = 1
+        )
+        SELECT COUNT(DISTINCT top.quote_id) AS "Number of Quotes",
+               COUNT(DISTINCT submitter) AS "Number of Submitters",
+                   COUNT(selfsub) AS "Self-Submissions",
+                   ROUND(100.0 * COUNT(selfsub) / COUNT(DISTINCT top.quote_id), 1) || '%' AS "Self-Sub %",
+                   "Quotes in Year" AS "Quotes this Year",
+                   "Avg. Yearly Quotes"
+        FROM quote AS "top"
+        LEFT JOIN self ON top.quote_id = self.quote_id
+        JOIN quote_yearly_quotes ON Year = strftime('%Y', 'now')
+        JOIN (
+            SELECT AVG("Quotes in Year") AS "Avg. Yearly Quotes"
+                FROM quote_yearly_quotes
+        ) AS "avg";
+
+        CREATE VIEW IF NOT EXISTS quote_stats_user AS
+        WITH submissions AS (
+                SELECT name, COUNT(quote_id) AS "numsubs"
+                FROM quote
+                JOIN quote_participants ON participant_id = submitter
+                GROUP BY submitter
+        ),
+        self AS (
+            SELECT quote_id, 1 AS "selfsub"
+            FROM quote
+            JOIN quote_lines USING (quote_id)
+                GROUP BY quote_id
+            HAVING submitter = participant_id AND COUNT(line_num) = 1
+        ),
+        year_quotes AS (
+                SELECT name,
+                           COUNT(DISTINCT quote_id) AS "Quotes in Year",
+                           strftime('%Y', submission_date) AS "Year"
+                FROM quote
+                JOIN quote_lines USING (quote_id)
+                JOIN quote_participants USING (participant_id)
+                GROUP BY name, Year
+        ),
+        year_subs AS (
+                SELECT name,
+                           COUNT(DISTINCT quote_id) AS "Submissions in Year",
+                           strftime('%Y', submission_date) AS "Year"
+                FROM quote
+                JOIN quote_participants ON submitter = participant_id
+                GROUP BY name, Year
+        ),
+        avg_year_quotes AS (
+            SELECT name, AVG("Quotes in Year") AS "Avg. Yearly Quotes"
+                FROM year_quotes
+                GROUP BY name
+        ),
+        avg_year_subs AS (
+            SELECT name, AVG("Submissions in Year") AS "Avg. Yearly Subs"
+                FROM year_subs
+                GROUP BY name
+        )
+
+        SELECT authors.name AS "Name",
+               "Number of Quotes",
+                   ROUND(100.0 * COUNT(DISTINCT top.quote_id) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Quote %",
+               "Number of Submissions",
+                   ROUND(100.0 * ifnull(numsubs, 0) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Submission %",
+                   COUNT(selfsub) AS "Self-Submissions",
+                   ROUND(100.0 * COUNT(selfsub) / COUNT(DISTINCT top.quote_id), 1) || '%' AS "Self-Sub %",
+                   ifnull("Quotes in Year", 0) AS "Quotes this Year",
+                   ifnull("Submissions in Year", 0) AS "Submissions this Year",
+                   ROUND(ifnull("Avg. Yearly Quotes", 0), 2) AS "Avg. Yearly Quotes", 
+                   ROUND(ifnull("Avg. Yearly Subs", 0), 2) AS "Avg. Yearly Subs"
+        FROM quote AS "top"
+        JOIN quote_lines USING (quote_id)
+        JOIN quote_participants AS "authors" USING (participant_id)
+        JOIN quote_leaderboard AS "lb" ON authors.name = lb.name
+        LEFT JOIN submissions ON authors.name = submissions.name
+        LEFT JOIN self ON top.quote_id = self.quote_id
+        LEFT JOIN year_quotes ON year_quotes.name = authors.name AND year_quotes.Year = strftime('%Y', 'now')
+        LEFT JOIN year_subs ON year_subs.name = authors.name AND year_subs.Year = strftime('%Y', 'now')
+        LEFT JOIN avg_year_quotes AS "ayq" ON ayq.name = authors.name
+        LEFT JOIN avg_year_subs AS "ays" ON ays.name = authors.name
+        GROUP BY authors.name;
+
+        CREATE VIEW IF NOT EXISTS quote_yearly_quotes AS
+        SELECT COUNT(quote_id) AS "Quotes in Year",
+               strftime('%Y', submission_date) AS "Year"
+        FROM quote
+        GROUP BY Year;
+
+        CREATE UNIQUE INDEX IF NOT EXISTS "idx_quote_participants_user_id"
+        ON "quote_participants" ("user_id");
+
+        CREATE TRIGGER IF NOT EXISTS tg_sync_participant_name
+        AFTER UPDATE OF name ON users
+        BEGIN
+            UPDATE quote_participants
+            SET name = new.name
+            WHERE user_id = new.user_id;
+        END;
     """)
 
 
