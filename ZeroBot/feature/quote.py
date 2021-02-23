@@ -16,7 +16,7 @@ from typing import Any, List, Optional, Tuple, Union
 
 from ZeroBot.common import CommandParser
 from ZeroBot.common.abc import Message
-from ZeroBot.database import DBUser
+from ZeroBot.database import Connection, DBModel, DBUser, Participant
 from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP
 from ZeroBot.util import flatten
 
@@ -54,137 +54,7 @@ class QuoteStyle(IntEnum):
     Unstyled = 3
 
 
-class Participant():
-    """A `Quote` participant: either an author or a submitter.
-
-    Participants may or may not be linked to a `DBUser`.
-
-    Parameters
-    ----------
-    participant_id : int
-        The participant's ID.
-    name : str
-        The name of the participant.
-    user_id : int, optional
-        The participant's user ID, if it has one.
-    user : DBUser, optional
-        The user linked to this participant.
-
-    Attributes
-    ----------
-    id
-    """
-
-    def __init__(self, participant_id: int, name: str, user_id: int = None,
-                 user: DBUser = None):
-        self.id = participant_id
-        self.name = name
-        self.user_id = user_id
-        if user is not None and user.id != self.user_id:
-            raise ValueError(
-                'The given user.id does not match user_id: '
-                f'{user.id=} {self.user_id=}')
-        self.user = user
-
-    def __repr__(self):
-        attrs = ['id', 'name', 'user']
-        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
-        return f'<{self.__class__.__name__} {repr_str}>'
-
-    def __str__(self):
-        return self.name
-
-    def __eq__(self, other):
-        return self.id == other.id
-
-    @classmethod
-    async def from_id(cls, participant_id: int) -> Optional['Participant']:
-        """Construct a `Participant` by ID from the database.
-
-        Returns `None` if there was no `Participant` with the given ID.
-
-        Parameters
-        ----------
-        participant_id : int
-            The ID of the participant to fetch.
-        """
-        async with DB.cursor() as cur:
-            await cur.execute(
-                'SELECT * FROM quote_participants WHERE participant_id = ?',
-                (participant_id,))
-            row = await cur.fetchone()
-        if row is None:
-            return None
-        user = await DBUser.from_id(row[-1], DB)
-        return cls(*row[:-1], user)
-
-    @classmethod
-    async def from_name(cls, name) -> Optional['Participant']:
-        """Construct a `Participant` by name from the database.
-
-        Parameters
-        ----------
-        name : str
-            The name of the participant to fetch.
-        """
-        async with DB.cursor() as cur:
-            await cur.execute(
-                'SELECT * FROM quote_participants WHERE name = ?', (name,))
-            row = await cur.fetchone()
-        if row is None:
-            return None
-        user = await DBUser.from_id(row[-1], DB)
-        return cls(*row, user)
-
-    @classmethod
-    async def from_user(cls, user: Union[DBUser, int]) -> 'Participant':
-        """Construct a `Participant` linked to the given user.
-
-        Parameters
-        ----------
-        user : DBUser or int
-            The linked user to search for. May be a `DBUser` object or an `int`
-            referring to a user ID.
-        """
-        try:
-            user_id = user.id
-        except AttributeError:
-            user_id = int(user)
-        async with DB.cursor() as cur:
-            await cur.execute(
-                'SELECT * FROM quote_participants WHERE user_id = ?',
-                (user_id,))
-            row = await cur.fetchone()
-        if row is None:
-            return None
-        if not isinstance(user, DBUser):
-            user = await DBUser.from_id(row[-1], DB)
-        return cls(*row, user)
-
-    async def fetch_user(self) -> DBUser:
-        """Fetch the database user linked to this participant.
-
-        Sets `self.user` to the fetched `DBUser` and returns it.
-        """
-        if self.user_id is None:
-            raise ValueError('Participant has no linked user.')
-        self.user = await DBUser.from_id(self.user_id, DB)
-        return self.user
-
-    async def save(self):
-        """Save this `Participant` to the database."""
-        async with DB.cursor() as cur:
-            await cur.execute("""
-                INSERT INTO quote_participants VALUES (?, ?, ?)
-                ON CONFLICT (participant_id) DO UPDATE SET
-                    name = excluded.name,
-                    user_id = excluded.user_id
-            """, (self.id, self.name, self.user_id))
-            self.id = cur.lastrowid
-            await DB.commit()
-
-
-class QuoteLine:
+class QuoteLine(DBModel):
     """A single—possibly the only—line of a quote.
 
     `QuoteLine` objects make up the body of a given quote. Each line may have
@@ -209,9 +79,12 @@ class QuoteLine:
         than something written or spoken. Defaults to `False`.
     """
 
-    def __init__(self, quote_id: int, body: str, author: Participant, *,
-                 quote: 'Quote' = None, line_num: int = 1, author_num: int = 1,
-                 action: bool = False):
+    table_name = 'quote_lines'
+
+    def __init__(self, conn: Connection, quote_id: int, body: str,
+                 author: Participant, *, quote: 'Quote' = None,
+                 line_num: int = 1, author_num: int = 1, action: bool = False):
+        super().__init__(conn)
         self.quote_id = quote_id
         self.body = body
         self.author = author
@@ -233,26 +106,28 @@ class QuoteLine:
     def __str__(self):
         if self.action:
             return f'* {self.author} {self.body}'
-        else:
-            return f'<{self.author}> {self.body}'
+        return f'<{self.author}> {self.body}'
 
     @classmethod
-    async def from_row(cls, row: Tuple) -> 'QuoteLine':
+    async def from_row(cls, conn: Connection, row: sqlite3.Row) -> 'QuoteLine':
         """Construct a `QuoteLine` from a database row.
 
         Parameters
-        - ---------
-        row: Tuple
+        -----------
+        conn : Connection
+            The database connection to use.
+        row: sqlite3.Row
             A row returned from the database.
         """
-        author = await Participant.from_id(row[3])
-        return cls(
-            quote_id=row[0], line_num=row[1], body=row[2],
-            author=author, author_num=row[4], action=row[5]
-        )
+        attrs = {
+            name: row[name] for name in
+            ('quote_id', 'line_num', 'author_num', 'action')
+        }
+        author = await Participant.from_id(conn, row['participant_id'])
+        return cls(conn, body=row['line'], author=author, **attrs)
 
 
-class Quote:
+class Quote(DBModel):
     """A ZeroBot quote.
 
     Parameters
@@ -273,9 +148,12 @@ class Quote:
     id
     """
 
-    def __init__(self, quote_id: Optional[int], submitter: Participant, *,
-                 date: datetime = datetime.utcnow(),
+    table_name = 'quote'
+
+    def __init__(self, conn: Connection, quote_id: Optional[int],
+                 submitter: Participant, *, date: datetime = datetime.utcnow(),
                  style: QuoteStyle = QuoteStyle.Standard):
+        super().__init__(conn)
         self.id = quote_id
         self.submitter = submitter
         self.date = date
@@ -299,20 +177,22 @@ class Quote:
         raise ValueError(f'Invalid QuoteStyle: {self.style}')
 
     @classmethod
-    async def from_row(cls, row: Tuple) -> 'Quote':
+    async def from_row(cls, conn: Connection, row: sqlite3.Row) -> 'Quote':
         """Construct a `Quote` from a database row.
 
         Also fetches the associated `QuoteLine`s.
 
         Parameters
         ----------
-        row : Tuple
+        conn : Connection
+            The database connection to use.
+        row : sqlite3.Row
             A row returned from the database.
         """
-        submitter = await Participant.from_id(row[1])
+        submitter = await Participant.from_id(conn, row['submitter'])
         quote = cls(
-            quote_id=row[0], submitter=submitter, date=row[2],
-            style=QuoteStyle(row[3])
+            conn, quote_id=row['quote_id'], submitter=submitter,
+            date=row['submission_date'], style=QuoteStyle(row['style'])
         )
         await quote.fetch_lines()
         return quote
@@ -322,13 +202,15 @@ class Quote:
 
         Sets `self.lines` to the fetched lines and returns them.
         """
-        async with DB.cursor() as cur:
-            await cur.execute("""
-                SELECT * FROM quote_lines WHERE quote_id = ?
+        async with self._connection.cursor() as cur:
+            await cur.execute(f"""
+                SELECT * FROM {QuoteLine.table_name} WHERE quote_id = ?
                 ORDER BY line_num
             """, (self.id,))
             self.lines = [
-                await QuoteLine.from_row(row) for row in await cur.fetchall()]
+                await QuoteLine.from_row(self._connection, row)
+                for row in await cur.fetchall()
+            ]
         return self.lines
 
     async def fetch_authors(self) -> List[Participant]:
@@ -337,15 +219,16 @@ class Quote:
         Authors in the list are ordered by their `author_num` value. Sets
         `self.authors` to the fetched authors and returns them.
         """
-        async with DB.cursor() as cur:
-            await cur.execute("""
-                SELECT DISTINCT participant_id FROM quote_lines
+        async with self._connection.cursor() as cur:
+            await cur.execute(f"""
+                SELECT DISTINCT participant_id FROM {QuoteLine.table_name}
                 WHERE quote_id = ?
                 ORDER BY author_num
             """, (self.id))
-
             self.authors = [
-                await Participant.from_id(pid) async for pid in cur.fetchall()]
+                await Participant.from_id(self._connection, pid)
+                for pid in await cur.fetchall()
+            ]
         return self.authors
 
     def get_author_num(self, author: Participant) -> int:
@@ -385,15 +268,15 @@ class Quote:
         line_num = len(self.lines) + 1
         author_num = self.get_author_num(author)
         self.lines.append(
-            QuoteLine(self.id, body, author, quote=self, line_num=line_num,
-                      author_num=author_num, action=action))
+            QuoteLine(self._connection, self.id, body, author, quote=self,
+                      line_num=line_num, author_num=author_num, action=action))
 
     async def save(self):
         """Save this `Quote` to the database."""
-        async with DB.cursor() as cur:
+        async with self._connection.cursor() as cur:
             await cur.execute('BEGIN TRANSACTION')
-            await cur.execute("""
-                INSERT INTO quote VALUES (?, ?, ?, ?)
+            await cur.execute(f"""
+                INSERT INTO {self.table_name} VALUES (?, ?, ?, ?)
                 ON CONFLICT (quote_id) DO UPDATE SET
                     submitter = excluded.submitter,
                     submission_date = excluded.submission_date,
@@ -405,11 +288,13 @@ class Quote:
                 line.quote_id = self.id
 
             await cur.execute(
-                'DELETE FROM quote_lines WHERE quote_id = ?', (self.id,))
+                f'DELETE FROM {QuoteLine.table_name} WHERE quote_id = ?',
+                (self.id,))
             params = [(self.id, ql.line_num, ql.body, ql.author.id,
                        ql.author_num, ql.action) for ql in self.lines]
             await cur.executemany(
-                'INSERT INTO quote_lines VALUES(?, ?, ?, ?, ?, ?)', params)
+                f'INSERT INTO {QuoteLine.table_name} VALUES(?, ?, ?, ?, ?, ?)',
+                params)
 
             await cur.execute('COMMIT TRANSACTION')
 
@@ -442,38 +327,29 @@ async def module_unregister():
 
 
 async def _init_database():
-    await DB.executescript("""
-        CREATE TABLE IF NOT EXISTS "quote_participants" (
-            "participant_id"  INTEGER NOT NULL,
-            "name"            TEXT NOT NULL UNIQUE,
-            "user_id"         INTEGER,
-            FOREIGN KEY("user_id") REFERENCES "users"("user_id")
-                ON DELETE SET NULL,
-            PRIMARY KEY("participant_id")
-        );
-        CREATE TABLE IF NOT EXISTS "quote" (
-            "quote_id"         INTEGER NOT NULL,
-            "submitter"        INTEGER NOT NULL DEFAULT 0,
-            "submission_date"  DATETIME DEFAULT CURRENT_TIMESTAMP,
-            "style"            INTEGER NOT NULL DEFAULT 1,
-            PRIMARY KEY("quote_id")
-            FOREIGN KEY("submitter")
-                REFERENCES "quote_participants"("participant_id")
+    await DB.executescript(f"""
+        CREATE TABLE IF NOT EXISTS "{Quote.table_name}" (
+            "quote_id"        INTEGER NOT NULL,
+            "submitter"       INTEGER NOT NULL DEFAULT 0,
+            "submission_date" DATETIME DEFAULT CURRENT_TIMESTAMP,
+            "style"           INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY ("quote_id")
+            FOREIGN KEY ("submitter")
+                REFERENCES "{Participant.table_name}" ("participant_id")
                 ON DELETE SET DEFAULT
         );
-        CREATE TABLE IF NOT EXISTS "quote_lines" (
-            "quote_id"        INTEGER NOT NULL,
-            "line_num"        INTEGER NOT NULL DEFAULT 1,
-            "line"            TEXT NOT NULL,
-            "participant_id"  INTEGER NOT NULL DEFAULT 0,
-            "author_num"      INTEGER NOT NULL DEFAULT 1,
-            "action"          BOOLEAN NOT NULL DEFAULT 0
-                              CHECK(action IN (0,1)),
-            PRIMARY KEY("quote_id", "line_num"),
-            FOREIGN KEY("quote_id") REFERENCES "quote"("quote_id")
+        CREATE TABLE IF NOT EXISTS "{QuoteLine.table_name}" (
+            "quote_id"       INTEGER NOT NULL,
+            "line_num"       INTEGER NOT NULL DEFAULT 1,
+            "line"           TEXT NOT NULL,
+            "participant_id" INTEGER NOT NULL DEFAULT 0,
+            "author_num"     INTEGER NOT NULL DEFAULT 1,
+            "action"         BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            PRIMARY KEY ("quote_id", "line_num"),
+            FOREIGN KEY ("quote_id") REFERENCES "quote" ("quote_id")
                 ON DELETE CASCADE,
-            FOREIGN KEY("participant_id")
-                REFERENCES "quote_participants"("participant_id")
+            FOREIGN KEY ("participant_id")
+                REFERENCES "{Participant.table_name}" ("participant_id")
                 ON DELETE SET DEFAULT
                 ON UPDATE CASCADE
         ) WITHOUT ROWID;
@@ -482,14 +358,14 @@ async def _init_database():
         SELECT authors.name AS "Name",
                COUNT(DISTINCT quote_id) AS "Number of Quotes",
                    ifnull(numsubs, 0) AS "Number of Submissions",
-                   ROUND(100.0 * COUNT(DISTINCT quote_id) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Quote %",
-                   ROUND(100.0 * ifnull(numsubs, 0) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Submission %"
-        FROM quote_lines
-        JOIN quote_participants AS "authors" USING (participant_id)
+                   ROUND(100.0 * COUNT(DISTINCT quote_id) / (SELECT COUNT(*) FROM {Quote.table_name}), 1) || '%' AS "Quote %",
+                   ROUND(100.0 * ifnull(numsubs, 0) / (SELECT COUNT(*) FROM {Quote.table_name}), 1) || '%' AS "Submission %"
+        FROM {QuoteLine.table_name}
+        JOIN {Participant.table_name} AS "authors" USING (participant_id)
         LEFT JOIN (
                 SELECT name, COUNT(quote_id) AS "numsubs"
-                FROM quote
-                JOIN quote_participants ON participant_id = submitter
+                FROM {Quote.table_name}
+                JOIN {Participant.table_name} ON participant_id = submitter
                 GROUP BY submitter
         ) AS "submissions"
                 ON authors.name = submissions.name
@@ -504,25 +380,16 @@ async def _init_database():
                    submitters.name AS "Submitter",
                    action AS "Action?",
                    style AS "Style"
-        FROM quote
-        JOIN quote_lines USING (quote_id)
-        JOIN quote_participants AS "submitters" ON submitter = submitters.participant_id
-        JOIN quote_participants AS "authors" USING (participant_id);
-
-        CREATE VIEW IF NOT EXISTS quote_participants_all_names AS
-        SELECT participant_id, name FROM quote_participants
-        UNION
-        SELECT participant_id, users.name FROM users
-        JOIN quote_participants USING(user_id)
-        UNION
-        SELECT participant_id, alias FROM aliases
-        JOIN quote_participants USING(user_id);
+        FROM {Quote.table_name}
+        JOIN {QuoteLine.table_name} USING (quote_id)
+        JOIN {Participant.table_name} AS "submitters" ON submitter = submitters.participant_id
+        JOIN {Participant.table_name} AS "authors" USING (participant_id);
 
         CREATE VIEW IF NOT EXISTS quote_stats_global AS
         WITH self AS (
             SELECT quote_id, 1 AS "selfsub"
-            FROM quote
-            JOIN quote_lines USING (quote_id)
+            FROM {Quote.table_name}
+            JOIN {QuoteLine.table_name} USING (quote_id)
                 GROUP BY quote_id
             HAVING submitter = participant_id AND COUNT(line_num) = 1
         )
@@ -532,7 +399,7 @@ async def _init_database():
                    ROUND(100.0 * COUNT(selfsub) / COUNT(DISTINCT top.quote_id), 1) || '%' AS "Self-Sub %",
                    "Quotes in Year" AS "Quotes this Year",
                    "Avg. Yearly Quotes"
-        FROM quote AS "top"
+        FROM {Quote.table_name} AS "top"
         LEFT JOIN self ON top.quote_id = self.quote_id
         JOIN quote_yearly_quotes ON Year = strftime('%Y', 'now')
         JOIN (
@@ -543,14 +410,14 @@ async def _init_database():
         CREATE VIEW IF NOT EXISTS quote_stats_user AS
         WITH submissions AS (
                 SELECT name, COUNT(quote_id) AS "numsubs"
-                FROM quote
-                JOIN quote_participants ON participant_id = submitter
+                FROM {Quote.table_name}
+                JOIN {Participant.table_name} ON participant_id = submitter
                 GROUP BY submitter
         ),
         self AS (
             SELECT quote_id, 1 AS "selfsub"
-            FROM quote
-            JOIN quote_lines USING (quote_id)
+            FROM {Quote.table_name}
+            JOIN {QuoteLine.table_name} USING (quote_id)
                 GROUP BY quote_id
             HAVING submitter = participant_id AND COUNT(line_num) = 1
         ),
@@ -558,17 +425,17 @@ async def _init_database():
                 SELECT name,
                            COUNT(DISTINCT quote_id) AS "Quotes in Year",
                            strftime('%Y', submission_date) AS "Year"
-                FROM quote
-                JOIN quote_lines USING (quote_id)
-                JOIN quote_participants USING (participant_id)
+                FROM {Quote.table_name}
+                JOIN {QuoteLine.table_name} USING (quote_id)
+                JOIN {Participant.table_name} USING (participant_id)
                 GROUP BY name, Year
         ),
         year_subs AS (
                 SELECT name,
                            COUNT(DISTINCT quote_id) AS "Submissions in Year",
                            strftime('%Y', submission_date) AS "Year"
-                FROM quote
-                JOIN quote_participants ON submitter = participant_id
+                FROM {Quote.table_name}
+                JOIN {Participant.table_name} ON submitter = participant_id
                 GROUP BY name, Year
         ),
         avg_year_quotes AS (
@@ -584,18 +451,18 @@ async def _init_database():
 
         SELECT authors.name AS "Name",
                "Number of Quotes",
-                   ROUND(100.0 * COUNT(DISTINCT top.quote_id) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Quote %",
+                   ROUND(100.0 * COUNT(DISTINCT top.quote_id) / (SELECT COUNT(*) FROM {Quote.table_name}), 1) || '%' AS "Quote %",
                "Number of Submissions",
-                   ROUND(100.0 * ifnull(numsubs, 0) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Submission %",
+                   ROUND(100.0 * ifnull(numsubs, 0) / (SELECT COUNT(*) FROM {Quote.table_name}), 1) || '%' AS "Submission %",
                    COUNT(selfsub) AS "Self-Submissions",
                    ROUND(100.0 * COUNT(selfsub) / COUNT(DISTINCT top.quote_id), 1) || '%' AS "Self-Sub %",
                    ifnull("Quotes in Year", 0) AS "Quotes this Year",
                    ifnull("Submissions in Year", 0) AS "Submissions this Year",
-                   ROUND(ifnull("Avg. Yearly Quotes", 0), 2) AS "Avg. Yearly Quotes", 
+                   ROUND(ifnull("Avg. Yearly Quotes", 0), 2) AS "Avg. Yearly Quotes",
                    ROUND(ifnull("Avg. Yearly Subs", 0), 2) AS "Avg. Yearly Subs"
-        FROM quote AS "top"
-        JOIN quote_lines USING (quote_id)
-        JOIN quote_participants AS "authors" USING (participant_id)
+        FROM {Quote.table_name} AS "top"
+        JOIN {QuoteLine.table_name} USING (quote_id)
+        JOIN {Participant.table_name} AS "authors" USING (participant_id)
         JOIN quote_leaderboard AS "lb" ON authors.name = lb.name
         LEFT JOIN submissions ON authors.name = submissions.name
         LEFT JOIN self ON top.quote_id = self.quote_id
@@ -608,19 +475,8 @@ async def _init_database():
         CREATE VIEW IF NOT EXISTS quote_yearly_quotes AS
         SELECT COUNT(quote_id) AS "Quotes in Year",
                strftime('%Y', submission_date) AS "Year"
-        FROM quote
+        FROM {Quote.table_name}
         GROUP BY Year;
-
-        CREATE UNIQUE INDEX IF NOT EXISTS "idx_quote_participants_user_id"
-        ON "quote_participants" ("user_id");
-
-        CREATE TRIGGER IF NOT EXISTS tg_sync_participant_name
-        AFTER UPDATE OF name ON users
-        BEGIN
-            UPDATE quote_participants
-            SET name = new.name
-            WHERE user_id = new.user_id;
-        END;
     """)
 
 
@@ -876,11 +732,11 @@ async def fetch_quote(sql: str, params: Tuple = None,
         if case_sensitive:
             await cur.execute('PRAGMA case_sensitive_like = 0')
         row = await cur.fetchone()
-        while row and row[0] in recent_quotes['global']:
+        while row and row['quote_id'] in recent_quotes['global']:
             row = await cur.fetchone()
     if row is not None:
-        quote = await Quote.from_row(row)
-        recent_quotes['global'].append(row[0])
+        quote = await Quote.from_row(DB, row)
+        recent_quotes['global'].append(row['quote_id'])
     else:
         quote = None
     return quote
@@ -888,8 +744,8 @@ async def fetch_quote(sql: str, params: Tuple = None,
 
 async def get_random_quote() -> Optional[Quote]:
     """Fetch a random quote from the database."""
-    return await fetch_quote("""
-        SELECT * FROM quote
+    return await fetch_quote(f"""
+        SELECT * FROM {Quote.table_name}
         ORDER BY RANDOM() LIMIT cooldown() + 1
     """)
 
@@ -916,7 +772,7 @@ async def lookup_user(name: str) -> Optional[DBUser]:
     Searches for `name` in all relevant tables:
         - ``users``
         - ``aliases``
-        - ``quote_participants``
+        - ``participants``
 
     Parameters
     ----------
@@ -925,17 +781,17 @@ async def lookup_user(name: str) -> Optional[DBUser]:
     """
     user = None
     async with DB.cursor() as cur:
-        await cur.execute("""
+        await cur.execute(f"""
             SELECT user_id FROM (
                 SELECT user_id, name FROM users_all_names
                 UNION
-                SELECT user_id, name FROM quote_participants
+                SELECT user_id, name FROM {Participant.table_name}
             )
             WHERE name = ?
         """, (name,))
         row = await cur.fetchone()
         if row is not None:
-            user = await DBUser.from_id(row[0], DB)
+            user = await DBUser.from_id(DB, row[0])
         return user
 
 
@@ -949,7 +805,7 @@ async def get_participant(name: str) -> Participant:
     """
     user = await lookup_user(name)
     if user is not None:
-        participant = await Participant.from_user(user)
+        participant = await Participant.from_user(DB, user)
         if participant is not None:
             # Sync Participant.name with DBUser.name
             if participant.name != user.name:
@@ -957,8 +813,8 @@ async def get_participant(name: str) -> Participant:
                 await participant.save()
         else:
             async with DB.cursor() as cur:
-                await cur.execute("""
-                    SELECT * FROM quote_participants AS "qp"
+                await cur.execute(f"""
+                    SELECT * FROM {Participant.table_name} AS "qp"
                     WHERE qp.name IN (
                         SELECT name FROM users_all_names AS "u"
                         WHERE u.user_id = ?
@@ -968,20 +824,22 @@ async def get_participant(name: str) -> Participant:
             if row is not None:
                 # A user's name or alias matched a Participant's name. Link the
                 # Participant with this user.
-                assert row[-1] is None, \
-                    f"Participant shouldn't have a user_id here ({row[-1]})"
-                participant_id = row[0]
+                assert row['user_id'] is None, (
+                    "Participant shouldn't have a user_id here "
+                    f"({row['user_id']})")
+                participant_id = row['participant_id']
             else:
                 # The user has no matching Participant, so create a new one.
                 participant_id = None
-            participant = Participant(participant_id, user.name, user.id, user)
+            participant = Participant(
+                DB, participant_id, user.name, user.id, user)
             await participant.save()
     else:
         # Non-user Participant
-        participant = await Participant.from_name(name)
+        participant = await Participant.from_name(DB, name)
         if participant is None:
             # Completely new to the database
-            participant = Participant(None, name)
+            participant = Participant(DB, None, name)
             await participant.save()
     return participant
 
@@ -1067,7 +925,7 @@ async def quote_add(ctx, parsed):
         date = datetime.utcnow().replace(microsecond=0)
     author = await get_participant(parsed.args['author'])
     body = ' '.join(parsed.args['body'])
-    quote = Quote(None, submitter, date=date, style=style)
+    quote = Quote(DB, None, submitter, date=date, style=style)
 
     if parsed.args['multi']:
         extra = parsed.args['extra_authors'] or []
@@ -1123,14 +981,14 @@ async def quote_recent(ctx, parsed):
         WITH participant_names AS (
             SELECT participant_id,
                    group_concat(name, char(10)) AS "name_list"
-            FROM quote_participants_all_names
+            FROM participants_all_names
             GROUP BY participant_id
         )
         SELECT quote_id, submitter, submission_date, style
         FROM (
             SELECT *, row_number() OVER (PARTITION BY quote_id) AS "seqnum"
-            FROM quote
-            JOIN quote_lines USING (quote_id)
+            FROM {Quote.table_name}
+            JOIN {QuoteLine.table_name} USING (quote_id)
             JOIN participant_names AS "authors" USING (participant_id)
             JOIN participant_names AS "submitters"
                 ON submitter = submitters.participant_id
@@ -1150,7 +1008,8 @@ async def quote_recent(ctx, parsed):
         await cur.execute(*query)
         if case_sensitive:
             await cur.execute('PRAGMA case_sensitive_like = 0')
-        quotes = [await Quote.from_row(row) for row in await cur.fetchall()]
+        quotes = [
+            await Quote.from_row(DB, row) for row in await cur.fetchall()]
     results = []
     if count > 1:
         wrapper = textwrap.TextWrapper(
@@ -1171,23 +1030,23 @@ async def quote_search(ctx, parsed):
         return
     case_sensitive = parsed.args['case_sensitive']
     if parsed.args['id']:
-        query = ("""
-            SELECT * FROM quote WHERE quote_id = ?
+        query = (f"""
+            SELECT * FROM {Quote.table_name} WHERE quote_id = ?
             ORDER BY RANDOM() LIMIT cooldown() + 1
         """, (parsed.args['id'],))
     else:
-        sql = """
+        sql = f"""
             WITH participant_names AS (
                 SELECT participant_id,
                        group_concat(name, char(10)) AS "name_list"
-                FROM quote_participants_all_names
+                FROM participants_all_names
                 GROUP BY participant_id
             )
             SELECT quote_id, submitter, submission_date, style
             FROM (
                 SELECT *, row_number() OVER (PARTITION BY quote_id) AS "seqnum"
-                FROM quote
-                JOIN quote_lines USING (quote_id)
+                FROM {Quote.table_name}
+                JOIN {QuoteLine.table_name} USING (quote_id)
                 JOIN participant_names AS "authors" USING (participant_id)
                 JOIN participant_names AS "submitters"
                     ON submitter = submitters.participant_id
@@ -1283,12 +1142,12 @@ async def quote_stats(ctx, parsed):
                 WITH participant_names AS (
                     SELECT participant_id,
                            group_concat(name, char(10)) AS "name_list"
-                    FROM quote_participants_all_names
+                    FROM participants_all_names
                     GROUP BY participant_id
                 )
                 SELECT stats.Name, {chosen}
                 FROM quote_stats_user AS "stats"
-                JOIN quote_participants USING (name)
+                JOIN {Participant.table_name} USING (name)
                 JOIN participant_names AS "pn" USING (participant_id)
                 WHERE pn.name_list REGEXP ?
             """, (pattern,))
@@ -1371,7 +1230,7 @@ async def quote_stats_leaderboard(ctx, parsed, count):
                 WITH participant_names AS (
                     SELECT participant_id,
                            group_concat(name, char(10)) AS "name_list"
-                    FROM quote_participants_all_names
+                    FROM participants_all_names
                     GROUP BY participant_id
                 ),
                 pivot AS (
@@ -1383,7 +1242,7 @@ async def quote_stats_leaderboard(ctx, parsed, count):
                         ORDER BY {chosen_sort}
                     ) AS "Rank"
                     FROM quote_leaderboard
-                    JOIN quote_participants USING (name)
+                    JOIN {Participant.table_name} USING (name)
                     JOIN participant_names USING (participant_id)
                 )
                 SELECT Rank, Name, {chosen}
@@ -1480,7 +1339,7 @@ async def quote_quick(ctx, parsed):
         action, body = handle_action_line(msg.content, DiscordMessage(msg))
         lines.append((body, author, action))
 
-    quote = Quote(None, submitter, date=date, style=style)
+    quote = Quote(DB, None, submitter, date=date, style=style)
     for line in reversed(lines):
         await quote.add_line(*line)
     await quote.save()

@@ -8,10 +8,10 @@ import logging
 import re
 from datetime import datetime
 from string import Template
-from typing import Iterable, List, Union
+from typing import Iterable, List, Optional, Union
 
 from ZeroBot.common import CommandParser
-from ZeroBot.database import DBUser
+from ZeroBot.database import Participant
 
 MODULE_NAME = 'Counter'
 MODULE_AUTHOR = 'ZeroKnight'
@@ -42,8 +42,8 @@ class Counter:
                  count: int = 0, *, enabled: bool = True, muted: bool = False,
                  triggers: List[str] = None, restrictions: List[str] = None,
                  blacklist: List[str] = None, created_at: datetime = None,
-                 last_triggered: datetime = None, last_user: DBUser = None,
-                 last_channel: str = None):
+                 last_triggered: datetime = None,
+                 last_user: Participant = None, last_channel: str = None):
         now = datetime.utcnow().replace(microsecond=0)
         self.name = name
         self.description = description
@@ -87,7 +87,7 @@ class Counter:
             row = await cur.fetchone()
         if row is None:
             return False
-        self.last_user = await DBUser.from_id(row['last_user'], DB)
+        self.last_user = await Participant.from_id(DB, row['last_user'])
         for attr in ('count', 'created_at', 'last_triggered', 'last_channel'):
             setattr(self, attr, row[attr])
         return True
@@ -125,7 +125,8 @@ class Counter:
         """
         return CFG['Announce'] or self.muted
 
-    async def increment(self, n: int = 1, user: Union[DBUser, str] = None,
+    async def increment(self, n: int = 1,
+                        participant: Union[Participant, str] = None,
                         channel: str = None):
         """Increment the counter and update its metadata and the database.
 
@@ -136,7 +137,7 @@ class Counter:
         ----------
         n : int, optional
             The number to increment the counter by. Defaults to 1.
-        user : DBUser or str, optional
+        user : Participant or str, optional
             The user that caused the increment.
         channel : str, optional
             Where the increment occurred.
@@ -144,13 +145,14 @@ class Counter:
         self.count += n
         now = datetime.utcnow().replace(microsecond=0)
         async with DB.cursor() as cur:
-            if isinstance(user, str):
+            if isinstance(participant, str):
                 await cur.execute("""
-                    SELECT user_id FROM users_all_names
+                    SELECT participant_id FROM participants_all_names
                     WHERE name = ?
-                """, (user,))
+                """, (participant,))
                 row = await cur.fetchone()
-                user = await DBUser.from_id(row['user_id'], DB)
+                participant = await Participant.from_id(
+                    DB, row['participant_id'])
 
             await cur.execute("""
                 UPDATE counter SET
@@ -159,7 +161,7 @@ class Counter:
                     last_user = ?,
                     last_channel = ?
                 WHERE name = ?
-            """, (self.count, now, user.id, channel, self.name))
+            """, (self.count, now, participant.id, channel, self.name))
             await DB.commit()
 
 
@@ -188,7 +190,7 @@ async def module_unregister():
 
 
 async def _init_database():
-    await DB.execute("""
+    await DB.execute(f"""
         CREATE TABLE IF NOT EXISTS "counter" (
             "name"           TEXT NOT NULL UNIQUE,
             "count"          INTEGER NOT NULL DEFAULT 0,
@@ -196,9 +198,11 @@ async def _init_database():
             "last_triggered" DATETIME,
             "last_user"      INTEGER,
             "last_channel"   TEXT,
-            PRIMARY KEY("name"),
-            FOREIGN KEY("last_user")
-                REFERENCES "users"("user_id") ON DELETE SET NULL
+            PRIMARY KEY ("name"),
+            FOREIGN KEY ("last_user")
+                REFERENCES "{Participant.table_name}" ("participant_id")
+                ON DELETE SET NULL
+                ON UPDATE CASCADE
         ) WITHOUT ROWID
     """)
 
@@ -340,8 +344,7 @@ async def module_on_message(ctx, message):
             continue
         if (counter.can_trigger(sender.name)
                 and counter.check(message.clean_content)):
-            # TBD: do something similar to quote_participants for `last_user`?
-            await counter.increment(user=sender.name, channel=channel)
+            await counter.increment(participant=sender.name, channel=channel)
             if counter.should_announce():
                 announcement = counter.get_announcement(user=sender.name)
                 await ctx.module_message(message.destination, announcement)
@@ -362,7 +365,7 @@ async def module_command_count(ctx, parsed):
     except AttributeError:
         channel = parsed.invoker.name
     await counter.increment(
-        parsed.args['count'], user=sender.name, channel=channel)
+        parsed.args['count'], participant=sender.name, channel=channel)
     if parsed.args['quiet']:
         response = 'Okay, done.'
     else:

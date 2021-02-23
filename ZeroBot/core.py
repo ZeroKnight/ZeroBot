@@ -39,6 +39,7 @@ from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
                                        NoSuchModule, NotACommand,
                                        ZeroBotConfigError, ZeroBotModuleError)
 from ZeroBot.config import Config
+from ZeroBot.database import DBUser, DBUserAlias, Participant
 from ZeroBot.module import (CoreModule, Module, ProtocolModule,
                             ZeroBotModuleFinder)
 from ZeroBot.protocol.context import Context
@@ -269,6 +270,7 @@ class Core:
         self.database = self.eventloop.run_until_complete(
             zbdb.create_connection(self._db_path, self._dummy_module,
                                    self.eventloop))
+        self.eventloop.run_until_complete(self._init_database())
 
         # Register core commands
         self._register_commands()
@@ -353,6 +355,64 @@ class Core:
             'formatters': log_sec['Formatters'],
             'handlers': log_sec['Handlers']
         })
+
+    async def _init_database(self):
+        """Create core database objects."""
+        await self.database.executescript(f"""
+            CREATE TABLE IF NOT EXISTS "{DBUser.table_name}" (
+                "user_id"           INTEGER PRIMARY KEY AUTOINCREMENT,
+                "name"              TEXT NOT NULL UNIQUE,
+                "created_at"        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                "creation_flags"    INTEGER NOT NULL DEFAULT 0,
+                "creation_metadata" TEXT,
+                "comment"           TEXT
+            );
+            CREATE TABLE IF NOT EXISTS "{DBUserAlias.table_name}" (
+                "user_id"           INTEGER NOT NULL,
+                "alias"             TEXT NOT NULL,
+                "case_sensitive"    BOOLEAN NOT NULL DEFAULT 0 CHECK(case_sensitive IN (0,1)),
+                "created_at"        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                "creation_flags"    INTEGER NOT NULL DEFAULT 0,
+                "creation_metadata" TEXT,
+                "comment"           TEXT,
+                PRIMARY KEY ("user_id", "alias"),
+                FOREIGN KEY ("user_id") REFERENCES "{DBUser.table_name}" ("user_id")
+                    ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS "{Participant.table_name}" (
+                "participant_id" INTEGER NOT NULL,
+                "name"           TEXT NOT NULL UNIQUE,
+                "user_id"        INTEGER,
+                PRIMARY KEY ("participant_id"),
+                FOREIGN KEY ("user_id") REFERENCES "{DBUser.table_name}" ("user_id")
+                    ON DELETE SET NULL
+            );
+
+            CREATE VIEW IF NOT EXISTS users_all_names (user_id, name) AS
+                SELECT user_id, name FROM {DBUser.table_name}
+                UNION
+                SELECT user_id, alias FROM {DBUserAlias.table_name};
+
+            CREATE VIEW IF NOT EXISTS participants_all_names AS
+                SELECT participant_id, name FROM "{Participant.table_name}"
+                UNION
+                SELECT participant_id, {DBUser.table_name}.name FROM users
+                JOIN "{Participant.table_name}" USING (user_id)
+                UNION
+                SELECT participant_id, alias FROM {DBUserAlias.table_name}
+                JOIN "{Participant.table_name}" USING (user_id);
+
+            CREATE UNIQUE INDEX IF NOT EXISTS "idx_participants_user_id"
+            ON "{Participant.table_name}" ("user_id");
+
+            CREATE TRIGGER IF NOT EXISTS tg_sync_participant_name
+            AFTER UPDATE OF name ON {DBUser.table_name}
+            BEGIN
+                UPDATE "{Participant.table_name}"
+                SET name = new.name
+                WHERE user_id = new.user_id;
+            END;
+        """)
 
     def _register_commands(self):
         """Create and register core commands."""

@@ -10,7 +10,7 @@ import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import AnyStr, Dict, Iterator, Optional, Tuple, Union
+from typing import AnyStr, Dict, Iterator, Optional, Union
 
 import aiosqlite
 
@@ -64,7 +64,39 @@ class Connection(sqlite3.Connection):
         super().close()
 
 
-class DBUserInfo:
+class DBModel:
+    """Base class for classes modelled after database entities.
+
+    Parameters
+    ----------
+    connection : Connection
+        A connection to the database containing this entity.
+
+    Attributes
+    ----------
+    table_name : str, optional
+        Class attribute that sets the name of the database table that this
+        model is based on. If not specified, will default to the lowercased
+        name of the class.
+    """
+
+    table_name = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls.table_name is None:
+            cls.table_name = cls.__name__.lower()
+        return super().__new__(cls)
+
+    def __init__(self, connection: Connection):
+        self._connection = connection
+
+    @property
+    def connection(self) -> Connection:
+        """The connection to the database for this model."""
+        return self._connection
+
+
+class DBUserInfo(DBModel):
     """Base mixin for database users/aliases.
 
     Parameters
@@ -88,9 +120,13 @@ class DBUserInfo:
     id : int
     """
 
-    def __init__(self, user_id: int, name: str, *,
+    table_name = None
+
+    def __init__(self, conn: Connection, user_id: int, name: str, *,
                  created_at: datetime = None, creation_flags: int = 0,
-                 creation_metadata: Dict = None, comment: str = None):
+                 creation_metadata: Dict = None, comment: str = None,
+                 **kwargs):
+        super().__init__(conn)
         self._id = user_id
         self.name = name
         if created_at is None:
@@ -124,56 +160,60 @@ class DBUser(DBUserInfo):
     whatever else a given module sees fit.
     """
 
+    table_name = 'users'
+
     @classmethod
-    def from_row(cls, row: Tuple) -> 'DBUser':
+    def from_row(cls, conn: Connection, row: sqlite3.Row) -> 'DBUser':
         """Construct a `DBUser` from a database row.
 
         Parameters
         ----------
-        row : Tuple
+        conn : Connection
+            The database connection to use.
+        row : sqlite3.Row
             A row returned from the database.
         """
-        metadata = json.loads(row[4]) if row[4] is not None else None
-        return cls(
-            user_id=row[0], name=row[1], created_at=row[2],
-            creation_flags=row[3], creation_metadata=metadata, comment=row[5]
-        )
+        attrs = {
+            name: row[name] for name in
+            ('user_id', 'name', 'created_at', 'creation_flags', 'comment')
+        }
+        if row['creation_metadata'] is not None:
+            metadata = json.loads(row['creation_metadata'])
+        else:
+            metadata = None
+        return cls(conn, creation_metadata=metadata, **attrs)
 
     @classmethod
-    async def from_id(cls, user_id: int,
-                      conn: Connection) -> Optional['DBUser']:
+    async def from_id(cls, conn: Connection,
+                      user_id: int) -> Optional['DBUser']:
         """Construct a specific `DBUser` from the database.
 
         Returns `None` if the given ID was not found.
 
         Parameters
         ----------
-        user_id : int
-            The ID of the user to fetch.
         conn : Connection
             The database connection to use.
+        user_id : int
+            The ID of the user to fetch.
         """
         async with conn.cursor() as cur:
             await cur.execute(
-                'SELECT * FROM users WHERE user_id = ?', (user_id,))
+                f'SELECT * FROM {cls.table_name} WHERE user_id = ?',
+                (user_id,))
             row = await cur.fetchone()
         if row is not None:
-            return cls.from_row(row)
+            return cls.from_row(conn, row)
         return None
 
-    async def get_aliases(self, conn: Connection) -> Iterator['DBUserAlias']:
-        """Generator that fetches a list of this user's aliases, if any.
-
-        Parameters
-        ----------
-        conn : ZeroBot.database.Connection
-            The database connection to use to fetch the aliases.
-        """
-        async with conn.cursor() as cur:
+    async def get_aliases(self) -> Iterator['DBUserAlias']:
+        """Generator that fetches a list of this user's aliases, if any."""
+        async with self._connection.cursor() as cur:
             await cur.execute(
-                'SELECT * FROM aliases WHERE user_id = ?', (self.id))
+                f'SELECT * FROM {DBUserAlias.table_name} WHERE user_id = ?',
+                (self.id,))
             while row := await cur.fetchone():
-                yield DBUserAlias.from_row(row, self)
+                yield DBUserAlias.from_row(self._connection, row, self)
 
 
 class DBUserAlias(DBUserInfo):
@@ -188,6 +228,8 @@ class DBUserAlias(DBUserInfo):
     *args, **kwargs
         Extra arguments are passed to the `DBUserInfo` constructor.
     """
+
+    table_name = 'aliases'
 
     def __init__(self, *args, user: DBUser = None,
                  case_sensitive: bool = False, **kwargs):
@@ -206,33 +248,199 @@ class DBUserAlias(DBUserInfo):
         return f'<{self.__class__.__name__} {repr_str}>'
 
     @classmethod
-    def from_row(cls, row: Tuple, user: DBUser = None) -> 'DBUserAlias':
+    def from_row(cls, conn: Connection, row: sqlite3.Row,
+                 user: DBUser = None) -> 'DBUserAlias':
         """Construct a `DBUserAlias` from a database row.
-
-        Parameters
-        ----------
-        row : Tuple
-            A row returned from the database.
-        """
-        metadata = json.loads(row[5]) if row[5] is not None else None
-        return cls(
-            user_id=row[0], name=row[1], user=user, case_sensitive=row[2],
-            created_at=row[3], creation_flags=row[4],
-            creation_metadata=metadata, comment=row[6]
-        )
-
-    async def fetch_user(self, conn: Connection) -> DBUser:
-        """Fetch the `DBUser` associated with this alias.
-
-        Sets `self.user` to the fetched `DBUser` and returns it.
 
         Parameters
         ----------
         conn : Connection
             The database connection to use.
+        row : sqlite3.Row
+            A row returned from the database.
+        user : DBUser, optional
+            The `DBUser` associated with this alias.
         """
-        self.user = await DBUser.from_id(self.id, conn)
+        attrs = {
+            name: row[name] for name in
+            ('user_id', 'name', 'created_at', 'creation_flags', 'comment',
+             'case_sensitive')
+        }
+        if row['creation_metadata'] is not None:
+            metadata = json.loads(row['creation_metadata'])
+        else:
+            metadata = None
+        return cls(
+            connection=conn, user=user, creation_metadata=metadata, **attrs)
+
+    async def fetch_user(self) -> Optional[DBUser]:
+        """Fetch the `DBUser` associated with this alias.
+
+        Sets `self.user` to the fetched `DBUser` and returns it.
+        """
+        self.user = await DBUser.from_id(self._connection, self.id)
         return self.user
+
+
+class Participant(DBModel):
+    """A distinct, named entity used by the database.
+
+    Participants may or may not be linked to a `DBUser`. If they aren't, they
+    can be considered a "soft" user of sorts.
+
+    Parameters
+    ----------
+    participant_id : int
+        The participant's ID.
+    name : str
+        The name of the participant.
+    user_id : int, optional
+        The participant's user ID, if it has one.
+    user : DBUser, optional
+        The user linked to this participant.
+
+    Attributes
+    ----------
+    id
+    """
+
+    table_name = 'participants'
+
+    def __init__(self, conn: Connection, participant_id: int, name: str, *,
+                 user_id: int = None, user: DBUser = None):
+        super().__init__(conn)
+        self.id = participant_id
+        self.name = name
+        self.user_id = user_id
+        if user is not None and user.id != self.user_id:
+            raise ValueError(
+                'The given user.id does not match user_id: '
+                f'{user.id=} {self.user_id=}')
+        self.user = user
+
+    def __repr__(self):
+        attrs = ['id', 'name', 'user']
+        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
+        return f'<{self.__class__.__name__} {repr_str}>'
+
+    def __str__(self):
+        return self.name
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    @classmethod
+    def from_row(cls, conn: Connection, row: sqlite3.Row,
+                 user: DBUser = None) -> 'Participant':
+        """Construct a `DBUserAlias` from a database row.
+
+        Parameters
+        ----------
+        conn : Connection
+            The database connection to use.
+        row : sqlite3.Row
+            A row returned from the database.
+        user : DBUser, optional
+            The `DBUser` associated with this alias.
+        """
+        attrs = {
+            name: row[name] for name in ('participant_id', 'name', 'user_id')}
+        return cls(conn, user=user, **attrs)
+
+    @classmethod
+    async def from_id(cls, conn: Connection,
+                      participant_id: int) -> Optional['Participant']:
+        """Construct a `Participant` by ID from the database.
+
+        Returns `None` if there was no `Participant` with the given ID.
+
+        Parameters
+        ----------
+        conn : Connection
+            The database connection to use.
+        participant_id : int
+            The ID of the participant to fetch.
+        """
+        async with conn.cursor() as cur:
+            await cur.execute(
+                'SELECT * FROM participants WHERE participant_id = ?',
+                (participant_id,))
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        user = await DBUser.from_id(conn, row['user_id'])
+        return cls.from_row(conn, row, user)
+
+    @classmethod
+    async def from_name(cls, conn: Connection,
+                        name: str) -> Optional['Participant']:
+        """Construct a `Participant` by name from the database.
+
+        Parameters
+        ----------
+        conn : Connection
+            The database connection to use.
+        name : str
+            The name of the participant to fetch.
+        """
+        async with conn.cursor() as cur:
+            await cur.execute(
+                f'SELECT * FROM {cls.table_name} WHERE name = ?', (name,))
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        user = await DBUser.from_id(conn, row['user_id'])
+        return cls.from_row(conn, row, user)
+
+    @classmethod
+    async def from_user(cls, conn: Connection,
+                        user: Union[DBUser, int]) -> 'Participant':
+        """Construct a `Participant` linked to the given user.
+
+        Parameters
+        ----------
+        conn : Connection
+            The database connection to use.
+        user : DBUser or int
+            The linked user to search for. May be a `DBUser` object or an `int`
+            referring to a user ID.
+        """
+        try:
+            user_id = user.id
+        except AttributeError:
+            user_id = int(user)
+        async with conn.cursor() as cur:
+            await cur.execute(
+                f'SELECT * FROM {cls.table_name} WHERE user_id = ?',
+                (user_id,))
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        if not isinstance(user, DBUser):
+            user = await DBUser.from_id(conn, row['user_id'])
+        return cls.from_row(conn, row, user)
+
+    async def fetch_user(self, conn: Connection) -> DBUser:
+        """Fetch the database user linked to this participant.
+
+        Sets `self.user` to the fetched `DBUser` and returns it.
+        """
+        if self.user_id is None:
+            raise ValueError('Participant has no linked user.')
+        self.user = await DBUser.from_id(conn, self.user_id)
+        return self.user
+
+    async def save(self):
+        """Save this `Participant` to the database."""
+        async with self._connection.cursor() as cur:
+            await cur.execute(f"""
+                INSERT INTO {self.table_name} VALUES (?, ?, ?)
+                ON CONFLICT (participant_id) DO UPDATE SET
+                    name = excluded.name,
+                    user_id = excluded.user_id
+            """, (self.id, self.name, self.user_id))
+            self.id = cur.lastrowid
+            await self._connection.commit()
 
 
 async def create_connection(database: Union[str, Path], module: Module,
