@@ -658,7 +658,8 @@ class Core:
             raise TypeError("feature type expects 'str' or 'Module', not "
                             f"'{type(feature)}'")
         try:
-            await module.handle.module_unregister()
+            if getattr(module.handle, 'module_unregister'):
+                await module.handle.module_unregister()
         except Exception:
             self.logger.warning(
                 'Ignoring exception in module_unregister', exc_info=True)
@@ -1174,8 +1175,9 @@ class Core:
         self.logger.debug('Unregistering feature modules.')
         for feature in self._features.values():
             try:
-                self.eventloop.run_until_complete(
-                    feature.handle.module_unregister())
+                if getattr(feature.handle, 'module_unregister'):
+                    self.eventloop.run_until_complete(
+                        feature.handle.module_unregister())
             except Exception:
                 self.logger.exception(
                     'Exception occurred while unregistering feature '
@@ -1183,9 +1185,10 @@ class Core:
         self.logger.debug('Unregistering protocol modules.')
         for protocol in self._protocols.values():
             try:
-                self.eventloop.run_until_complete(
-                    protocol.handle.module_unregister(protocol.contexts,
-                                                      self._shutdown_reason))
+                if getattr(protocol.handle, 'module_unregister'):
+                    self.eventloop.run_until_complete(
+                        protocol.handle.module_unregister(
+                            protocol.contexts, self._shutdown_reason))
             except Exception:
                 self.logger.exception(
                     'Exception occurred while unregistering protocol '
