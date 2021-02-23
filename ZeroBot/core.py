@@ -1499,8 +1499,10 @@ class Core:
             delay = float(delay.replace(suffix, '')) * factor[suffix]
         cmd = parsed.args['command']
         args = ' '.join(parsed.args['args']) or None
+        # XXX: Should have a proper way to do this in abc.Message
         parsed.msg.content = f'{self.cmdprefix}{cmd}'
         parsed.msg.content += f' {args}' if args else ''
+        parsed.msg.clean_content = parsed.msg.content
         await self.module_commanded(parsed.msg, ctx, delay)
 
     async def module_command_cancel(self, ctx, parsed):
