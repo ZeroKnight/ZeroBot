@@ -221,9 +221,9 @@ def _register_commands():
         help='Increment the counter without announcing it.')
     cmds.append(cmd_count)
 
-    cmd_counters = CommandParser(
-        'counters', 'List available counters or show their current counts.')
-    add_subcmd = cmd_counters.make_adder(
+    cmd_counter = CommandParser(
+        'counter', 'List available counters or show their current counts.')
+    add_subcmd = cmd_counter.make_adder(
         metavar='OPERATION', dest='subcmd', required=True)
     subcmd_announce = add_subcmd(
         'announce',
@@ -241,7 +241,7 @@ def _register_commands():
     subcmd_info = add_subcmd(
         'info', 'Show information about available counters.')
     subcmd_info.add_argument('counter', help='The counter to show info for.')
-    cmds.append(cmd_counters)
+    cmds.append(cmd_counter)
 
     CORE.command_register(MOD_ID, *cmds)
 
@@ -377,8 +377,8 @@ async def module_command_count(ctx, parsed):
 
 
 # TODO: How to handle `$user` when announcing restricted counters?
-async def module_command_counters(ctx, parsed):
-    """Handle `counters` command."""
+async def module_command_counter(ctx, parsed):
+    """Handle `counter` command."""
     subcmd = parsed.subcmd
     if subcmd == 'announce':
         try:
