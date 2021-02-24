@@ -420,14 +420,14 @@ class Participant(DBModel):
             user = await DBUser.from_id(conn, row['user_id'])
         return cls.from_row(conn, row, user)
 
-    async def fetch_user(self, conn: Connection) -> DBUser:
+    async def fetch_user(self) -> DBUser:
         """Fetch the database user linked to this participant.
 
         Sets `self.user` to the fetched `DBUser` and returns it.
         """
         if self.user_id is None:
             raise ValueError('Participant has no linked user.')
-        self.user = await DBUser.from_id(conn, self.user_id)
+        self.user = await DBUser.from_id(self._connection, self.user_id)
         return self.user
 
     async def save(self):
