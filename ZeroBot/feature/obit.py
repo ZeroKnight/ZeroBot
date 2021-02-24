@@ -134,7 +134,15 @@ async def get_participant(target: Union[int, str]) -> Optional[Participant]:
     target : int or str
         A Participant ID or name to look up.
     """
-    what = {'str': 'an.name', 'int': 'participant_id'}[type(target).__name__]
+    if isinstance(target, str):
+        if target.strip() == '':
+            raise ValueError('Name is empty or whitespace')
+        what = 'an.name'
+    elif isinstance(target, int):
+        what = 'participant_id'
+    else:
+        raise TypeError('target must be either int or str')
+
     async with DB.cursor() as cur:
         await cur.execute(f"""
             SELECT participant_id, participants.name, user_id
@@ -223,7 +231,7 @@ async def update_death_toll(killer: Participant, victim: Participant):
 async def module_command_obit(ctx, parsed):
     """Handle `obit` command."""
     killer = await get_participant(parsed.invoker.name)
-    if parsed.args['victim'] is None:
+    if not parsed.args['victim']:
         # No victim specified, so the invoker dies. Random chance dictates
         # whether it's a suicide, or the killer is chosen at random from the
         # current channel.
