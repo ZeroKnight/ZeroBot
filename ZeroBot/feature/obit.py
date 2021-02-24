@@ -137,9 +137,9 @@ async def get_participant(target: Union[int, str]) -> Optional[Participant]:
     if isinstance(target, str):
         if target.strip() == '':
             raise ValueError('Name is empty or whitespace')
-        what = 'an.name'
+        what = 'an.name = ?1 OR lower(an.name) = lower(?1)'
     elif isinstance(target, int):
-        what = 'participant_id'
+        what = 'participant_id = ?1'
     else:
         raise TypeError('target must be either int or str')
 
@@ -148,7 +148,7 @@ async def get_participant(target: Union[int, str]) -> Optional[Participant]:
             SELECT participant_id, participants.name, user_id
             FROM participants
             JOIN participants_all_names AS "an" USING (participant_id)
-            WHERE {what} = ?
+            WHERE {what}
         """, (target,))
         row = await cur.fetchone()
         if row is None:
