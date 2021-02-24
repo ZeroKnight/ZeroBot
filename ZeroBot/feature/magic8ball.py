@@ -47,6 +47,7 @@ CLASSIC_PHRASES = [
     'Outlook not so good',
     'Very doubtful'
 ]
+DEFAULT_COOLDOWN = 10
 
 recent_phrases = {}
 
@@ -88,16 +89,16 @@ async def module_register(core):
     global CORE, CFG, DB, recent_phrases
     CORE = core
 
-    DB = await core.database_connect(MOD_ID)
-    await DB.create_function(
-        'cooldown', 0, lambda: CFG.get('PhraseCooldown', 0))
-    await _init_database()
-
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     # FIXME: if going the monolithic route, check if it's loaded first
     CFG = core.load_config('modules')['Magic8Ball']
+    cooldown = CFG.get('PhraseCooldown', DEFAULT_COOLDOWN)
     for rtype in ResponseType:
-        recent_phrases[rtype.name] = deque(maxlen=CFG.get('PhraseCooldown', 0))
+        recent_phrases[rtype.name] = deque(maxlen=cooldown)
+
+    DB = await core.database_connect(MOD_ID)
+    await DB.create_function('cooldown', 0, lambda: cooldown)
+    await _init_database()
 
     _register_commands()
 
@@ -154,14 +155,14 @@ async def fetch_part(rtype: Union[ResponseType, Tuple[ResponseType]],
     """, tuple(x.value for x in rtype) + (expects_action,))
     part = None
     rows = await results.fetchall()
-    if CFG.get('PhraseCooldown', 0):
+    if cooldown := CFG.get('PhraseCooldown', DEFAULT_COOLDOWN):
         for row in rows:
             name = ResponseType(row['response_type']).name
             if row['response'] not in recent_phrases[name]:
                 part = row
                 recent_phrases[name].append(part['response'])
                 break
-        if part is None and len(rows) <= CFG['PhraseCooldown']:
+        if part is None and len(rows) <= cooldown:
             # We have fewer phrases than the cooldown limit, so ignore it
             part = rows[0]
     else:
@@ -171,7 +172,7 @@ async def fetch_part(rtype: Union[ResponseType, Tuple[ResponseType]],
 
 def _resize_phrase_deques():
     for name in ResponseType.__members__.keys():
-        new_len = CFG['PhraseCooldown']
+        new_len = CFG.get('PhraseCooldown', DEFAULT_COOLDOWN)
         if new_len == recent_phrases[name].maxlen:
             break
         recent_phrases[name] = deque(
