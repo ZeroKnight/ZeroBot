@@ -238,6 +238,9 @@ def _register_commands():
         'counter', nargs='*',
         help=('Get counts only for the specified counters. If omitted, all '
               'available counters will be lsited.'))
+    subcmd_list.add_argument(
+        '-f', '--full', action='store_true',
+        help='Show current count and descriptions for each counter as well.')
     subcmd_info = add_subcmd(
         'info', 'Show information about available counters.')
     subcmd_info.add_argument('counter', help='The counter to show info for.')
@@ -391,16 +394,28 @@ async def module_command_counter(ctx, parsed):
             user = or_join(counter.restrictions)
         response = counter.get_announcement(user=user)
     elif subcmd == 'list':
-        lines = []
+        lines, found, not_found = [], [], []
         if parsed.args['counter']:
-            target_counters = {
-                name: counters[name] for name in parsed.args['counter']}
+            for counter in parsed.args['counter']:
+                if counter in counters:
+                    found.append(counter)
+                else:
+                    not_found.append(counter)
         else:
-            target_counters = counters
-        for name, counter in target_counters.items():
-            lines.append(
-                f'[**{name}**] ({counter.count}) - {counter.description}')
-        response = '**Available Counters**\n' + '\n'.join(lines)
+            found = counters.keys()
+        if found:
+            lines.append('**Available Counters**')
+            if parsed.args['full']:
+                for name in found:
+                    counter = counters[name]
+                    lines.append(
+                        f'[**{name}**] ({counter.count}) - '
+                        f'{counter.description}')
+            else:
+                lines.append(', '.join(found))
+        if not_found:
+            lines.append('\n**No such Counter**: ' + ', '.join(not_found))
+        response = '\n'.join(lines)
     elif subcmd == 'info':
         try:
             counter = counters[parsed.args['counter']]
