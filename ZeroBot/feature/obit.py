@@ -311,6 +311,7 @@ async def module_command_obitdb(ctx, parsed):
     """Handle `obitdb` command."""
     if parsed.subcmd in ('add', 'del'):
         content = ' '.join(parsed.args['content']).strip()
+        content = re.sub(r'\B@(\S+)', r'\1', content)
         if not content:
             await CORE.module_send_event('invalid_command', ctx, parsed.msg)
             return
