@@ -88,7 +88,7 @@ async def _init_database():
             "type"       INTEGER NOT NULL DEFAULT 1,
             "submitter"  INTEGER NOT NULL DEFAULT 0,
             "date_added" DATETIME DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY ("content"),
+            PRIMARY KEY ("content", "type"),
             FOREIGN KEY ("submitter")
                 REFERENCES "{Participant.table_name}" ("participant_id")
                 ON DELETE SET DEFAULT
