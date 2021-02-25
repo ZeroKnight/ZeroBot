@@ -338,6 +338,14 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
         return
     date = datetime.utcnow().replace(microsecond=0)
     submitter = await get_participant(parsed.invoker.name)
+
+    # Quality heuristics
+    if otype is ObitPart.Kill:
+        if content.endswith(' with'):
+            content = content[:-5]
+        if '$victim' not in content:
+            content += ' $victim'
+
     async with DB.cursor() as cur:
         await cur.execute(
             'INSERT INTO obit_strings VALUES(?, ?, ?, ?)',
