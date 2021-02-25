@@ -7,6 +7,7 @@ modifiers.
 
 import logging
 import random
+import re
 import sqlite3
 from collections import deque
 from datetime import datetime
@@ -37,6 +38,7 @@ DEFAULT_SUICIDE_CHANCE = 33
 DEFAULT_ZEROBOT_SUICIDE_CHANCE = 2
 
 recent_parts = {}
+victim_placeholder_pat = re.compile(r'\$(?:\{victim\}|victim)')
 
 
 @unique
@@ -343,7 +345,7 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
     if otype is ObitPart.Kill:
         if content.endswith(' with'):
             content = content[:-5]
-        if '$victim' not in content:
+        if not victim_placeholder_pat.search(content):
             content += ' $victim'
 
     async with DB.cursor() as cur:
