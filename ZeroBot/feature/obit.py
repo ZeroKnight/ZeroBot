@@ -9,6 +9,7 @@ import logging
 import random
 import sqlite3
 from collections import deque
+from datetime import datetime
 from enum import Enum, unique
 from string import Template
 from typing import Optional, Union
@@ -108,7 +109,37 @@ def _register_commands():
         'victim', nargs='*', help='The poor sap to destroy')
     cmds.append(cmd_obit)
 
-    # TODO: add, remove, stats commands
+    type_list = 'kill method, weapon, closer, or suicide'
+    cmd_obitdb = CommandParser(
+        'obitdb', 'Modify or query the obituary database.')
+    add_subcmd = cmd_obitdb.make_adder(
+        metavar='OPERATION', dest='subcmd', required=True)
+    subcmd_add = add_subcmd(
+        'add', f'Add a new {type_list} to the database.', aliases=['new'])
+    subcmd_add.add_argument(
+        'type', choices=[otype.name.lower() for otype in ObitPart],
+        type=str.lower, help='The type of obituary part to add.')
+    subcmd_add.add_argument(
+        'content', nargs='+',
+        help=('The content to add. The following placeholders are recognized '
+              'and will be expanded appropriately: `$killer`, `$victim`, and '
+              '`$zerobot`. Wrap the placeholder name in curly braces to '
+              'expand them within a word, e.g. `${killer}Man`. Reference '
+              'existing obituaries to see how to phrase your content.'))
+    subcmd_del = add_subcmd(
+        'del', f'Remove a {type_list} from the database.',
+        aliases=['rm', 'remove', 'delete'])
+    subcmd_del.add_argument(
+        'type', choices=[otype.name.lower() for otype in ObitPart],
+        type=str.lower, help='The type of obituary part to remove.')
+    subcmd_del.add_argument(
+        'content', nargs='+',
+        help=('The content to remove. Must exactly match an existing entry, '
+              'with placeholders NOT expanded, i.e. `$killer` as-is. Refer to '
+              'the `add` subcommand help for more details.'))
+    cmds.append(cmd_obitdb)
+
+    # TODO: stats command
 
     CORE.command_register(MOD_ID, *cmds)
 
@@ -272,3 +303,60 @@ async def module_command_obit(ctx, parsed):
     await update_death_toll(killer, victim)
     await ctx.module_message(
         parsed.source, obituary.safe_substitute(placeholders))
+
+
+async def module_command_obitdb(ctx, parsed):
+    """Handle `obitdb` command."""
+    if parsed.subcmd in ('add', 'del'):
+        content = ' '.join(parsed.args['content']).strip()
+        if not content:
+            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            return
+        type_ = getattr(ObitPart, parsed.args['type'].title())
+        await globals()[f'obit_{parsed.subcmd}'](ctx, parsed, type_, content)
+    else:
+        ...  # TODO
+
+
+async def obit_exists(otype: ObitPart, content: str) -> bool:
+    """Check if the given obituary part content exists."""
+    async with DB.cursor() as cur:
+        await cur.execute("""
+            SELECT EXISTS(
+                SELECT 1 FROM obit_strings
+                WHERE type = ? AND content = ?
+            )
+        """, (otype.value, content))
+        return bool((await cur.fetchone())[0])
+
+
+async def obit_add(ctx, parsed, otype: ObitPart, content: str):
+    """Add an obituary part to the database."""
+    if await obit_exists(otype, content):
+        await ctx.reply_command_result(
+            parsed, f'There is already a {otype.name}: `{content}`')
+        return
+    date = datetime.utcnow().replace(microsecond=0)
+    submitter = await get_participant(parsed.invoker.name)
+    async with DB.cursor() as cur:
+        await cur.execute(
+            'INSERT INTO obit_strings VALUES(?, ?, ?, ?)',
+            (content, otype.value, submitter.id, date))
+    await DB.commit()
+    await ctx.module_message(
+        parsed.source, f'Okay, adding {otype.name}: `{content}`')
+
+
+async def obit_del(ctx, parsed, otype: ObitPart, content: str):
+    """Remove an obituary part from the database."""
+    if not await obit_exists(otype, content):
+        await ctx.reply_command_result(
+            parsed, f"Couldn't find {otype.name}: `{content}`")
+        return
+    async with DB.cursor() as cur:
+        await cur.execute(
+            'DELETE FROM obit_strings WHERE type = ? AND content = ?',
+            (otype.value, content))
+    await DB.commit()
+    await ctx.module_message(
+        parsed.source, f'Okay, removed {otype.name}: `{content}`')
