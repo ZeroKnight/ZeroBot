@@ -301,11 +301,12 @@ async def module_command_obit(ctx, parsed):
         placeholders['victim'] = 'themself'
     else:
         closer = (await fetch_part(ObitPart.Closer))['content']
-    obituary = Template(f'{killer} {killed} with {weapon} {closer}')
+    obit_template = Template(f'{killer} {killed} with {weapon} {closer}')
+    obituary = obit_template.safe_substitute(placeholders) \
+                            .replace("themself's", 'their')
 
     await update_death_toll(killer, victim)
-    await ctx.module_message(
-        parsed.source, obituary.safe_substitute(placeholders))
+    await ctx.module_message(parsed.source, obituary)
 
 
 async def module_command_obitdb(ctx, parsed):
