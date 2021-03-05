@@ -12,7 +12,7 @@ import sqlite3
 from collections import deque
 from datetime import datetime
 from enum import Enum, unique
-from string import Template
+from string import Template, punctuation
 from typing import Optional, Union
 
 from ZeroBot.common import CommandParser
@@ -142,6 +142,7 @@ def _register_commands():
     cmds.append(cmd_obitdb)
 
     # TODO: stats command
+    # TODO: edit command; basically an rm then add. also support s/// syntax?
 
     CORE.command_register(MOD_ID, *cmds)
 
@@ -343,11 +344,20 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
     submitter = await get_participant(parsed.invoker.name)
 
     # Quality heuristics
+    if len(content) > 200:
+        await ctx.reply_command_result(
+            parsed, "That's too long, cut it down some.")
     if otype is ObitPart.Kill:
         if content.endswith(' with'):
             content = content[:-5]
         if not victim_placeholder_pat.search(content):
             content += ' $victim'
+    elif otype in (ObitPart.Closer, ObitPart.Suicide):
+        if content[0] in punctuation and not content.startswith('...'):
+            await ctx.reply_command_result(
+                parsed,
+                "Don't start closers with punctuation (ellipses are fine).")
+        return
 
     async with DB.cursor() as cur:
         await cur.execute(
