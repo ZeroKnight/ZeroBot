@@ -284,7 +284,8 @@ async def module_command_obit(ctx, parsed):
                 chosen = random.choice((ctx.user, parsed.source.recipient))
             else:
                 chosen = random.choice(parsed.source.members)
-            victim = await get_participant(chosen.name)
+            victim = killer
+            killer = await get_participant(chosen.name)
     else:
         victim = await get_participant(
             ' '.join(parsed.args['victim']).lstrip('@'))
