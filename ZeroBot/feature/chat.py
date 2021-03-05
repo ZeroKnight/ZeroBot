@@ -12,7 +12,7 @@ from collections import deque
 from enum import Enum, unique
 from typing import Iterable, Tuple
 
-from ZeroBot.common import CommandParser
+from ZeroBot.common import CommandParser, rand_chance
 
 MODULE_NAME = 'Chat'
 MODULE_AUTHOR = 'ZeroKnight'
@@ -27,9 +27,10 @@ MOD_ID = __name__.rsplit('.', 1)[-1]
 
 DOTCHARS = ('.!?\xA1\xBF\u203C\u203D\u2047\u2048\u2049\u2753\u2754\u2755\u2757'
             '\u2E2E\uFE56\uFE57\uFF01\uFF1F')
-
 PATTERN_WAT = re.compile(r'(?:h+w+|w+h*)[aou]+t\s*\??\s*$')
 PATTERN_DOTS = re.compile(r'^\s*[' + DOTCHARS + r']+\s*$')
+
+DEFAULT_BERATE_CHANCE = 0.5
 
 tables = ['badcmd', 'berate', 'greetings', 'mentioned', 'questioned']
 recent_phrases = {}
@@ -205,7 +206,7 @@ async def module_on_message(ctx, message):
 
     # Berate
     if CFG.get('Berate.Enabled') and sender.name in CFG.get('Berate.UserList'):
-        if random.random() <= CFG['Berate.Chance'] / 100:
+        if rand_chance(CFG.get('Berate.Chance', DEFAULT_BERATE_CHANCE)):
             phrase, action = await fetch_phrase('berate', ['action'])
             phrase.replace('%0', sender.name)
             await ctx.module_message(message.destination, phrase, action)

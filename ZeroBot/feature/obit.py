@@ -15,7 +15,7 @@ from enum import Enum, unique
 from string import Template, punctuation
 from typing import Optional, Union
 
-from ZeroBot.common import CommandParser
+from ZeroBot.common import CommandParser, rand_chance
 from ZeroBot.database import DBUser, Participant
 
 MODULE_NAME = 'Obit'
@@ -33,9 +33,9 @@ MOD_ID = __name__.rsplit('.', 1)[-1]
 
 logger = logging.getLogger('ZeroBot.Feature.Obit')
 
-DEFAULT_COOLDOWN = 10
-DEFAULT_SUICIDE_CHANCE = 33
-DEFAULT_ZEROBOT_SUICIDE_CHANCE = 2
+DEFAULT_COOLDOWN = 0.1
+DEFAULT_SUICIDE_CHANCE = 0.33
+DEFAULT_ZEROBOT_SUICIDE_CHANCE = 0.02
 
 recent_parts = {}
 victim_placeholder_pat = re.compile(r'\$(?:\{victim\}|victim)')
@@ -147,6 +147,18 @@ def _register_commands():
     CORE.command_register(MOD_ID, *cmds)
 
 
+async def module_on_config_reloaded(ctx, name):
+    """Handle `Core` config reload event."""
+    if name == 'modules':
+        _resize_part_deques()
+
+
+async def module_on_config_changed(ctx, name, key, old, new):
+    """Handle `Core` config change event."""
+    if name == 'modules' and key == 'Obit.PartCooldown':
+        _resize_part_deques()
+
+
 def _resize_part_deques():
     for name in ObitPart.__members__.keys():
         new_len = CFG.get('PartCooldown', DEFAULT_COOLDOWN)
@@ -225,18 +237,6 @@ async def fetch_part(otype: ObitPart) -> Optional[sqlite3.Row]:
         return part
 
 
-async def module_on_config_reloaded(ctx, name):
-    """Handle `Core` config reload event."""
-    if name == 'modules':
-        _resize_part_deques()
-
-
-async def module_on_config_changed(ctx, name, key, old, new):
-    """Handle `Core` config change event."""
-    if name == 'modules' and key == 'Obit.PartCooldown':
-        _resize_part_deques()
-
-
 # TODO: Add "last_victim", "last_murderer", "last_kill" (time), and
 # "last_death" (time) columns
 async def update_death_toll(killer: Participant, victim: Participant):
@@ -270,10 +270,10 @@ async def module_command_obit(ctx, parsed):
         # whether it's a suicide, or the killer is chosen at random from the
         # current channel.
         suicide_chance = CFG.get('SuicideChance', DEFAULT_SUICIDE_CHANCE)
-        if random.random() < suicide_chance / 100:
+        if rand_chance(suicide_chance):
             bot_suicide_chance = CFG.get(
                 'ZeroBotSuicideChance', DEFAULT_ZEROBOT_SUICIDE_CHANCE)
-            if random.random() < bot_suicide_chance / 100:
+            if rand_chance(bot_suicide_chance):
                 # Being an idiot, ZeroBot may kill himself instead.
                 killer = await get_participant(ctx.user.name)
             victim = killer
