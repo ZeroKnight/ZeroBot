@@ -376,13 +376,6 @@ async def obit_exists(otype: ObitPart, content: str) -> bool:
 
 async def obit_add(ctx, parsed, otype: ObitPart, content: str):
     """Add an obituary part to the database."""
-    if await obit_exists(otype, content):
-        await ctx.reply_command_result(
-            parsed, f'There is already a {otype.name}: `{content}`')
-        return
-    date = datetime.utcnow().replace(microsecond=0)
-    submitter = await get_participant(parsed.invoker.name)
-
     # Quality heuristics
     if len(content) > 200:
         await ctx.reply_command_result(
@@ -398,6 +391,13 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
                 parsed,
                 "Don't start closers with punctuation (ellipses are fine).")
         return
+
+    if await obit_exists(otype, content):
+        await ctx.reply_command_result(
+            parsed, f'There is already a {otype.name}: `{content}`')
+        return
+    date = datetime.utcnow().replace(microsecond=0)
+    submitter = await get_participant(parsed.invoker.name)
 
     async with DB.cursor() as cur:
         await cur.execute(
