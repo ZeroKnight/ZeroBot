@@ -13,7 +13,7 @@ from collections import deque
 from datetime import datetime
 from enum import Enum, unique
 from string import Template, punctuation
-from typing import Optional, Union
+from typing import Optional, Set, Union
 
 from ZeroBot.common import CommandParser, rand_chance
 from ZeroBot.database import DBUser, Participant
@@ -139,10 +139,30 @@ def _register_commands():
         help=('The content to remove. Must exactly match an existing entry, '
               'with placeholders NOT expanded, i.e. `$killer` as-is. Refer to '
               'the `add` subcommand help for more details.'))
+    subcmd_edit = add_subcmd(
+        'edit', f'Edit an existing {type_list} in the database.')
+    subcmd_edit.add_argument(
+        'type', choices=[otype.name.lower() for otype in ObitPart],
+        type=str.lower, help='The type of obituary part to edit.')
+    subcmd_edit.add_argument(
+        'substitution',
+        help=('A sed-like substitution expression, e.g. '
+              '`s/pattern/replacement/flags`, where `pattern` is a regular '
+              'expression that specifies what to replace and `replacement` '
+              'contains the text to replace. `flags` is an optional set of '
+              'flags that modifies the edit. Including `i` enables '
+              'case-insensitive matching. A number limits how many matches '
+              'are replaced (or `g` to replace all matches). By default, only '
+              "the first match is replaced. Substitution uses Python's "
+              '`re.sub` internally, so all of its syntax applies.'))
+    subcmd_edit.add_argument(
+        'content', nargs='+',
+        help=('The content to edit. Must exactly match an existing entry, '
+              'with placeholders NOT expanded, i.e. `$killer` as-is. Refer to '
+              'the `add` subcommand help for more details.'))
     cmds.append(cmd_obitdb)
 
     # TODO: stats command
-    # TODO: edit command; basically an rm then add. also support s/// syntax?
 
     CORE.command_register(MOD_ID, *cmds)
 
@@ -312,14 +332,32 @@ async def module_command_obit(ctx, parsed):
 
 async def module_command_obitdb(ctx, parsed):
     """Handle `obitdb` command."""
+    content = ' '.join(parsed.args['content']).strip()
+    content = re.sub(r'\B@(\S+)', r'\1', content)
+    if not content:
+        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        return
+    otype = getattr(ObitPart, parsed.args['type'].title())
     if parsed.subcmd in ('add', 'del'):
-        content = ' '.join(parsed.args['content']).strip()
-        content = re.sub(r'\B@(\S+)', r'\1', content)
-        if not content:
+        await globals()[f'obit_{parsed.subcmd}'](ctx, parsed, otype, content)
+    elif parsed.subcmd == 'edit':
+        sub = parsed.args['substitution'].lstrip()
+        try:
+            if sub and sub.startswith('s/'):
+                pattern, repl, *flags = re.split(r'(?<!\\)/', sub[2:])
+                if flags and flags[0]:
+                    flags = flags[0]
+                    if '-' in flags:
+                        raise ValueError('Bad sed flags')
+                    flags = set(re.findall(r'([a-zA-z]|\d+)', flags))
+                else:
+                    flags = None
+            else:
+                raise ValueError('Bad sed pattern')
+        except ValueError:
             await CORE.module_send_event('invalid_command', ctx, parsed.msg)
-            return
-        type_ = getattr(ObitPart, parsed.args['type'].title())
-        await globals()[f'obit_{parsed.subcmd}'](ctx, parsed, type_, content)
+        else:
+            await obit_edit(ctx, parsed, otype, content, pattern, repl, flags)
     else:
         ...  # TODO
 
@@ -383,3 +421,28 @@ async def obit_del(ctx, parsed, otype: ObitPart, content: str):
     await DB.commit()
     await ctx.module_message(
         parsed.source, f'Okay, removed {otype.name}: `{content}`')
+
+
+async def obit_edit(ctx, parsed, otype: ObitPart, content: str,
+                    pattern: str, repl: str, flags: Set[str] = None):
+    """Edit an obituary part in the database."""
+    if not await obit_exists(otype, content):
+        await ctx.reply_command_result(
+            parsed, f"Couldn't find {otype.name}: `{content}`")
+        return
+    count, re_flags = 1, 0
+    if flags is not None:
+        for flag in flags:
+            if flag == 'g':
+                count = 0
+            elif flag == 'i':
+                re_flags = re.I
+            elif flag.isdigit():
+                count = int(flag)
+    edited = re.sub(pattern, repl, content, count, re_flags)
+    async with DB.cursor() as cur:
+        await cur.execute("""
+            UPDATE obit_strings SET content = ?
+            WHERE type = ? AND content = ?
+        """, (edited, otype.value, content))
+    await ctx.module_message(parsed.source, f'Okay, content is now: {edited}')
