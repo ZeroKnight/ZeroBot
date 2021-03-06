@@ -445,4 +445,5 @@ async def obit_edit(ctx, parsed, otype: ObitPart, content: str,
             UPDATE obit_strings SET content = ?
             WHERE type = ? AND content = ?
         """, (edited, otype.value, content))
-    await ctx.module_message(parsed.source, f'Okay, content is now: {edited}')
+    await ctx.module_message(
+        parsed.source, f'Okay, content is now: `{edited}`')
