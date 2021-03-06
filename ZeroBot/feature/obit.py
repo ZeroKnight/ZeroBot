@@ -390,7 +390,7 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
             await ctx.reply_command_result(
                 parsed,
                 "Don't start closers with punctuation (ellipses are fine).")
-        return
+            return
 
     if await obit_exists(otype, content):
         await ctx.reply_command_result(
