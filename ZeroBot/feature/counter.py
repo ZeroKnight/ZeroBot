@@ -4,6 +4,7 @@ Keep a running total of arbitrary occurrences or statements made in ZeroBot's
 presence and announce when they happen.
 """
 
+import asyncio
 import logging
 import re
 from datetime import datetime
@@ -27,6 +28,14 @@ MOD_ID = __name__.rsplit('.', 1)[-1]
 
 logger = logging.getLogger('ZeroBot.Feature.Counter')
 
+SPECIAL_NUMBERS = {
+    42: 'Ah, the meaning of life. It was right here the whole time.',
+    69: 'Lmao, nice.',
+    420: 'Blaze it. 🔥',
+    666: '*death metal sounds in the distance*',
+    999: 'Hit the damage cap.',
+    1337: '5!(|< //!13570z3, |3|20'
+}
 counters = {}
 
 
@@ -249,6 +258,22 @@ def _register_commands():
     CORE.command_register(MOD_ID, *cmds)
 
 
+async def module_on_config_reloaded(ctx, name):
+    """Handle `Core` config reload event."""
+    if name == 'modules':
+        await load_counters()
+
+
+async def module_on_config_changed(ctx, name, key, old, new):
+    """Handle `Core` config change event."""
+    if name == 'modules' and key.startswith('Counter.Instance'):
+        counter_name, attr = key.split('.', maxsplit=3)[2:]
+        counter = counters[counter_name]
+        logger.info(f"Setting Counter '{counter_name}' attribute {attr} to "
+                    f'{new} (was {old}).')
+        setattr(counter, attr, new)
+
+
 async def load_counters() -> int:
     """Load created `Counter`s from configuration and the database.
 
@@ -315,20 +340,14 @@ def or_join(iterable: Iterable, separator: str = ', ') -> str:
     return separator.join(iterable[:-1]) + f' or {iterable[-1]}'
 
 
-async def module_on_config_reloaded(ctx, name):
-    """Handle `Core` config reload event."""
-    if name == 'modules':
-        await load_counters()
-
-
-async def module_on_config_changed(ctx, name, key, old, new):
-    """Handle `Core` config change event."""
-    if name == 'modules' and key.startswith('Counter.Instance'):
-        counter_name, attr = key.split('.', maxsplit=3)[2:]
-        counter = counters[counter_name]
-        logger.info(f"Setting Counter '{counter_name}' attribute {attr} to "
-                    f'{new} (was {old}).')
-        setattr(counter, attr, new)
+async def announce(ctx, destination, counter: Counter, /, **kwargs):
+    """Announce the current count of a `Counter` somewhere."""
+    announcement = counter.get_announcement(**kwargs)
+    await ctx.module_message(destination, announcement)
+    if (msg := SPECIAL_NUMBERS.get(counter.count)) is not None:
+        await asyncio.sleep(1)
+        action = msg.startswith('*') and msg.endswith('*')
+        await ctx.module_message(destination, msg, action)
 
 
 async def module_on_message(ctx, message):
@@ -349,11 +368,10 @@ async def module_on_message(ctx, message):
                 and counter.check(message.clean_content)):
             await counter.increment(participant=sender.name, channel=channel)
             if counter.should_announce():
-                announcement = counter.get_announcement(user=sender.name)
-                await ctx.module_message(message.destination, announcement)
+                await announce(
+                    ctx, message.destination, counter, user=sender.name)
 
 
-# TODO: How to handle `$user` when manually incrementing a restricted counter?
 async def module_command_count(ctx, parsed):
     """Handle `count` command."""
     sender = parsed.invoker
@@ -370,16 +388,14 @@ async def module_command_count(ctx, parsed):
     await counter.increment(
         parsed.args['count'], participant=sender.name, channel=channel)
     if parsed.args['quiet']:
-        response = 'Okay, done.'
+        await ctx.module_message(parsed.source, 'Okay, done.')
     else:
         user = None
         if len(counter.restrictions) > 0:
             user = or_join(counter.restrictions)
-        response = counter.get_announcement(user=user)
-    await ctx.module_message(parsed.source, response)
+        await announce(ctx, parsed.source, counter, user=user)
 
 
-# TODO: How to handle `$user` when announcing restricted counters?
 async def module_command_counter(ctx, parsed):
     """Handle `counter` command."""
     subcmd = parsed.subcmd
