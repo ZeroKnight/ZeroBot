@@ -486,6 +486,7 @@ async def create_connection(database: Union[str, Path], module: Module,
         detect_types=sqlite3.PARSE_DECLTYPES, **kwargs)
     conn.setName(module.identifier)
     conn.row_factory = sqlite3.Row
+    await conn.execute('PRAGMA foreign_keys = ON')
     await conn.create_function('REGEXP', 2, regexp)
     conn._connection._module = module  # pylint: disable=protected-access
     conn._connection._dbpath = database  # pylint: disable=protected-access
