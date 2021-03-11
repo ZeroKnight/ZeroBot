@@ -298,6 +298,14 @@ class Quote(DBModel):
 
             await cur.execute('COMMIT TRANSACTION')
 
+    async def delete(self):
+        """Remove this `Quote` from the database."""
+        async with self._connection.cursor() as cur:
+            await cur.execute(
+                f'DELETE FROM {Quote.table_name} WHERE quote_id = ?',
+                (self.id,))
+        await self._connection.commit()
+
 
 async def module_register(core):
     """Initialize module."""
@@ -537,22 +545,16 @@ def _register_commands():
                             aliases=['rm', 'remove', 'delete'])
     subcmd_del.add_argument(
         'quote', nargs='+',
-        help=('The quote to remove. Must exactly match the body of a quote '
-              '(or a single line of multi-line quote). If the `id` option is '
-              'specified, this is the desired quote ID.'))
+        help=('The quote to remove. Must exactly match the body of a quote. '
+              'If the `id` option is used, this is the desired quote ID.'))
     subcmd_del.add_argument(
         '-i', '--id', action='store_true',
-        help=('Specify the target quote by ID instead. Multiple IDs may be '
-              'specified this way.'))
-    subcmd_del.add_argument(
-        '-r', '--regex', action='store_true',
-        help=('The `quote` argument is interpreted as a regular expression and'
-              'all matching quotes will be removed. Use with caution!'))
-    subcmd_del.add_argument(
-        '-l', '--line', nargs='?',
-        help=('For multi-line quotes, only remove the line specified by this '
-              'option. If specifying a quote by its body, the value may be '
-              'omitted.'))
+        help='Specify the target quote by ID instead.')
+    # TBD: Maybe not include this and just do such replaces in SQL by hand.
+    # subcmd_del.add_argument(
+    #     '-r', '--regex', action='store_true',
+    #     help=('The `quote` argument is interpreted as a regular expression '
+    #           'and all matching quotes will be removed. Use with caution!'))
     subcmd_recent = add_subcmd(
         'recent', 'Display the most recently added quotes',
         parents=[pattern_options])
@@ -694,14 +696,6 @@ async def module_on_join(ctx, channel, user):
 
 async def module_command_quote(ctx, parsed):
     """Handle `quote` command."""
-    # NOTE: restrict deletion to owner
-    # TODO: make regex deletion a two-step command; upon invoking, return how
-    # many quotes would be deleted and a list of relevant ids (up to X amount)
-    # require a !quote confirm delete or something like that to actually go
-    # through with it.
-    # TODO: "preview" or "confirm" option? leverage `wait_for` or reactions to
-    # confirm/cancel adding/removing a quote before actually doing it, and give
-    # a preview of what would be added/removed
     if parsed.subcmd:
         await globals()[f'quote_{parsed.subcmd}'](ctx, parsed)
     else:
@@ -920,6 +914,22 @@ def generate_table(rows: List[sqlite3.Row],
     return lines
 
 
+async def quote_exists(content: Union[str, List[str]]) -> bool:
+    """Check if the given quote exists."""
+    if isinstance(content, list):
+        content = '\n'.join(content)
+    async with DB.cursor() as cur:
+        await cur.execute(f"""
+            SELECT EXISTS (
+                SELECT group_concat(line, char(10)) AS "body"
+                FROM {QuoteLine.table_name}
+                GROUP BY quote_id
+                HAVING body = ?
+            )
+        """, (content,))
+        return bool((await cur.fetchone())[0])
+
+
 # TODO: protocol-agnostic
 async def quote_add(ctx, parsed):
     """Add a quote to the database."""
@@ -970,6 +980,44 @@ async def quote_add(ctx, parsed):
 
     await quote.save()
     await ctx.module_message(parsed.msg.destination, f'Okay, adding: {quote}')
+
+
+async def quote_del(ctx, parsed):
+    """Remove one or more quotes from the database."""
+    # TODO: make regex deletion a two-step command; upon invoking, return how
+    # many quotes would be deleted and a list of relevant ids (up to X amount)
+    # require a !quote confirm delete or something like that to actually go
+    # through with it.
+    # TODO: "preview" or "confirm" option? leverage `wait_for` or reactions to
+    # confirm/cancel adding/removing a quote before actually doing it, and give
+    # a preview of what would be added/removed
+
+    if parsed.invoker != ctx.owner:
+        await ctx.reply_command_result(
+            parsed, f'Sorry, currently only {ctx.owner.name} can do that.')
+        return
+    body = ' '.join(parsed.args['quote'])
+    if parsed.args['id']:
+        quote = await get_quote_by_id(int(body))
+    else:
+        lines = MULTILINE_SEP.split(body)
+        quote = await fetch_quote(f"""
+            WITH target AS (
+                SELECT quote_id, group_concat(line, char(10)) AS "body"
+                FROM {QuoteLine.table_name}
+                GROUP BY quote_id
+                HAVING body = ?
+            )
+            SELECT * FROM {Quote.table_name}
+            WHERE quote_id = (SELECT quote_id FROM target)
+        """, ('\n'.join(lines),), cooldown=False)
+    if quote is None:
+        criteria = 'ID' if parsed.args['id'] else 'content'
+        await ctx.reply_command_result(
+            parsed, f"Couldn't find a quote with that {criteria}.")
+        return
+    await quote.delete()
+    await ctx.module_message(parsed.source, f'Okay, removed quote: {quote}')
 
 
 async def quote_recent(ctx, parsed):
