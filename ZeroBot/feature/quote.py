@@ -1342,9 +1342,10 @@ async def quote_quick(ctx, parsed):
 
     # TODO: protocol-agnostic
     nprev = parsed.args['num_previous']
-    async for msg in msg.channel.history(limit=nprev, before=msg):
-        author = await get_participant(msg.author.name)
-        action, body = handle_action_line(msg.content, DiscordMessage(msg))
+    async for prev_msg in msg.channel.history(limit=nprev, before=msg):
+        author = await get_participant(prev_msg.author.name)
+        action, body = handle_action_line(
+            prev_msg.content, DiscordMessage(prev_msg))
         lines.append((body, author, action))
 
     quote = Quote(DB, None, submitter, date=date, style=style)
