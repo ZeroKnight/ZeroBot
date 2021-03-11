@@ -714,7 +714,8 @@ async def module_command_quote(ctx, parsed):
         await ctx.module_message(parsed.msg.destination, quote)
 
 
-async def fetch_quote(sql: str, params: Tuple = None,
+async def fetch_quote(sql: str, params: Tuple = None, *,
+                      cooldown: bool = True,
                       case_sensitive: bool = False) -> Optional[Quote]:
     """Fetch a quote from the database, respecting cooldowns.
 
@@ -722,7 +723,7 @@ async def fetch_quote(sql: str, params: Tuple = None,
     this coroutine wraps. All quote fetches should use this coroutine as
     a base, as it handles quote cooldowns and other necessary state.
     """
-    if not all(token in sql for token in ('LIMIT', 'cooldown()')):
+    if cooldown and not all(token in sql for token in ('LIMIT', 'cooldown()')):
         raise ValueError("Query must include a LIMIT with 'cooldown()'")
     # TODO: per-author cooldowns
     async with DB.cursor() as cur:
@@ -732,11 +733,13 @@ async def fetch_quote(sql: str, params: Tuple = None,
         if case_sensitive:
             await cur.execute('PRAGMA case_sensitive_like = 0')
         row = await cur.fetchone()
-        while row and row['quote_id'] in recent_quotes['global']:
-            row = await cur.fetchone()
+        if cooldown:
+            while row and row['quote_id'] in recent_quotes['global']:
+                row = await cur.fetchone()
     if row is not None:
         quote = await Quote.from_row(DB, row)
-        recent_quotes['global'].append(row['quote_id'])
+        if cooldown:
+            recent_quotes['global'].append(row['quote_id'])
     else:
         quote = None
     return quote
@@ -748,6 +751,13 @@ async def get_random_quote() -> Optional[Quote]:
         SELECT * FROM {Quote.table_name}
         ORDER BY RANDOM() LIMIT cooldown() + 1
     """)
+
+
+async def get_quote_by_id(quote_id: int) -> Optional[Quote]:
+    """Fetch the quote with the given ID from the database."""
+    return await fetch_quote(
+        f'SELECT * FROM {Quote.table_name} WHERE quote_id = ?',
+        (quote_id,), cooldown=False)
 
 
 def read_datestamp(datestamp: str) -> Optional[datetime]:
@@ -1030,10 +1040,7 @@ async def quote_search(ctx, parsed):
         return
     case_sensitive = parsed.args['case_sensitive']
     if parsed.args['id']:
-        query = (f"""
-            SELECT * FROM {Quote.table_name} WHERE quote_id = ?
-            ORDER BY RANDOM() LIMIT cooldown() + 1
-        """, (parsed.args['id'],))
+        quote = await get_quote_by_id(parsed.args['id'])
     else:
         sql = f"""
             WITH participant_names AS (
@@ -1074,11 +1081,12 @@ async def quote_search(ctx, parsed):
             WHERE seqnum = 1  -- Don't include multiple lines from the same quote
             ORDER BY RANDOM() LIMIT cooldown() + 1
         """
-        query = (sql, (pattern, author_pat, submitter_pat), case_sensitive)
-    quote = await fetch_quote(*query)
+        query = (sql, (pattern, author_pat, submitter_pat))
+        quote = await fetch_quote(*query, case_sensitive=case_sensitive)
     if quote is None:
+        criteria = 'ID' if parsed.args['id'] else 'pattern'
         await ctx.reply_command_result(
-            parsed, "Couldn't find any quotes matching that pattern.")
+            parsed, f"Couldn't find any quotes matching that {criteria}")
         return
     await ctx.module_message(parsed.msg.destination, quote)
 
