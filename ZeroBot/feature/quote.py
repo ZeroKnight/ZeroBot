@@ -708,6 +708,16 @@ async def module_command_quote(ctx, parsed):
         await ctx.module_message(parsed.msg.destination, quote)
 
 
+async def execute_opt_case(cursor, sql: str, params: Tuple = None,
+                           case_sensitive: bool = False):
+    """Execute a query with optional case-sensitive ``LIKE`` operator."""
+    if case_sensitive:
+        await cursor.execute('PRAGMA case_sensitive_like = 1')
+    await cursor.execute(sql, params)
+    if case_sensitive:
+        await cursor.execute('PRAGMA case_sensitive_like = 0')
+
+
 async def fetch_quote(sql: str, params: Tuple = None, *,
                       cooldown: bool = True,
                       case_sensitive: bool = False) -> Optional[Quote]:
@@ -721,11 +731,7 @@ async def fetch_quote(sql: str, params: Tuple = None, *,
         raise ValueError("Query must include a LIMIT with 'cooldown()'")
     # TODO: per-author cooldowns
     async with DB.cursor() as cur:
-        if case_sensitive:
-            await cur.execute('PRAGMA case_sensitive_like = 1')
-        await cur.execute(sql, params)
-        if case_sensitive:
-            await cur.execute('PRAGMA case_sensitive_like = 0')
+        await execute_opt_case(cur, sql, params, case_sensitive)
         row = await cur.fetchone()
         if cooldown:
             while row and row['quote_id'] in recent_quotes['global']:
