@@ -586,6 +586,9 @@ def _register_commands():
         '-i', '--id', type=int,
         help='Fetch the quote with the given ID.')
     subcmd_search.add_argument(
+        '-n', '--count', action='store_true',
+        help='Return the number of quotes matching the given query instead.')
+    subcmd_search.add_argument(
         '-u', '--submitter',
         help=('Filter results to the submitter matching this pattern. The '
               '`pattern` argument may be omitted if this option is given.'))
@@ -1094,8 +1097,12 @@ async def quote_search(ctx, parsed):
         return
     case_sensitive = parsed.args['case_sensitive']
     if parsed.args['id']:
-        quote = await get_quote_by_id(parsed.args['id'])
+        result = await get_quote_by_id(parsed.args['id'])
     else:
+        if parsed.args['count']:
+            selection = 'COUNT(*)'
+        else:
+            selection = 'quote_id, submitter, submission_date, style'
         sql = f"""
             WITH participant_names AS (
                 SELECT participant_id,
@@ -1103,7 +1110,7 @@ async def quote_search(ctx, parsed):
                 FROM participants_all_names
                 GROUP BY participant_id
             )
-            SELECT quote_id, submitter, submission_date, style
+            SELECT {selection}
             FROM (
                 SELECT *, row_number() OVER (PARTITION BY quote_id) AS "seqnum"
                 FROM {Quote.table_name}
@@ -1136,13 +1143,21 @@ async def quote_search(ctx, parsed):
             ORDER BY RANDOM() LIMIT cooldown() + 1
         """
         query = (sql, (pattern, author_pat, submitter_pat))
-        quote = await fetch_quote(*query, case_sensitive=case_sensitive)
-    if quote is None:
-        criteria = 'ID' if parsed.args['id'] else 'pattern'
+        if parsed.args['count']:
+            async with DB.cursor() as cur:
+                await execute_opt_case(cur, *query, case_sensitive)
+                result = (await cur.fetchone())[0]
+        else:
+            result = await fetch_quote(*query, case_sensitive=case_sensitive)
+    criteria = 'ID' if parsed.args['id'] else 'pattern'
+    if not result:
         await ctx.reply_command_result(
             parsed, f"Couldn't find any quotes matching that {criteria}")
-        return
-    await ctx.module_message(parsed.msg.destination, quote)
+    elif isinstance(result, int):
+        await ctx.reply_command_result(
+            parsed, f'I found {result} quotes matching that {criteria}')
+    else:
+        await ctx.module_message(parsed.msg.destination, result)
 
 
 async def quote_stats(ctx, parsed):
