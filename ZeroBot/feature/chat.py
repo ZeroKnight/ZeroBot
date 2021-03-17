@@ -4,6 +4,7 @@ Allows ZeroBot to chat and respond to conversation in various ways. Also allows
 privileged users to puppet ZeroBot, sending arbitrary messages and actions.
 """
 
+import shutil
 import argparse
 import asyncio
 import random
@@ -298,11 +299,16 @@ async def module_command_say(ctx, parsed):
 
 async def module_command_fortune(ctx, parsed):
     """Handle `fortune` command."""
+    fortune_path = shutil.which('fortune')
+    if not fortune_path:
+        await ctx.reply_command_result(
+            parsed, 'fortune is not available. No cookie for you :(')
+        return
     try:
         lines = []
         args = parsed.args['args'] or []
         proc = await asyncio.create_subprocess_exec(
-            '/usr/bin/fortune', *args,
+            fortune_path, *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL)
         while data := await proc.stdout.readline():
@@ -314,4 +320,4 @@ async def module_command_fortune(ctx, parsed):
         await ctx.reply_command_result(parsed, lines)
     except OSError:
         await ctx.reply_command_result(
-            parsed, 'fortune is not available. No cookie for you :(')
+            parsed, 'Your fortune cookie seems to have crumbled...')
