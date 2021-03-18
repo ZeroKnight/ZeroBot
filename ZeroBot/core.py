@@ -863,6 +863,11 @@ class Core:
             modules += [child.stem for child in mdir.glob('feature/*.py')]
         return modules
 
+    def get_contexts(self) -> List[Context]:
+        """Get a list of all active protocol `Context`s."""
+        return [ctx for proto in self._protocols.values()
+                for ctx in proto.contexts]
+
     def run(self):
         """Start ZeroBot's event loop."""
         try:
