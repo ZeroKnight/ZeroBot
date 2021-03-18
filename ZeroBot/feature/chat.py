@@ -4,11 +4,11 @@ Allows ZeroBot to chat and respond to conversation in various ways. Also allows
 privileged users to puppet ZeroBot, sending arbitrary messages and actions.
 """
 
-import shutil
 import argparse
 import asyncio
 import random
 import re
+import shutil
 from collections import deque
 from enum import Enum, unique
 from typing import Iterable, Tuple
@@ -26,10 +26,13 @@ CFG = None
 DB = None
 MOD_ID = __name__.rsplit('.', 1)[-1]
 
-DOTCHARS = ('.!?\xA1\xBF\u203C\u203D\u2047\u2048\u2049\u2753\u2754\u2755\u2757'
-            '\u2E2E\uFE56\uFE57\uFF01\uFF1F')
+DOT_CHARS = '.·․‥…⋯'
+EXCLAMATION_CHARS = '!¡❕❗﹗！'
+QUESTION_CHARS = '?¿‽⁇⁈⁉❓❔⸮﹖？'
+ALL_CHARS = DOT_CHARS + EXCLAMATION_CHARS + QUESTION_CHARS
+
 PATTERN_WAT = re.compile(r'(?:h+w+|w+h*)[aou]+t\s*\??\s*$')
-PATTERN_DOTS = re.compile(r'^\s*[' + DOTCHARS + r']+\s*$')
+PATTERN_DOTS = re.compile(r'^\s*[' + ALL_CHARS + r']+\s*$')
 
 DEFAULT_BERATE_CHANCE = 0.5
 
@@ -222,8 +225,7 @@ async def module_on_message(ctx, message):
 
     # Dots...!
     if PATTERN_DOTS.match(message.content):
-        # Do not use '.' as a possible output
-        char = random.choice(DOTCHARS[1:])
+        char = random.choice(EXCLAMATION_CHARS + QUESTION_CHARS)
         await ctx.module_message(
             message.destination, f'{message.content}{char}')
         return
