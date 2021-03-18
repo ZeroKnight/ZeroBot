@@ -236,6 +236,7 @@ async def module_on_message(ctx, message):
             # Check against bare name and mention string to handle protocols
             # where these may differ, like Discord.
             pattern = pattern.replace(r'\z', f'{ctx.user.mention_pattern()}')
+            pattern = pattern.replace(r'\q', f'[{QUESTION_CHARS}]')
             if re.search(pattern, message.content, re.I):
                 if re.search(r'would you kindly', message.content, re.I):
                     phrase, action = await fetch_phrase(
