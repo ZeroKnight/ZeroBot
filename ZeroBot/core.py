@@ -718,7 +718,7 @@ class Core:
             raise TypeError("feature type expects 'str' or 'Module', not "
                             f"'{type(feature)}'")
         try:
-            if getattr(module.handle, 'module_unregister'):
+            if hasattr(module.handle, 'module_unregister'):
                 await module.handle.module_unregister()
         except Exception:
             self.logger.warning(
@@ -1235,7 +1235,7 @@ class Core:
         self.logger.debug('Unregistering feature modules.')
         for feature in self._features.values():
             try:
-                if getattr(feature.handle, 'module_unregister'):
+                if hasattr(feature.handle, 'module_unregister'):
                     self.eventloop.run_until_complete(
                         feature.handle.module_unregister())
             except Exception:
@@ -1245,7 +1245,7 @@ class Core:
         self.logger.debug('Unregistering protocol modules.')
         for protocol in self._protocols.values():
             try:
-                if getattr(protocol.handle, 'module_unregister'):
+                if hasattr(protocol.handle, 'module_unregister'):
                     self.eventloop.run_until_complete(
                         protocol.handle.module_unregister(
                             protocol.contexts, self._shutdown_reason))
