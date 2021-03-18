@@ -106,6 +106,7 @@ class DiscordContext(Context, discord.Client):
         else:
             logger.error('Could not set owner: string must be a '
                          'username+discriminator (Foo#1234) or a unique ID.')
+        await CORE.module_send_event('context_ready', self)
 
     async def on_disconnect(self):
         """Disconnected from Discord.
