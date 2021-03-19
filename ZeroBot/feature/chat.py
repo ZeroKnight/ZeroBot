@@ -6,6 +6,7 @@ privileged users to puppet ZeroBot, sending arbitrary messages and actions.
 
 import argparse
 import asyncio
+import logging
 import random
 import re
 import shutil
@@ -14,6 +15,13 @@ from enum import Enum, unique
 from typing import Iterable, Tuple
 
 from ZeroBot.common import CommandParser, rand_chance
+
+try:
+    import discord
+    import discord.ext.tasks
+    _discord_available = True
+except ImportError:
+    _discord_available = False
 
 MODULE_NAME = 'Chat'
 MODULE_AUTHOR = 'ZeroKnight'
@@ -26,6 +34,8 @@ CFG = None
 DB = None
 MOD_ID = __name__.rsplit('.', 1)[-1]
 
+logger = logging.getLogger('ZeroBot.Feature.Chat')
+
 DOT_CHARS = '.·․‥…⋯'
 EXCLAMATION_CHARS = '!¡❕❗﹗！'
 QUESTION_CHARS = '?¿‽⁇⁈⁉❓❔⸮﹖？'
@@ -34,11 +44,26 @@ ALL_CHARS = DOT_CHARS + EXCLAMATION_CHARS + QUESTION_CHARS
 PATTERN_WAT = re.compile(r'(?:h+w+|w+h*)[aou]+t\s*\??\s*$')
 PATTERN_DOTS = re.compile(r'^\s*[' + ALL_CHARS + r']+\s*$')
 
+DEFAULT_ACTIVITY_INTERVAL = 900
 DEFAULT_BERATE_CHANCE = 0.5
 
-tables = ['badcmd', 'berate', 'greetings', 'mentioned', 'questioned']
+tables = ['activity', 'badcmd', 'berate',
+          'greetings', 'mentioned', 'questioned']
 recent_phrases = {}
 kicked_from = set()
+shuffler_tasks = []
+
+
+@unique
+class ActivityType(Enum):
+    Playing = 1
+    Listening = 2
+    Watching = 3
+    Competing = 4
+
+    def as_discord(self) -> discord.ActivityType:
+        """Translate this enum value into one that Discord expects."""
+        return discord.ActivityType.__members__[self.name.lower()]
 
 
 @unique
@@ -65,14 +90,43 @@ async def module_register(core):
 
     _register_commands()
 
+    # Schedule Activity Shufflers
+    if _discord_available:
+        interval = CFG.get('Activity.Interval', DEFAULT_ACTIVITY_INTERVAL)
+        for ctx in filter(lambda x: x.protocol == 'discord', CORE.get_contexts()):
+            global shuffler_tasks
+            logger.debug(f'Adding Activity Shuffler task for context {ctx}')
+            task = discord.ext.tasks.Loop(
+                shuffle_discord_activity,
+                seconds=interval, minutes=0, hours=0,
+                count=None, reconnect=True, loop=CORE.eventloop)
+            shuffler_tasks.append(task)
+            task.start(ctx)
+
 
 async def module_unregister():
     """Prepare for shutdown."""
+    # Cancel Activity Shufflers
+    for task in shuffler_tasks:
+        task.cancel()
     await CORE.database_disconnect(MOD_ID)
 
 
 async def _init_database():
     await DB.executescript("""
+        CREATE TABLE IF NOT EXISTS "chat_activity" (
+            "activity"   TEXT NOT NULL,
+            "type"       INTEGER NOT NULL DEFAULT 1,
+            "emoji"      TEXT,
+            "details"    TEXT,
+            "submitter"  INTEGER NOT NULL DEFAULT 0,
+            "date_added" DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY ("activity", "type"),
+            FOREIGN KEY ("submitter")
+                REFERENCES "participants" ("participant_id")
+                ON UPDATE CASCADE
+                ON DELETE SET DEFAULT
+        ) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS "chat_badcmd" (
             "phrase"    TEXT NOT NULL UNIQUE,
             "action"    BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
@@ -94,9 +148,9 @@ async def _init_database():
             PRIMARY KEY("phrase")
         ) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS "chat_questioned" (
-            "phrase"    TEXT NOT NULL UNIQUE,
-            "action"    BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
-            "response_type"     INTEGER NOT NULL,
+            "phrase"        TEXT NOT NULL UNIQUE,
+            "action"        BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            "response_type" INTEGER NOT NULL,
             PRIMARY KEY("phrase")
         ) WITHOUT ROWID;
 
@@ -239,10 +293,14 @@ async def module_on_message(ctx, message):
             pattern = pattern.replace(r'\q', f'[{QUESTION_CHARS}]')
             if re.search(pattern, message.content, re.I):
                 if re.search(r'would you kindly', message.content, re.I):
-                    phrase, action = await fetch_phrase(
-                        'questioned', ['action'],
-                        'WHERE response_type = ?',
-                        (QuestionResponse.Positive.value,))
+                    if rand_chance(0.95):
+                        phrase, action = await fetch_phrase(
+                            'questioned', ['action'],
+                            'WHERE response_type = ?',
+                            (QuestionResponse.Positive.value,))
+                    else:
+                        phrase = f'beats {sender.name} to death with a golf club'
+                        action = True
                 else:
                     phrase, action = await fetch_phrase(
                         'questioned', ['action'])
@@ -324,3 +382,31 @@ async def module_command_fortune(ctx, parsed):
     except OSError:
         await ctx.reply_command_result(
             parsed, 'Your fortune cookie seems to have crumbled...')
+
+
+async def shuffle_discord_activity(ctx):
+    """Set a random activity from the database.
+
+    This is for Discord contexts, and sets the "Playing", "Listening to",
+    "Watching", etc. status.
+    """
+    if not (CFG.get('Enabled') and CFG.get('Activity.Enabled')):
+        return
+    await ctx.wait_until_ready()
+    async with DB.cursor() as cur:
+        await cur.execute("""
+            SELECT type, activity, emoji FROM chat_activity
+            ORDER BY RANDOM() LIMIT cooldown() + 1
+        """)
+        row = await cur.fetchone()
+        while row['activity'] in recent_phrases['activity']:
+            row = await cur.fetchone()
+    recent_phrases['activity'].append(row['activity'])
+
+    name = row['activity']
+    if row['emoji']:
+        name += f" {row['emoji']}"
+    activity = discord.Activity(
+        type=ActivityType(row['type']).as_discord(), name=name)
+    logger.info(f'Shuffling activity to: {name}')
+    await ctx.change_presence(activity=activity)
