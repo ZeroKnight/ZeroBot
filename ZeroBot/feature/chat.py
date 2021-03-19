@@ -44,7 +44,7 @@ ALL_CHARS = DOT_CHARS + EXCLAMATION_CHARS + QUESTION_CHARS
 PATTERN_WAT = re.compile(r'(?:h+w+|w+h*)[aou]+t\s*\??\s*$')
 PATTERN_DOTS = re.compile(r'^\s*[' + ALL_CHARS + r']+\s*$')
 
-DEFAULT_ACTIVITY_INTERVAL = 900
+DEFAULT_ACTIVITY_INTERVAL = 1800
 DEFAULT_BERATE_CHANCE = 0.5
 
 tables = ['activity', 'badcmd', 'berate',
@@ -244,14 +244,28 @@ def _resize_phrase_deques():
 
 async def module_on_config_reloaded(ctx, name):
     """Handle `Core` config reload event."""
-    if name == 'modules':
-        _resize_phrase_deques()
+    if name != 'modules':
+        return
+
+    _resize_phrase_deques()
+
+    interval = CFG.get('Activity.Interval', DEFAULT_ACTIVITY_INTERVAL)
+    for task in shuffler_tasks:
+        task.change_interval(seconds=interval)
 
 
 async def module_on_config_changed(ctx, name, key, old, new):
     """Handle `Core` config change event."""
-    if name == 'modules' and key == 'Chat.PhraseCooldown':
+    if name != 'modules' or not key.startswith(MODULE_NAME):
+        return
+    key = key[len(MODULE_NAME) + 1:]
+
+    if key == 'PhraseCooldown':
         _resize_phrase_deques()
+    elif key == 'Activity.Interval':
+        interval = new if new is not None else DEFAULT_ACTIVITY_INTERVAL
+        for task in shuffler_tasks:
+            task.change_interval(seconds=interval)
 
 
 async def module_on_message(ctx, message):
