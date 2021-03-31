@@ -169,3 +169,19 @@ class ConfigDecodeError(ZeroBotConfigError):
 
 class ConfigEncodeError(ZeroBotConfigError):
     """Unable to successfully encode a `ZeroBot.Config` object."""
+
+
+# Database
+
+class ZeroBotDatabaseError(ZeroBotException):
+    """Base exception for ZeroBot database errors.
+
+    Attributes
+    ----------
+    database_name : str
+        The name of the database file.
+    """
+
+    def __init__(self, *args, database_name: str):
+        super().__init__(*args)
+        self.database_name = database_name
