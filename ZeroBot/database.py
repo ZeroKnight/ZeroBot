@@ -484,7 +484,7 @@ async def get_participant(conn: Connection, name: str,
                     'AND lower(pan.name) = lower(?1)')
     async with conn.cursor() as cur:
         await cur.execute(f"""
-            SELECT participant_id, participants.name, user_id
+            SELECT participant_id, name, user_id
             FROM participants_all_names AS "pan"
             WHERE {criteria}
         """, (name,))
