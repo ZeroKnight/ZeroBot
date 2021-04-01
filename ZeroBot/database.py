@@ -502,6 +502,48 @@ async def get_participant(conn: Connection, name: str,
     return participant
 
 
+async def get_user(conn: Connection, name: str,
+                   ignore_case: bool = True) -> Optional[DBUser]:
+    """Get an existing user by their name or an alias.
+
+    This is a convenient and generalized function for ZeroBot modules that
+    facilitates simple user lookup. The given `name` will match against both
+    canonical user names and any aliases associated with a user, taking alias
+    case sensitivity into account.
+
+    Parameters
+    ----------
+    conn : Connection
+        The database connection to use.
+    name : str
+        The name to look up; usually from a message source or command argument.
+    ignore_case : bool, optional
+        Ignore case even for aliases marked as case-sensitive. ``True`` by
+        default.
+
+    Returns
+    -------
+    Optional[DBUser]
+        The matched user or ``None`` if there were no matches for `name`.
+    """
+    if name.strip() == '':
+        raise ValueError('Name is empty or whitespace')
+    if ignore_case:
+        criteria = 'lower(name) = lower(?1)'
+    else:
+        criteria = ('name = ?1 OR case_sensitive = 0'
+                    'AND lower(name) = lower(?1)')
+    user = None
+    async with conn.cursor() as cur:
+        await cur.execute(f"""
+            SELECT user_id FROM users_all_names WHERE {criteria}
+        """, (name,))
+        row = await cur.fetchone()
+    if row is not None:
+        user = await DBUser.from_id(conn, row[0])
+    return user
+
+
 async def create_connection(database: Union[str, Path], module: Module,
                             loop: asyncio.AbstractEventLoop = None,
                             readonly: bool = False, **kwargs) -> Connection:
