@@ -16,7 +16,7 @@ from string import Template, punctuation
 from typing import Optional, Set, Union
 
 from ZeroBot.common import CommandParser, rand_chance
-from ZeroBot.database import DBUser, Participant
+from ZeroBot.database import DBUser, Participant, get_participant
 
 MODULE_NAME = 'Obit'
 MODULE_AUTHOR = 'ZeroKnight'
@@ -186,50 +186,6 @@ def _resize_part_deques():
             break
         recent_parts[name] = deque(
             recent_parts[name].copy(), maxlen=new_len)
-
-
-async def get_participant(target: Union[int, str]) -> Optional[Participant]:
-    """Fetch the given participant by name or ID.
-
-    If `target` is a `str` and there's no matching participant, create a new
-    one and return that. If `target` is an `int` and no match was found, `None`
-    is returned instead.
-
-    Parameters
-    ----------
-    target : int or str
-        A Participant ID or name to look up.
-    """
-    if isinstance(target, str):
-        if target.strip() == '':
-            raise ValueError('Name is empty or whitespace')
-        what = 'an.name = ?1 OR lower(an.name) = lower(?1)'
-    elif isinstance(target, int):
-        what = 'participant_id = ?1'
-    else:
-        raise TypeError('target must be either int or str')
-
-    async with DB.cursor() as cur:
-        await cur.execute(f"""
-            SELECT participant_id, participants.name, user_id
-            FROM participants
-            JOIN participants_all_names AS "an" USING (participant_id)
-            WHERE {what}
-        """, (target,))
-        row = await cur.fetchone()
-        if row is None:
-            if isinstance(target, int):
-                return None
-            # Create a new Participant
-            participant = Participant(DB, None, target)
-            await participant.save()
-        else:
-            participant = Participant.from_row(DB, row)
-            try:
-                await participant.fetch_user()
-            except ValueError:
-                pass
-    return participant
 
 
 async def fetch_part(otype: ObitPart) -> Optional[sqlite3.Row]:

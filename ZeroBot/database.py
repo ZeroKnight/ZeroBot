@@ -332,7 +332,7 @@ class Participant(DBModel):
     @classmethod
     def from_row(cls, conn: Connection, row: sqlite3.Row,
                  user: DBUser = None) -> 'Participant':
-        """Construct a `DBUserAlias` from a database row.
+        """Construct a `Participant` from a database row.
 
         Parameters
         ----------
@@ -394,7 +394,7 @@ class Participant(DBModel):
 
     @classmethod
     async def from_user(cls, conn: Connection,
-                        user: Union[DBUser, int]) -> 'Participant':
+                        user: Union[DBUser, int]) -> Optional['Participant']:
         """Construct a `Participant` linked to the given user.
 
         Parameters
@@ -441,6 +441,65 @@ class Participant(DBModel):
             """, (self.id, self.name, self.user_id))
             self.id = cur.lastrowid
             await self._connection.commit()
+
+
+async def get_participant(conn: Connection, name: str,
+                          ignore_case: bool = True) -> Participant:
+    """Get an existing `Participant` or create a new one.
+
+    This is a convenient and generalized function for Zerobot modules that
+    enables the most common actions related to database participants: lookup of
+    existing participants and the creation of new ones.
+
+    Parameters
+    ----------
+    conn : Connection
+        The database connection to use.
+    name : str
+        The name to look up; usually from a message source or command argument.
+    ignore_case : bool, optional
+        Ignore case even for aliases marked as case-sensitive. ``True`` by
+        default.
+
+    Returns
+    -------
+    Participant
+        An existing participant matching `name` or a totally new one if there
+        were no matches for `name`.
+
+    Notes
+    -----
+    ZeroBot's Core defines triggers that, along with foreign key constraints,
+    prevents Users and Participants from becoming inconsistent. As long as
+    these measures are not circumvented, you shouldn't need to worry about any
+    user/participant discrepencies, getting a `Participant` without its
+    associated `DBUser`, having a user with no associated participant, etc.
+    """
+    if name.strip() == '':
+        raise ValueError('Name is empty or whitespace')
+    if ignore_case:
+        criteria = 'lower(pan.name) = lower(?1)'
+    else:
+        criteria = ('pan.name = ?1 OR case_sensitive = 0'
+                    'AND lower(pan.name) = lower(?1)')
+    async with conn.cursor() as cur:
+        await cur.execute(f"""
+            SELECT participant_id, participants.name, user_id
+            FROM participants_all_names AS "pan"
+            WHERE {criteria}
+        """, (name,))
+        row = await cur.fetchone()
+    if row is None:
+        # Create a new Participant
+        participant = Participant(conn, None, name)
+        await participant.save()
+    else:
+        participant = Participant.from_row(conn, row)
+        try:
+            await participant.fetch_user()
+        except ValueError:  # user_id was NULL
+            pass
+    return participant
 
 
 async def create_connection(database: Union[str, Path], module: Module,

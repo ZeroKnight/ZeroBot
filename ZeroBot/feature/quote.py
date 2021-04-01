@@ -16,7 +16,8 @@ from typing import Any, List, Optional, Tuple, Union
 
 from ZeroBot.common import CommandParser
 from ZeroBot.common.abc import Message
-from ZeroBot.database import Connection, DBModel, DBUser, Participant
+from ZeroBot.database import (Connection, DBModel, DBUser, Participant,
+                              get_participant)
 from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP
 from ZeroBot.util import flatten
 
@@ -777,84 +778,6 @@ def read_datestamp(datestamp: str) -> Optional[datetime]:
         except ValueError:
             return None
     return date.replace(microsecond=0)
-
-
-async def lookup_user(name: str) -> Optional[DBUser]:
-    """Return the `DBUser` associated with `name`, if one exists.
-
-    Searches for `name` in all relevant tables:
-        - ``users``
-        - ``aliases``
-        - ``participants``
-
-    Parameters
-    ----------
-    name : str
-        The name to search for.
-    """
-    user = None
-    async with DB.cursor() as cur:
-        await cur.execute(f"""
-            SELECT user_id FROM (
-                SELECT user_id, name FROM users_all_names
-                UNION
-                SELECT user_id, name FROM {Participant.table_name}
-            )
-            WHERE name = ?
-        """, (name,))
-        row = await cur.fetchone()
-        if row is not None:
-            user = await DBUser.from_id(DB, row[0])
-        return user
-
-
-async def get_participant(name: str) -> Participant:
-    """Get an existing `Participant` or create a new one.
-
-    Parameters
-    ----------
-    name : str
-        The name to look up.
-    """
-    user = await lookup_user(name)
-    if user is not None:
-        participant = await Participant.from_user(DB, user)
-        if participant is not None:
-            # Sync Participant.name with DBUser.name
-            if participant.name != user.name:
-                participant.name = user.name
-                await participant.save()
-        else:
-            async with DB.cursor() as cur:
-                await cur.execute(f"""
-                    SELECT * FROM {Participant.table_name} AS "qp"
-                    WHERE qp.name IN (
-                        SELECT name FROM users_all_names AS "u"
-                        WHERE u.user_id = ?
-                    )
-                """, (user.id,))
-                row = await cur.fetchone()
-            if row is not None:
-                # A user's name or alias matched a Participant's name. Link the
-                # Participant with this user.
-                assert row['user_id'] is None, (
-                    "Participant shouldn't have a user_id here "
-                    f"({row['user_id']})")
-                participant_id = row['participant_id']
-            else:
-                # The user has no matching Participant, so create a new one.
-                participant_id = None
-            participant = Participant(
-                DB, participant_id, user.name, user.id, user)
-            await participant.save()
-    else:
-        # Non-user Participant
-        participant = await Participant.from_name(DB, name)
-        if participant is None:
-            # Completely new to the database
-            participant = Participant(DB, None, name)
-            await participant.save()
-    return participant
 
 
 def handle_action_line(line: str, msg: Message) -> Tuple[bool, str]:

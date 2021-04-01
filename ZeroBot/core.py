@@ -388,29 +388,56 @@ class Core:
                     ON DELETE SET NULL
             );
 
-            CREATE VIEW IF NOT EXISTS users_all_names (user_id, name) AS
-                SELECT user_id, name FROM {DBUser.table_name}
+            CREATE VIEW IF NOT EXISTS users_all_names (
+                user_id, name, case_sensitive
+            ) AS
+                SELECT user_id, name, 1 FROM "{DBUser.table_name}"
                 UNION
-                SELECT user_id, alias FROM {DBUserAlias.table_name};
+                SELECT user_id, alias, case_sensitive FROM "{DBUserAlias.table_name}";
 
-            CREATE VIEW IF NOT EXISTS participants_all_names AS
-                SELECT participant_id, name FROM "{Participant.table_name}"
+            CREATE VIEW IF NOT EXISTS participants_all_names (
+                participant_id, user_id, name, case_sensitive
+            ) AS
+                SELECT participant_id, user_id, name, 1 FROM "{Participant.table_name}"
                 UNION
-                SELECT participant_id, {DBUser.table_name}.name FROM users
-                JOIN "{Participant.table_name}" USING (user_id)
-                UNION
-                SELECT participant_id, alias FROM {DBUserAlias.table_name}
-                JOIN "{Participant.table_name}" USING (user_id);
+                SELECT participant_id, user_id, alias, case_sensitive FROM "{DBUserAlias.table_name}"
+                JOIN "{Participant.table_name}" USING(user_id);
 
             CREATE UNIQUE INDEX IF NOT EXISTS "idx_participants_user_id"
             ON "{Participant.table_name}" ("user_id");
 
-            CREATE TRIGGER IF NOT EXISTS tg_sync_participant_name
-            AFTER UPDATE OF name ON {DBUser.table_name}
+            CREATE TRIGGER IF NOT EXISTS tg_update_participant_name_from_user
+            AFTER UPDATE OF name ON "{DBUser.table_name}"
             BEGIN
                 UPDATE "{Participant.table_name}"
                 SET name = new.name
                 WHERE user_id = new.user_id;
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS tg_update_user_name_from_participant
+            AFTER UPDATE OF name ON "{Participant.table_name}"
+            BEGIN
+                UPDATE "{DBUser.table_name}"
+                SET name = new.name
+                WHERE user_id = new.user_id;
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS tg_new_user_upsert_participants
+            AFTER INSERT ON "{DBUser.table_name}"
+            BEGIN
+                INSERT INTO "{Participant.table_name}" (name, user_id)
+                VALUES (new.name, new.user_id)
+                ON CONFLICT (name) DO UPDATE
+                    SET user_id = new.user_id;
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS tg_prevent_linked_participant_delete
+            BEFORE DELETE ON "{Participant.table_name}"
+            BEGIN
+                SELECT RAISE(FAIL, 'Can''t delete participant that is linked to a user')
+                FROM "{Participant.table_name}"
+                WHERE participant_id = old.participant_id
+                    AND user_id IS NOT NULL;
             END;
         """)
 
