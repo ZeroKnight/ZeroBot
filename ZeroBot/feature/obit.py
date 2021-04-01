@@ -12,11 +12,13 @@ import sqlite3
 from collections import deque
 from datetime import datetime
 from enum import Enum, unique
+from functools import partial
 from string import Template, punctuation
 from typing import Optional, Set, Union
 
 from ZeroBot.common import CommandParser, rand_chance
-from ZeroBot.database import DBUser, Participant, get_participant
+from ZeroBot.database import DBUser, Participant
+from ZeroBot.database import get_participant as getpart
 
 MODULE_NAME = 'Obit'
 MODULE_AUTHOR = 'ZeroKnight'
@@ -30,6 +32,7 @@ CORE = None
 CFG = None
 DB = None
 MOD_ID = __name__.rsplit('.', 1)[-1]
+get_participant = None
 
 logger = logging.getLogger('ZeroBot.Feature.Obit')
 
@@ -51,7 +54,7 @@ class ObitPart(Enum):
 
 async def module_register(core):
     """Initialize module."""
-    global CORE, CFG, DB
+    global CORE, CFG, DB, get_participant
     CORE = core
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
@@ -63,6 +66,7 @@ async def module_register(core):
     DB = await core.database_connect(MOD_ID)
     await DB.create_function('cooldown', 0, lambda: cooldown)
     await _init_database()
+    get_participant = partial(getpart, DB)
 
     _register_commands()
 

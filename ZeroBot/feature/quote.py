@@ -12,12 +12,13 @@ import textwrap
 from collections import deque
 from datetime import datetime
 from enum import IntEnum, unique
+from functools import partial
 from typing import Any, List, Optional, Tuple, Union
 
 from ZeroBot.common import CommandParser
 from ZeroBot.common.abc import Message
-from ZeroBot.database import (Connection, DBModel, DBUser, Participant,
-                              get_participant)
+from ZeroBot.database import Connection, DBModel, DBUser, Participant
+from ZeroBot.database import get_participant as getpart
 from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP
 from ZeroBot.util import flatten
 
@@ -32,6 +33,7 @@ CORE = None
 CFG = None
 DB = None
 MOD_ID = __name__.rsplit('.', 1)[-1]
+get_participant = None
 
 MULTILINE_SEP = re.compile(r'(?:\n|\\n)\s*')
 MULTILINE_AUTHOR = re.compile(r'(?:<(.+)>|(.+):)')
@@ -310,7 +312,7 @@ class Quote(DBModel):
 
 async def module_register(core):
     """Initialize module."""
-    global CORE, CFG, DB, recent_quotes
+    global CORE, CFG, DB, recent_quotes, get_participant
     CORE = core
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
@@ -326,6 +328,7 @@ async def module_register(core):
     DB = await core.database_connect(MOD_ID)
     await DB.create_function('cooldown', 0, cooldown)
     await _init_database()
+    get_participant = partial(getpart, DB)
 
     _register_commands()
 
