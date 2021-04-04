@@ -615,10 +615,7 @@ class Core:
             raise TypeError(f"Invalid type '{module_type}'")
         type_str = 'feature' if module_type is FeatureModule else 'protocol'
         try:
-            if module_type is ProtocolModule:
-                module = ProtocolModule(f'ZeroBot.protocol.{name}.protocol')
-            else:
-                module = FeatureModule(f'ZeroBot.feature.{name}')
+            module = module_type(f'ZeroBot.{type_str}.{name}')
         except ModuleNotFoundError as ex:
             raise NoSuchModule(
                 f"Could not find {type_str} module '{name}': {ex}",

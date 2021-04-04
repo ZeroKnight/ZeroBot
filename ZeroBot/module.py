@@ -63,6 +63,16 @@ class ZeroBotModuleFinder(MetaPathFinder):
         return spec
 
 
+def _load_zerobot_module(import_str: str) -> ModuleType:
+    module = importlib.import_module(import_str)
+    if hasattr(module, '__path__'):
+        # This Module is a package, so load the entry point. E.g. if given
+        # 'ZeroBot.feature.foo', then load 'ZeroBot.feature.foo.feature'
+        module_type = import_str.split('.', 2)[1]
+        module = importlib.import_module(f'{import_str}.{module_type}')
+    return module
+
+
 class Module:
     """Base class for ZeroBot modules.
 
@@ -99,11 +109,11 @@ class Module:
 
     def __init__(self, import_str: str):
         try:
-            self.handle = importlib.import_module(import_str)
+            self.handle = _load_zerobot_module(import_str)
         except ModuleNotFoundError:
             # Look for newly added modules and try again
             importlib.invalidate_caches()
-            self.handle = importlib.import_module(import_str)
+            self.handle = _load_zerobot_module(import_str)
         try:
             self.name = self.handle.MODULE_NAME
             self.description = self.handle.MODULE_DESC
