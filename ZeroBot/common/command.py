@@ -10,8 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ZeroBot.common.abc import Channel, Message, User
 from ZeroBot.common.enums import HelpType
-from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
-                                       CommandParseError)
+from ZeroBot.exceptions import CommandAlreadyRegistered, CommandParseError
 from ZeroBot.module import Module
 from ZeroBot.util import gen_repr
 

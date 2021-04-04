@@ -12,8 +12,8 @@ from typing import Any, Mapping, Union
 import toml
 
 import ZeroBot
-from ZeroBot.common.exceptions import (ConfigDecodeError, ConfigEncodeError,
-                                       ConfigReadError, ConfigWriteError)
+from ZeroBot.exceptions import (ConfigDecodeError, ConfigEncodeError,
+                                ConfigReadError, ConfigWriteError)
 
 _configvars = {
     'botversion': ZeroBot.__version__
