@@ -40,7 +40,7 @@ from ZeroBot.common.exceptions import (CommandAlreadyRegistered,
                                        ZeroBotConfigError, ZeroBotModuleError)
 from ZeroBot.config import Config
 from ZeroBot.database import DBUser, DBUserAlias, Participant
-from ZeroBot.module import (CoreModule, Module, ProtocolModule,
+from ZeroBot.module import (CoreModule, FeatureModule, Module, ProtocolModule,
                             ZeroBotModuleFinder)
 from ZeroBot.protocol.context import Context
 from ZeroBot.util import shellish_split
@@ -604,23 +604,22 @@ class Core:
         ----------
         name : str
             The module name as given to `import`.
-        module_type : type
-            Either `Module` or `ProtocolModule`.
+        module_type : Type[Module]
+            Either `FeatureModule` or `ProtocolModule`.
 
         Returns
         -------
         types.ModuleType
             The module object if the import was successful.
         """
-        if module_type not in [Module, ProtocolModule]:
+        if module_type not in [FeatureModule, ProtocolModule]:
             raise TypeError(f"Invalid type '{module_type}'")
-        type_str = 'feature' if module_type is Module else 'protocol'
-
+        type_str = 'feature' if module_type is FeatureModule else 'protocol'
         try:
             if module_type is ProtocolModule:
                 module = ProtocolModule(f'ZeroBot.protocol.{name}.protocol')
             else:
-                module = Module(f'ZeroBot.feature.{name}')
+                module = FeatureModule(f'ZeroBot.feature.{name}')
         except ModuleNotFoundError as ex:
             raise NoSuchModule(
                 f"Could not find {type_str} module '{name}': {ex}",
@@ -672,7 +671,7 @@ class Core:
         self._protocols[name] = module
         return module
 
-    async def load_feature(self, name) -> Module:
+    async def load_feature(self, name) -> FeatureModule:
         """Load and register a ZeroBot feature module.
 
         Parameters
@@ -684,7 +683,7 @@ class Core:
 
         Returns
         -------
-        Module
+        FeatureModule
             Represents the loaded feature module if it was loaded successfully.
 
         Raises
@@ -699,7 +698,7 @@ class Core:
         if name in self._features:
             raise ModuleAlreadyLoaded(
                 f"Feature module '{name}' is already loaded.", mod_id=name)
-        module = self._handle_load_module(name, Module)
+        module = self._handle_load_module(name, FeatureModule)
         self._features[name] = module
         try:
             await module.handle.module_register(self)
@@ -713,7 +712,8 @@ class Core:
     # TODO: reload_protocol will be more complicated to pull off, as we have
     # connections to manage.
 
-    async def reload_feature(self, feature: Union[str, Module]) -> Module:
+    async def reload_feature(
+            self, feature: Union[str, FeatureModule]) -> FeatureModule:
         """Reload a ZeroBot feature module.
 
         Allows for changes to feature modules to be dynamically introduced at
@@ -721,16 +721,16 @@ class Core:
 
         Parameters
         ----------
-        feature : str or Module object
+        feature : str or FeatureModule object
             A string with the module identifier (e.g. 'chat' for features.chat)
-            or a loaded `Module` object.
+            or a loaded `FeatureModule` object.
 
         Returns
         -------
-        Module
+        FeatureModule
             A reference to the module if reloading was successful.
         """
-        if isinstance(feature, Module):
+        if isinstance(feature, FeatureModule):
             module = feature
             name = module.identifier
         elif isinstance(feature, str):
@@ -742,8 +742,8 @@ class Core:
                        'already loaded.')
                 raise ModuleNotLoaded(msg, mod_id=name) from None
         else:
-            raise TypeError("feature type expects 'str' or 'Module', not "
-                            f"'{type(feature)}'")
+            raise TypeError("feature type expects 'str' or 'FeatureModule', "
+                            f"not '{type(feature)}'")
         try:
             if hasattr(module.handle, 'module_unregister'):
                 await module.handle.module_unregister()
@@ -828,12 +828,12 @@ class Core:
         """
         return list(self._protocols.values())
 
-    def get_loaded_features(self) -> List[Module]:
+    def get_loaded_features(self) -> List[FeatureModule]:
         """Get a list of loaded feature modules.
 
         Returns
         -------
-        List of `Module` objects
+        List of `FeatureModule` objects
         """
         return list(self._features.values())
 

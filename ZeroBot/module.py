@@ -7,6 +7,7 @@ import importlib
 from importlib.abc import MetaPathFinder
 from importlib.util import spec_from_file_location
 from pathlib import Path
+from types import ModuleType
 from typing import List
 
 from ZeroBot.util import gen_repr
@@ -64,10 +65,12 @@ class ZeroBotModuleFinder(MetaPathFinder):
 class Module:
     """Base class for ZeroBot modules.
 
+    Not intended to be directly instantiated; use a derived class instead.
+
     Parameters
     ----------
     import_str : str
-        The name of the module to as given to `import`.
+        The name of the module to as given to an ``import`` statement.
 
     Attributes
     ----------
@@ -113,11 +116,6 @@ class Module:
     def __str__(self):
         return f'{self.name} v{self.version}'
 
-    @staticmethod
-    def get_type() -> str:
-        """Return a string representing the module type."""
-        return 'feature'
-
     @property
     def identifier(self) -> str:
         """Get the module identifier, i.e. the name used to load it."""
@@ -128,14 +126,26 @@ class Module:
         """Get the fully qualified name of the associated Python module."""
         return self.handle.__name__
 
-    def reload(self) -> 'Module':
+
+class FeatureModule(Module):
+    """A Zerobot Feature module.
+
+    As its name would suggest, a feature module gives ZeroBot the ability
+    to do something. Without any feature modules, ZeroBot does nothing
+    aside from idling on any open connections. A feature module can add any
+    arbitrary functionality to ZeroBot, from responding to chat to providing
+    various utility services.
+    """
+
+    def reload(self) -> ModuleType:
         """Reload the associated Python module.
 
         Returns
         -------
-        Module or None
+        ModuleType
             If the reload was successful, returns the new module handle.
-            Otherwise, it raises an exception.
+            Otherwise, an exception is raised depending on what caused the
+            reload to fail.
         """
         current_handle = self.handle
         self.handle = importlib.reload(current_handle)
@@ -157,13 +167,7 @@ class ProtocolModule(Module):
 
     def __init__(self, import_str: str):
         super().__init__(import_str)
-
         self.contexts = []
-
-    @staticmethod
-    def get_type() -> str:
-        """Return a string representing the module type."""
-        return 'protocol'
 
     @property
     def identifier(self) -> str:
