@@ -10,6 +10,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import List
 
+from ZeroBot.exceptions import ModuleLoadError
 from ZeroBot.util import gen_repr
 
 
@@ -103,11 +104,18 @@ class Module:
             # Look for newly added modules and try again
             importlib.invalidate_caches()
             self.handle = importlib.import_module(import_str)
-        self.name = self.handle.MODULE_NAME
-        self.description = self.handle.MODULE_DESC
-        self.author = self.handle.MODULE_AUTHOR
-        self.version = self.handle.MODULE_VERSION
-        self.license = self.handle.MODULE_LICENSE
+        try:
+            self.name = self.handle.MODULE_NAME
+            self.description = self.handle.MODULE_DESC
+            self.author = self.handle.MODULE_AUTHOR
+            self.version = self.handle.MODULE_VERSION
+            self.license = self.handle.MODULE_LICENSE
+        except AttributeError as ex:
+            name = import_str.rsplit('.', 1)[-1]
+            var = ex.args[0].rsplit(' ', 1)[-1]
+            raise ModuleLoadError(
+                f'Missing module info variable {var}', mod_id=name,
+                name=import_str, path=self.handle.__file__) from None
 
     def __repr__(self):
         attrs = ['name', 'version', 'handle']
