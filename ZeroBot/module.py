@@ -116,6 +116,7 @@ class Module:
             raise ModuleLoadError(
                 f'Missing module info variable {var}', mod_id=name,
                 name=import_str, path=self.handle.__file__) from None
+        self._identifier = self.handle.__name__.split('.', 3)[2]
 
     def __repr__(self):
         attrs = ['name', 'version', 'handle']
@@ -127,7 +128,7 @@ class Module:
     @property
     def identifier(self) -> str:
         """Get the module identifier, i.e. the name used to load it."""
-        return self.handle.__name__.split('.')[-1]
+        return self._identifier
 
     @property
     def fq_name(self) -> str:
@@ -176,10 +177,6 @@ class ProtocolModule(Module):
     def __init__(self, import_str: str):
         super().__init__(import_str)
         self.contexts = []
-
-    @property
-    def identifier(self) -> str:
-        return self.handle.__name__.split('.')[-2]
 
     def reload(self):
         """Not yet implemented for protocol modules!"""
