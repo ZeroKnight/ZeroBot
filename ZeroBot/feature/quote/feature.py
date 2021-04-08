@@ -764,7 +764,7 @@ async def quote_quick(ctx, parsed):
     async for prev_msg in msg.channel.history(limit=nprev, before=msg):
         author = await get_participant(prev_msg.author.name)
         action, body = handle_action_line(
-            prev_msg.content, DiscordMessage(prev_msg))
+            prev_msg.clean_content, DiscordMessage(prev_msg))
         lines.append((body, author, action))
 
     quote = Quote(DB, None, submitter, date=date, style=style)
