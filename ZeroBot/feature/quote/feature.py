@@ -5,6 +5,8 @@ Includes a variety of commands for searching and managing quotes, as well as
 reporting quote database statistics.
 """
 
+from __future__ import annotations
+
 import itertools
 import re
 import sqlite3
@@ -12,7 +14,7 @@ import textwrap
 from collections import deque
 from datetime import datetime
 from functools import partial
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 from ZeroBot.common.abc import Message
 from ZeroBot.database import Participant
@@ -207,7 +209,7 @@ def read_datestamp(datestamp: str) -> Optional[datetime]:
     return date.replace(microsecond=0)
 
 
-def handle_action_line(line: str, msg: Message) -> Tuple[bool, str]:
+def handle_action_line(line: str, msg: Message) -> tuple[bool, str]:
     """Handles action checking and line modification for ``quote add``.
 
     Returns a 2-tuple of (is_action, strip_action).
@@ -236,8 +238,8 @@ def prepare_pattern(pattern: str, case_sensitive: bool = False,
     return pattern
 
 
-def generate_table(rows: List[sqlite3.Row],
-                   target: Tuple[int, Any] = None) -> List[str]:
+def generate_table(rows: list[sqlite3.Row],
+                   target: tuple[int, Any] = None) -> list[str]:
     """Generate a Markdown-like table out of the given rows.
 
     The optional `target` parameter expects a tuple of the form
@@ -273,7 +275,7 @@ def generate_table(rows: List[sqlite3.Row],
     return lines
 
 
-async def quote_exists(content: Union[str, List[str]]) -> bool:
+async def quote_exists(content: Union[str, list[str]]) -> bool:
     """Check if the given quote exists."""
     if isinstance(content, list):
         content = '\n'.join(content)

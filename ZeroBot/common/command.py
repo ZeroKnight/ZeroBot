@@ -3,10 +3,12 @@
 Classes and utility functions for working with and creating ZeroBot commands.
 """
 
+from __future__ import annotations
+
 from argparse import ArgumentParser, _SubParsersAction
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 from ZeroBot.common.abc import Channel, Message, User
 from ZeroBot.common.enums import HelpType
@@ -166,7 +168,7 @@ class ParsedCommand:
     """
 
     name: str
-    args: Dict[str, Any]
+    args: dict[str, Any]
     parser: CommandParser
     msg: Message
 
@@ -274,13 +276,13 @@ class CommandHelp:
     name: str = None
     description: str = None
     usage: str = None
-    aliases: List[str] = field(default_factory=list)
-    args: Dict[str, Tuple[Optional[str], bool]] = field(default_factory=dict)
-    opts: Dict[Tuple[str, ...],
+    aliases: list[str] = field(default_factory=list)
+    args: dict[str, tuple[Optional[str], bool]] = field(default_factory=dict)
+    opts: dict[tuple[str, ...],
                Optional[
-                   Tuple[str, Optional[str]]]] = field(default_factory=dict)
-    cmds: Dict[str, Dict[str, str]] = field(default_factory=dict)
-    subcmds: Dict[str, 'CommandHelp'] = field(default_factory=dict, repr=False)
+                   tuple[str, Optional[str]]]] = field(default_factory=dict)
+    cmds: dict[str, dict[str, str]] = field(default_factory=dict)
+    subcmds: dict[str, 'CommandHelp'] = field(default_factory=dict, repr=False)
     parent: 'CommandHelp' = None
 
     def get_subcmd(self, name: str) -> 'CommandHelp':

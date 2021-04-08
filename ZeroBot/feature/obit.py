@@ -5,6 +5,8 @@ themselves) in amusing ways by randomly combining weapons, methods, and other
 modifiers.
 """
 
+from __future__ import annotations
+
 import logging
 import random
 import re
@@ -14,7 +16,7 @@ from datetime import datetime
 from enum import Enum, unique
 from functools import partial
 from string import Template, punctuation
-from typing import Optional, Set, Union
+from typing import Optional, Union
 
 from ZeroBot.common import CommandParser, rand_chance
 from ZeroBot.database import DBUser, Participant
@@ -384,7 +386,7 @@ async def obit_del(ctx, parsed, otype: ObitPart, content: str):
 
 
 async def obit_edit(ctx, parsed, otype: ObitPart, content: str,
-                    pattern: str, repl: str, flags: Set[str] = None):
+                    pattern: str, repl: str, flags: set[str] = None):
     """Edit an obituary part in the database."""
     if not await obit_exists(otype, content):
         await ctx.reply_command_result(

@@ -4,10 +4,12 @@ Various internal utilities for ZeroBot. If you're working on a feature module,
 you *probably* want `ZeroBot.common` instead.
 """
 
+from __future__ import annotations
+
 import operator
 from functools import reduce
 from io import StringIO
-from typing import Any, Iterable, List, Mapping, Union
+from typing import Any, Iterable, Mapping, Union
 
 
 def gen_repr(obj: Any, attrs: Iterable, **kwargs) -> str:
@@ -39,7 +41,7 @@ def gen_repr(obj: Any, attrs: Iterable, **kwargs) -> str:
     return f'<{name} {body}>'
 
 
-def map_reduce(key_path: Union[str, List[str]],
+def map_reduce(key_path: Union[str, list[str]],
                mapping: Mapping[str, Any]) -> Any:
     """Reduce a mapping, returning a value from an arbitrarily deep hierarcy.
 
@@ -48,7 +50,7 @@ def map_reduce(key_path: Union[str, List[str]],
 
     Parameters
     ----------
-    key_path : str or List[str]
+    key_path : str or list[str]
         A collection of sequential child keys into `mapping`. May be given as
         either a list of strings or a single string with dots (``.``)
         delimiting keys.
@@ -79,7 +81,7 @@ def flatten(iterable):
             yield elem
 
 
-def shellish_split(string: str) -> List[str]:
+def shellish_split(string: str) -> list[str]:
     """Perform shell-like word splitting on the given string.
 
     A bit more arbitrary and simplistic compared to ``shlex``, as it does *too*

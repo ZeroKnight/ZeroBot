@@ -3,13 +3,15 @@
 Simulates the classic Magic 8-Ball toy, with some ZeroBot twists...
 """
 
+from __future__ import annotations
+
 import random
 import re
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum, unique
 from string import Template
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 from ZeroBot.common import CommandParser
 
@@ -63,7 +65,7 @@ class ResponseType(Enum):
     NotAQuestion = 7
 
     @classmethod
-    def answer(cls) -> Tuple['ResponseType']:
+    def answer(cls) -> tuple['ResponseType']:
         """Return a tuple of the three answer types."""
         return cls.Positive, cls.Negative, cls.Neutral
 
@@ -135,8 +137,8 @@ def _register_commands():
     CORE.command_register(MOD_ID, *cmds)
 
 
-async def fetch_part(rtype: Union[ResponseType, Tuple[ResponseType]],
-                     expects_action: Optional[bool] = None) -> Tuple:
+async def fetch_part(rtype: Union[ResponseType, tuple[ResponseType]],
+                     expects_action: Optional[bool] = None) -> tuple:
     """Fetch a phrase of a particular response type."""
     if isinstance(rtype, tuple):
         placeholders = ', '.join('?' * len(rtype))

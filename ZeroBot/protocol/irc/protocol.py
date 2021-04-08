@@ -3,9 +3,11 @@
 IRC protocol implementation.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import pydle
 from pydle.features.ircv3.tags import TaggedMessage
@@ -51,7 +53,7 @@ async def module_unregister(contexts, reason: str = None):
         await ctx.quit(reason)
 
 
-def _configure(cfg: Config) -> List[dict]:
+def _configure(cfg: Config) -> list[dict]:
     """Set up IRC connections based on the given parsed configuration."""
 
     settings_default = {
@@ -118,10 +120,10 @@ def _configure(cfg: Config) -> List[dict]:
 class IRCContext(Context, pydle.Client):
     """IRC implementation of a ZeroBot `Context`."""
 
-    def __init__(self, user: IRCUser, servers: List[IRCServer], *,
+    def __init__(self, user: IRCUser, servers: list[IRCServer], *,
                  eventloop: asyncio.AbstractEventLoop,
                  request_umode: str = None,
-                 fallback_nicknames: List = None, **kwargs):
+                 fallback_nicknames: list = None, **kwargs):
         super().__init__(
             user.name, fallback_nicknames or [], user.username, user.realname,
             eventloop=eventloop, **kwargs

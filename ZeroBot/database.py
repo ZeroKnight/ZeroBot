@@ -3,6 +3,8 @@
 Interface to ZeroBot's SQLite 3 database backend.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -10,7 +12,7 @@ import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import AnyStr, Dict, Iterator, Optional, Union
+from typing import AnyStr, Iterator, Optional, Union
 
 import aiosqlite
 
@@ -110,7 +112,7 @@ class DBUserInfo(DBModel):
         current date and time is used.
     creation_flags : TODO
         TBD
-    creation_metadata : Dict, optional
+    creation_metadata : dict, optional
         Arbitrary data associated with this user/alias.
     comment : str, optional
         An arbitrary note about this user/alias.
@@ -124,7 +126,7 @@ class DBUserInfo(DBModel):
 
     def __init__(self, conn: Connection, user_id: int, name: str, *,
                  created_at: datetime = None, creation_flags: int = 0,
-                 creation_metadata: Dict = None, comment: str = None,
+                 creation_metadata: dict = None, comment: str = None,
                  **kwargs):
         super().__init__(conn)
         self._id = user_id

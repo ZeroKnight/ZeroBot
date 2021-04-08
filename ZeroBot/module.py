@@ -3,13 +3,14 @@
 Provides abstractions for ZeroBot modules and their associated files.
 """
 
+from __future__ import annotations
+
 import importlib
 import sys
 from importlib.abc import MetaPathFinder
 from importlib.util import spec_from_file_location
 from pathlib import Path
 from types import ModuleType
-from typing import List, Tuple
 
 from ZeroBot.exceptions import ModuleLoadError
 from ZeroBot.util import gen_repr
@@ -45,7 +46,7 @@ class ZeroBotModuleFinder(MetaPathFinder):
         The list of paths to search for ZeroBot modules.
     """
 
-    def __init__(self, search_dirs: List):
+    def __init__(self, search_dirs: list):
         self.search_dirs = search_dirs
 
     def find_spec(self, fullname, path, target=None):
@@ -64,7 +65,7 @@ class ZeroBotModuleFinder(MetaPathFinder):
         return spec
 
 
-def _load_zerobot_module(import_str: str) -> Tuple[ModuleType, bool]:
+def _load_zerobot_module(import_str: str) -> tuple[ModuleType, bool]:
     module = importlib.import_module(import_str)
     is_package = False
     if hasattr(module, '__path__'):

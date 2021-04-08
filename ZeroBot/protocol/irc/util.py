@@ -3,10 +3,12 @@
 IRC protocol implementation utilities and helpers.
 """
 
-import datetime
-from typing import Optional, Tuple
+from __future__ import annotations
 
-UserTuple = Tuple[Optional[str], Optional[str], Optional[str]]
+import datetime
+from typing import Optional
+
+UserTuple = tuple[Optional[str], Optional[str], Optional[str]]
 
 
 def irc_time_format(time: datetime.datetime) -> str:

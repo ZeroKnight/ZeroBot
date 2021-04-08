@@ -3,14 +3,14 @@
 Command definitions and associated functions for the Quote feature.
 """
 
-from typing import List
+from __future__ import annotations
 
 from ZeroBot.common import CommandParser
 
 from .classes import QuoteStyle
 
 
-def define_commands() -> List[CommandParser]:
+def define_commands() -> list[CommandParser]:
     """Create our commands."""
     cmds = []
     cmd_quote = CommandParser(

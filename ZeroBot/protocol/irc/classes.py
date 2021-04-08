@@ -3,10 +3,12 @@
 IRC implementation of ZeroBot.common.abc classes.
 """
 
+from __future__ import annotations
+
 import datetime
 import re
 from itertools import chain, islice, repeat
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 from dateutil.parser import isoparse
 
@@ -293,7 +295,7 @@ class IRCMessage(abc.Message):
         The contents of the message.
     time : datetime.datetime
         The time that the message was sent, in UTC.
-    tags : Dict[str, Optional[str]]
+    tags : dict[str, Optional[str]]
         A dictionary containing any IRCv3 tags present in the message, mapped
         to their optional values. A tag with no value is assigned `None`.
     """
@@ -301,7 +303,7 @@ class IRCMessage(abc.Message):
     def __init__(self, source: Union[IRCUser, IRCServer],
                  destination: Union[IRCUser, IRCChannel],
                  content: str, *, time: datetime.datetime = None,
-                 tags: Dict[str, Optional[str]] = None):
+                 tags: dict[str, Optional[str]] = None):
         self.source = source
         self.destination = destination
         self.content = content

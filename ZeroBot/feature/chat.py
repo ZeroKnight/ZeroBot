@@ -4,6 +4,8 @@ Allows ZeroBot to chat and respond to conversation in various ways. Also allows
 privileged users to puppet ZeroBot, sending arbitrary messages and actions.
 """
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import logging
@@ -12,7 +14,7 @@ import re
 import shutil
 from collections import deque
 from enum import Enum, unique
-from typing import Iterable, Tuple
+from typing import Iterable
 
 from ZeroBot.common import CommandParser, rand_chance
 
@@ -189,7 +191,7 @@ def _register_commands():
 
 
 async def fetch_phrase(table: str, columns: Iterable[str],
-                       query: str = None, parameters: Tuple = None) -> Tuple:
+                       query: str = None, parameters: tuple = None) -> tuple:
     """Convenient wrapper for fetching phrases.
 
     Wraps a query intended to return a phrase from one of the Chat tables.

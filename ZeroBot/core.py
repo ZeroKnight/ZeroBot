@@ -8,6 +8,8 @@ on protocol modules to enable ZeroBot to connect to and communicate somewhere,
 and feature modules to do something meaningful with that connection.
 """
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import datetime
@@ -22,7 +24,7 @@ from collections import ChainMap, namedtuple
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Iterator, List, Tuple, Type, Union
+from typing import Iterator, Type, Union
 
 import appdirs
 from toml import TomlDecodeError
@@ -88,7 +90,7 @@ class CommandRegistry:
                 f"Module '{module_id}' does not have any registered commands.",
                 mod_id=module_id) from None
 
-    def pairs(self) -> Iterator[Tuple[str, List[CommandParser]]]:
+    def pairs(self) -> Iterator[tuple[str, list[CommandParser]]]:
         """Generator that yields pairs of module identifiers their parsers."""
         for module, cmds in self._registry['by_module'].items():
             yield (module, cmds)
@@ -143,7 +145,7 @@ class CommandRegistry:
                 f"Command '{command}' is not registered",
                 cmd_name=command) from None
 
-    def modules_registered(self) -> List[Module]:
+    def modules_registered(self) -> list[Module]:
         """Return a list of `Module`s that have registered commands."""
         return [cmds[0].module
                 for cmds in self._registry['by_module'].values()]
@@ -301,7 +303,7 @@ class Core:
         return self._config_dir
 
     @property
-    def configs(self) -> List[Config]:
+    def configs(self) -> list[Config]:
         """Get a list of currently loaded `Config`s."""
         return self._configs
 
@@ -815,7 +817,7 @@ class Core:
         """
         return module_id in self._features
 
-    def get_loaded_protocols(self) -> List[ProtocolModule]:
+    def get_loaded_protocols(self) -> list[ProtocolModule]:
         """Get a list of loaded protocol modules.
 
         Returns
@@ -824,7 +826,7 @@ class Core:
         """
         return list(self._protocols.values())
 
-    def get_loaded_features(self) -> List[FeatureModule]:
+    def get_loaded_features(self) -> list[FeatureModule]:
         """Get a list of loaded feature modules.
 
         Returns
@@ -855,7 +857,7 @@ class Core:
         return (self.feature_loaded(module_id)
                 or ZeroBot.module.module_available(module_id, 'feature'))
 
-    def get_available_protocols(self) -> List[str]:
+    def get_available_protocols(self) -> list[str]:
         """Get a list of all available protocol modules.
 
         Returns
@@ -871,7 +873,7 @@ class Core:
                         mdir.glob('protocol/*/protocol.py')]
         return modules
 
-    def get_available_features(self) -> List[str]:
+    def get_available_features(self) -> list[str]:
         """Get a list of all available feature modules.
 
         Returns
@@ -886,7 +888,7 @@ class Core:
             modules += [child.stem for child in mdir.glob('feature/*.py')]
         return modules
 
-    def get_contexts(self) -> List[Context]:
+    def get_contexts(self) -> list[Context]:
         """Get a list of all active protocol `Context`s."""
         return [ctx for proto in self._protocols.values()
                 for ctx in proto.contexts]

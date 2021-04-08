@@ -4,12 +4,14 @@ Keep a running total of arbitrary occurrences or statements made in ZeroBot's
 presence and announce when they happen.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import re
 from datetime import datetime
 from string import Template
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, Union
 
 from ZeroBot.common import CommandParser
 from ZeroBot.database import Participant
@@ -49,8 +51,8 @@ class Counter:
 
     def __init__(self, name: str, description: str, announcement: str = None,
                  count: int = 0, *, enabled: bool = True, muted: bool = False,
-                 triggers: List[str] = None, restrictions: List[str] = None,
-                 blacklist: List[str] = None, created_at: datetime = None,
+                 triggers: list[str] = None, restrictions: list[str] = None,
+                 blacklist: list[str] = None, created_at: datetime = None,
                  last_triggered: datetime = None,
                  last_user: Participant = None, last_channel: str = None):
         now = datetime.utcnow().replace(microsecond=0)

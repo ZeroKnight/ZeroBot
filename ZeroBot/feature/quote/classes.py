@@ -3,10 +3,12 @@
 Classes/Models used by the Quote feature.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from enum import IntEnum, unique
 from sqlite3 import Row
-from typing import List, Optional
+from typing import Optional
 
 from ZeroBot.database import Connection, DBModel, Participant
 
@@ -161,7 +163,7 @@ class Quote(DBModel):
         await quote.fetch_lines()
         return quote
 
-    async def fetch_lines(self) -> List[QuoteLine]:
+    async def fetch_lines(self) -> list[QuoteLine]:
         """Fetch the `QuoteLine`s that make up the quote body.
 
         Sets `self.lines` to the fetched lines and returns them.
@@ -177,7 +179,7 @@ class Quote(DBModel):
             ]
         return self.lines
 
-    async def fetch_authors(self) -> List[Participant]:
+    async def fetch_authors(self) -> list[Participant]:
         """Fetch the authors that are part of this quote.
 
         Authors in the list are ordered by their `author_num` value. Sets
