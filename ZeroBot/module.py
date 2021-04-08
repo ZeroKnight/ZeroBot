@@ -4,11 +4,12 @@ Provides abstractions for ZeroBot modules and their associated files.
 """
 
 import importlib
+import sys
 from importlib.abc import MetaPathFinder
 from importlib.util import spec_from_file_location
 from pathlib import Path
 from types import ModuleType
-from typing import List
+from typing import List, Tuple
 
 from ZeroBot.exceptions import ModuleLoadError
 from ZeroBot.util import gen_repr
@@ -63,14 +64,16 @@ class ZeroBotModuleFinder(MetaPathFinder):
         return spec
 
 
-def _load_zerobot_module(import_str: str) -> ModuleType:
+def _load_zerobot_module(import_str: str) -> Tuple[ModuleType, bool]:
     module = importlib.import_module(import_str)
+    is_package = False
     if hasattr(module, '__path__'):
         # This Module is a package, so load the entry point. E.g. if given
         # 'ZeroBot.feature.foo', then load 'ZeroBot.feature.foo.feature'
         module_type = import_str.split('.', 2)[1]
         module = importlib.import_module(f'{import_str}.{module_type}')
-    return module
+        is_package = True
+    return module, is_package
 
 
 class Module:
@@ -109,11 +112,11 @@ class Module:
 
     def __init__(self, import_str: str):
         try:
-            self.handle = _load_zerobot_module(import_str)
+            self.handle, self._is_package = _load_zerobot_module(import_str)
         except ModuleNotFoundError:
             # Look for newly added modules and try again
             importlib.invalidate_caches()
-            self.handle = _load_zerobot_module(import_str)
+            self.handle, self._is_package = _load_zerobot_module(import_str)
         try:
             self.name = self.handle.MODULE_NAME
             self.description = self.handle.MODULE_DESC
@@ -167,6 +170,13 @@ class FeatureModule(Module):
             reload to fail.
         """
         current_handle = self.handle
+        if self._is_package:
+            def _filter(name):
+                return (not name.endswith('feature')
+                        and name.startswith(f'{self.handle.__package__}.'))
+            for module in [mod for name, mod in sys.modules.items()
+                           if _filter(name)]:
+                importlib.reload(module)
         self.handle = importlib.reload(current_handle)
         return self.handle
 
