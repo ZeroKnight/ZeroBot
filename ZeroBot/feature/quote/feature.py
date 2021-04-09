@@ -17,6 +17,7 @@ from functools import partial
 from typing import Any, Optional, Union
 
 from ZeroBot.common.abc import Message
+from ZeroBot.common.enums import CmdErrorType
 from ZeroBot.database import Participant
 from ZeroBot.database import get_participant as getpart
 from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP
@@ -300,7 +301,8 @@ async def quote_add(ctx, parsed):
     if parsed.args['date']:
         date = read_datestamp(parsed.args['date'])
         if date is None:
-            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            await CORE.module_send_event(
+                'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
             return
     else:
         date = datetime.utcnow().replace(microsecond=0)
@@ -388,7 +390,8 @@ async def quote_recent(ctx, parsed):
     basic = parsed.args['basic']
     count = min(parsed.args['count'], CFG['MaxCount'])
     if count < 1:
-        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        await CORE.module_send_event(
+            'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
         return
     if pattern:
         target = 'submitters' if parsed.args['submitter'] else 'authors'
@@ -445,7 +448,8 @@ async def quote_search(ctx, parsed):
     if not any(
             parsed.args[a] for a in ('pattern', 'id', 'author', 'submitter')):
         # Technically equivalent to `!quote` but less efficient
-        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        await CORE.module_send_event(
+            'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
         return
     case_sensitive = parsed.args['case_sensitive']
     if parsed.args['id']:
@@ -516,14 +520,16 @@ async def quote_stats(ctx, parsed):
     """Query various statistics about the quote database."""
     count = min(parsed.args['count'], CFG['MaxCount'])
     if count < 1:
-        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        await CORE.module_send_event(
+            'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
         return
     if parsed.args['leaderboard']:
         await quote_stats_leaderboard(ctx, parsed, count)
         return
     if parsed.args['global'] and parsed.args['user']:
         # These are mutually exclusive arguments
-        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        await CORE.module_send_event(
+            'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
         return
 
     selection = [parsed.args[x] for x in (
@@ -625,7 +631,8 @@ async def quote_stats_leaderboard(ctx, parsed, count):
         except ValueError:
             pass
         if not all(key in criteria.keys() for key in sort):
-            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            await CORE.module_send_event(
+                'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
             return
         chosen_sort = ', '.join(f'"{criteria[x]}" DESC' for x in sort)
     else:
@@ -699,7 +706,8 @@ async def quote_quick(ctx, parsed):
     style = getattr(QuoteStyle, parsed.args['style'].title())
     if parsed.args['date']:
         if (date := read_datestamp(parsed.args['date'])) is None:
-            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            await CORE.module_send_event(
+                'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
             return
     else:
         date = datetime.utcnow().replace(microsecond=0)
@@ -734,7 +742,7 @@ async def quote_quick(ctx, parsed):
             else:
                 # No message found
                 await CORE.module_send_event(
-                    'invalid_command', ctx, parsed.msg)
+                    'invalid_command', ctx, parsed.msg, CmdErrorType.NoResults)
                 return
         elif user:
             # Last message in channel by user
@@ -742,7 +750,7 @@ async def quote_quick(ctx, parsed):
             if user is None:
                 # Don't bother checking history if given a bad username
                 await CORE.module_send_event(
-                    'invalid_command', ctx, parsed.msg)
+                    'invalid_command', ctx, parsed.msg, CmdErrorType.BadTarget)
                 return
             limit = 100
             msg = await channels[0].history(limit=limit).get(author=user)

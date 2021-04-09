@@ -18,6 +18,7 @@ from typing import Optional
 from zlib import adler32
 
 from ZeroBot.common import CommandParser
+from ZeroBot.common.enums import CmdErrorType
 
 MODULE_NAME = 'Encode'
 MODULE_AUTHOR = 'ZeroKnight'
@@ -197,7 +198,8 @@ async def handle_transform(ctx, parsed, method):
         if case is not None:
             digest = case(digest)
     except Exception:  # pylint: disable=broad-except
-        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        await CORE.module_send_event(
+            'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
         return
     await ctx.reply_command_result(parsed, digest)
 

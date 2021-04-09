@@ -14,6 +14,7 @@ from string import Template
 from typing import Iterable, Union
 
 from ZeroBot.common import CommandParser
+from ZeroBot.common.enums import CmdErrorType
 from ZeroBot.database import Participant
 
 MODULE_NAME = 'Counter'
@@ -380,7 +381,8 @@ async def module_command_count(ctx, parsed):
     try:
         counter = counters[parsed.args['counter']]
     except KeyError:
-        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        await CORE.module_send_event(
+            'invalid_command', ctx, parsed.msg, CmdErrorType.NoResults)
         return
     # TODO: Proper 'DirectMessage' class
     try:
@@ -405,7 +407,8 @@ async def module_command_counter(ctx, parsed):
         try:
             counter = counters[parsed.args['counter']]
         except KeyError:
-            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            await CORE.module_send_event(
+                'invalid_command', ctx, parsed.msg, CmdErrorType.NoResults)
             return
         user = None
         if len(counter.restrictions) > 0:
@@ -438,7 +441,8 @@ async def module_command_counter(ctx, parsed):
         try:
             counter = counters[parsed.args['counter']]
         except KeyError:
-            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            await CORE.module_send_event(
+                'invalid_command', ctx, parsed.msg, CmdErrorType.NoResults)
             return
         if counter.last_user is not None:
             last_user = counter.last_user.name

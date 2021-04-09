@@ -17,6 +17,7 @@ from enum import Enum, unique
 from typing import Iterable
 
 from ZeroBot.common import CommandParser, rand_chance
+from ZeroBot.common.enums import CmdErrorType
 
 try:
     import discord
@@ -344,7 +345,7 @@ async def module_on_join(ctx, channel, user):
 
 
 async def module_on_invalid_command(ctx, cmd_msg):
-    """Handle `Core` invalid-command event."""
+    """Handle `Core` invalid_command event."""
     # Insult a user when they enter a malformed or invalid command.
     if not (CFG.get('Enabled') and CFG.get('BadCmd.Enabled')):
         return
@@ -392,7 +393,8 @@ async def module_command_fortune(ctx, parsed):
             lines.append(data.decode().rstrip())
         await proc.wait()
         if proc.returncode != 0:
-            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            await CORE.module_send_event(
+                'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
             return
         await ctx.reply_command_result(parsed, lines)
     except OSError:

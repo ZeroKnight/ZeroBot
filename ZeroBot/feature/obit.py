@@ -19,6 +19,7 @@ from string import Template, punctuation
 from typing import Optional, Union
 
 from ZeroBot.common import CommandParser, rand_chance
+from ZeroBot.common.enums import CmdErrorType
 from ZeroBot.database import DBUser, Participant
 from ZeroBot.database import get_participant as getpart
 
@@ -297,7 +298,8 @@ async def module_command_obitdb(ctx, parsed):
     content = ' '.join(parsed.args['content']).strip()
     content = re.sub(r'\B@(\S+)', r'\1', content)
     if not content:
-        await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+        await CORE.module_send_event(
+            'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
         return
     otype = getattr(ObitPart, parsed.args['type'].title())
     if parsed.subcmd in ('add', 'del'):
@@ -317,7 +319,8 @@ async def module_command_obitdb(ctx, parsed):
             else:
                 raise ValueError('Bad sed pattern')
         except ValueError:
-            await CORE.module_send_event('invalid_command', ctx, parsed.msg)
+            await CORE.module_send_event(
+                'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
         else:
             await obit_edit(ctx, parsed, otype, content, pattern, repl, flags)
     else:
