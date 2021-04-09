@@ -49,6 +49,7 @@ PATTERN_DOTS = re.compile(r'^\s*[' + ALL_CHARS + r']+\s*$')
 
 DEFAULT_ACTIVITY_INTERVAL = 1800
 DEFAULT_BERATE_CHANCE = 0.5
+DEFAULT_VAGUE_CHANCE = 0.5
 
 tables = ['activity', 'badcmd', 'berate',
           'greetings', 'mentioned', 'questioned']
@@ -131,8 +132,9 @@ async def _init_database():
                 ON DELETE SET DEFAULT
         ) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS "chat_badcmd" (
-            "phrase"    TEXT NOT NULL UNIQUE,
-            "action"    BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            "phrase"     TEXT NOT NULL UNIQUE,
+            "action"     BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+            "error_type" INTEGER NOT NULL DEFAULT 1,
             PRIMARY KEY("phrase")
         ) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS "chat_berate" (
@@ -344,12 +346,17 @@ async def module_on_join(ctx, channel, user):
         await ctx.module_message(channel, phrase, action)
 
 
-async def module_on_invalid_command(ctx, cmd_msg):
+async def module_on_invalid_command(ctx, cmd_msg, err=CmdErrorType.Unspecified):
     """Handle `Core` invalid_command event."""
     # Insult a user when they enter a malformed or invalid command.
     if not (CFG.get('Enabled') and CFG.get('BadCmd.Enabled')):
         return
-    phrase, action = await fetch_phrase('badcmd', ['action'])
+    vague_chance = CFG.get('BadCmd.VagueChance', DEFAULT_VAGUE_CHANCE)
+    if err != CmdErrorType.Unspecified and rand_chance(vague_chance):
+        # ZeroBot might still be vague regardless
+        err = CmdErrorType.Unspecified
+    phrase, action = await fetch_phrase(
+        'badcmd', ['action'], 'WHERE error_type = ?', (err.value,))
     await ctx.module_message(cmd_msg.destination, phrase, action)
 
 
