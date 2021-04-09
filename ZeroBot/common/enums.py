@@ -7,6 +7,23 @@ from enum import Enum, unique
 
 
 @unique
+class CmdErrorType(Enum):
+    """Enum of different error categories for invalid or failed commands.
+
+    Primarily passed to `invalid_command` events to give a general idea of
+    why a command was invalid or why it failed.
+    """
+
+    Unspecified = 1
+    NotFound = 2
+    BadSyntax = 3
+    AmbiguousArgument = 4
+    NoResults = 5
+    OutputTooLong = 6
+    BadTarget = 7
+
+
+@unique
 class HelpType(Enum):
     """Enum representing the type of response to a command help request.
 

@@ -33,6 +33,7 @@ import ZeroBot
 import ZeroBot.database as zbdb
 from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus, abc
 from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
+from ZeroBot.common.enums import CmdErrorType
 from ZeroBot.config import Config
 from ZeroBot.database import DBUser, DBUserAlias, Participant
 from ZeroBot.exceptions import (CommandAlreadyRegistered, CommandNotRegistered,
@@ -1210,7 +1211,8 @@ class Core:
         try:
             name, *args = shellish_split(cmd_str)
         except ValueError:
-            await self.module_send_event('invalid_command', ctx, cmd_msg)
+            await self.module_send_event(
+                'invalid_command', ctx, cmd_msg, CmdErrorType.BadSyntax)
             return
         name = name.lstrip(self.cmdprefix)
         if delay:
@@ -1224,8 +1226,13 @@ class Core:
         try:
             cmd = self._commands[name]
             namespace = cmd.parse_args(args)
-        except (KeyError, ArgumentError, ArgumentTypeError, CommandParseError):
-            await self.module_send_event('invalid_command', ctx, cmd_msg)
+        except KeyError:
+            await self.module_send_event(
+                'invalid_command', ctx, cmd_msg, CmdErrorType.NotFound)
+            return
+        except (ArgumentError, ArgumentTypeError, CommandParseError):
+            await self.module_send_event(
+                'invalid_command', ctx, cmd_msg, CmdErrorType.BadSyntax)
             return
         method = getattr(cmd.module.handle, f'module_command_{name}', None)
         if callable(method):
