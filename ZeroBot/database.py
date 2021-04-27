@@ -364,7 +364,7 @@ class Participant(DBModel):
         """
         async with conn.cursor() as cur:
             await cur.execute(
-                'SELECT * FROM participants WHERE participant_id = ?',
+                f'SELECT * FROM {cls.table_name} WHERE participant_id = ?',
                 (participant_id,))
             row = await cur.fetchone()
         if row is None:
@@ -481,7 +481,7 @@ async def get_participant(conn: Connection, name: str,
     if ignore_case:
         criteria = 'lower(pan.name) = lower(?1)'
     else:
-        criteria = ('pan.name = ?1 OR case_sensitive = 0'
+        criteria = ('pan.name = ?1 OR case_sensitive = 0 '
                     'AND lower(pan.name) = lower(?1)')
     async with conn.cursor() as cur:
         await cur.execute(f"""
