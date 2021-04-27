@@ -594,6 +594,10 @@ async def module_command_markov(ctx, parsed):
     subcmd = parsed.subcmd
     if subcmd == 'learn':
         if parsed.args['state'] is not None:
+            if parsed.invoker != ctx.owner:
+                await ctx.reply_command_result(
+                    parsed, f'Sorry, currently only {ctx.owner.name} can do that.')
+                return
             state = parsed.args['state'] == 'on'
             CFG['Learning.Enabled'] = state
             if state:
