@@ -545,6 +545,149 @@ async def get_user(conn: Connection, name: str,
     return user
 
 
+class Source(DBModel):
+    """A specific combination of protocol, server, and channel.
+
+    A source is a particular combination of a protocol, server, and channel
+    where something (typically a message) originated. ZeroBot modules should
+    create and reference sources when possible as they can be used by all
+    feature modules in a centralized manner, as opposed to each module creating
+    its own unique channel and/or server references.
+
+    Parameters
+    ----------
+    source_id : int
+        The source's ID.
+    protocol : str
+        A protocol identifier, e.g. ``discord``.
+    server : str, optional
+        The name of a server on the given `protocol`.
+    channel : str, optional
+        The name of a channel on the given `server`.
+
+    Attributes
+    ----------
+    id
+    """
+
+    table_name = 'sources'
+
+    def __init__(self, conn: Connection, source_id: int, protocol: str,
+                 server: str = None, channel: str = None):
+        super().__init__(conn)
+        self.id = source_id
+        if protocol is not None:
+            self.protocol = protocol
+        else:
+            raise TypeError('protocol cannot be None')
+        self.server = server
+        self.channel = channel
+
+    def __repr__(self):
+        attrs = ['id', 'protocol', 'server', 'channel']
+        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
+        return f'<{self.__class__.__name__} {repr_str}>'
+
+    def __str__(self):
+        return ', '.join(
+            attr for attr in (self.server, self.channel) if attr is not None)
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    @classmethod
+    def from_row(cls, conn: Connection, row: sqlite3.Row) -> Source:
+        """Construct a `Source` from a database row.
+
+        Parameters
+        ----------
+        conn : Connection
+            The database connection to use.
+        row : sqlite3.Row
+            A row returned from the database.
+        """
+        return cls(conn, *row)
+
+    @classmethod
+    async def from_id(cls, conn: Connection,
+                      source_id: int) -> Optional[Source]:
+        """Construct a `Source` by ID from the database.
+
+        Returns `None` if there was no `Source` with the given ID.
+
+        Parameters
+        ----------
+        conn : Connection
+            The database connection to use.
+        source_id : int
+            The ID of the source to fetch.
+        """
+        async with conn.cursor() as cur:
+            await cur.execute(
+                f'SELECT * FROM {cls.table_name} WHERE source_id = ?',
+                (source_id,))
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        return cls.from_row(conn, row)
+
+    async def save(self):
+        """Save this `Source` to the database."""
+        async with self._connection.cursor() as cur:
+            await cur.execute(f"""
+                INSERT INTO {self.table_name} VALUES (?, ?, ?, ?)
+                ON CONFLICT (source_id) DO UPDATE SET
+                    protocol = excluded.protocol,
+                    server = excluded.server,
+                    channel = excluded.channel
+            """, (self.id, self.protocol, self.server, self.channel))
+            self.id = cur.lastrowid
+            await self._connection.commit()
+
+
+async def get_source(conn: Connection, protocol: str, server: str = None,
+                     channel: str = None) -> int:
+    """Get an existing source or create a new one.
+
+    This is a convenient and generalized function for Zerobot modules that
+    enables the most common actions related to database sources: lookup of
+    existing sources and the creation of new ones.
+
+    Parameters
+    ----------
+    conn : Connection
+        The database connection to use.
+    protocol : str
+        A protocol identifier, e.g. ``discord``.
+    server : str, optional
+        The name of a server on the given `protocol`.
+    channel : str, optional
+        The name of a channel on the given `server`.
+
+    Returns
+    -------
+    int
+        The ``source_id`` of either an existing or newly created source.
+    """
+    for attr in ('protocol', 'server', 'channel'):
+        if locals()[attr].strip() == '':
+            raise ValueError(f'{attr} is empty or whitespace')
+    async with conn.cursor() as cur:
+        await cur.execute(f"""
+            SELECT source_id, protocol, server, channel
+            FROM {Source.table_name}
+            WHERE protocol = ? AND server = ? AND channel = ?
+        """, (protocol, server, channel))
+        row = await cur.fetchone()
+    if row is None:
+        # Create new Source
+        source = Source(conn, None, protocol, server, channel)
+        await source.save()
+    else:
+        source = Source.from_row(conn, row)
+    return source
+
+
 async def create_connection(database: Union[str, Path], module: Module,
                             loop: asyncio.AbstractEventLoop = None,
                             readonly: bool = False, **kwargs) -> Connection:

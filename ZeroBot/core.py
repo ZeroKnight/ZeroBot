@@ -35,7 +35,7 @@ from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus, abc
 from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
 from ZeroBot.common.enums import CmdErrorType
 from ZeroBot.config import Config
-from ZeroBot.database import DBUser, DBUserAlias, Participant
+from ZeroBot.database import DBUser, DBUserAlias, Participant, Source
 from ZeroBot.exceptions import (CommandAlreadyRegistered, CommandNotRegistered,
                                 CommandParseError, ModuleAlreadyLoaded,
                                 ModuleHasNoCommands, ModuleLoadError,
@@ -388,6 +388,20 @@ class Core:
                 PRIMARY KEY ("participant_id"),
                 FOREIGN KEY ("user_id") REFERENCES "{DBUser.table_name}" ("user_id")
                     ON DELETE SET NULL
+            );
+            CREATE TABLE IF NOT EXISTS "protocols" (
+                "identifier" TEXT NOT NULL,
+                "name"       TEXT NOT NULL,
+                PRIMARY KEY ("identifier")
+            ) WITHOUT ROWID;
+            CREATE TABLE IF NOT EXISTS "{Source.table_name}" (
+                "source_id" INTEGER NOT NULL,
+                "protocol"  TEXT NOT NULL,
+                "server"    TEXT,
+                "channel"   TEXT,
+                PRIMARY KEY ("source_id"),
+                FOREIGN KEY ("protocol") REFERENCES "protocols" ("identifier")
+                    ON UPDATE CASCADE
             );
 
             CREATE VIEW IF NOT EXISTS users_all_names (
