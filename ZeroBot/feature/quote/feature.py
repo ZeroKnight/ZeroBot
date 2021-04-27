@@ -142,7 +142,7 @@ async def module_command_quote(ctx, parsed):
         await ctx.module_message(parsed.msg.destination, quote)
 
 
-async def execute_opt_case(cursor, sql: str, params: Tuple = None,
+async def execute_opt_case(cursor, sql: str, params: tuple = None,
                            case_sensitive: bool = False):
     """Execute a query with optional case-sensitive ``LIKE`` operator."""
     if case_sensitive:
@@ -152,7 +152,7 @@ async def execute_opt_case(cursor, sql: str, params: Tuple = None,
         await cursor.execute('PRAGMA case_sensitive_like = 0')
 
 
-async def fetch_quote(sql: str, params: Tuple = None, *,
+async def fetch_quote(sql: str, params: tuple = None, *,
                       cooldown: bool = True,
                       case_sensitive: bool = False) -> Optional[Quote]:
     """Fetch a quote from the database, respecting cooldowns.

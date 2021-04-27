@@ -165,7 +165,7 @@ class DBUser(DBUserInfo):
     table_name = 'users'
 
     @classmethod
-    def from_row(cls, conn: Connection, row: sqlite3.Row) -> 'DBUser':
+    def from_row(cls, conn: Connection, row: sqlite3.Row) -> DBUser:
         """Construct a `DBUser` from a database row.
 
         Parameters
@@ -186,8 +186,7 @@ class DBUser(DBUserInfo):
         return cls(conn, creation_metadata=metadata, **attrs)
 
     @classmethod
-    async def from_id(cls, conn: Connection,
-                      user_id: int) -> Optional['DBUser']:
+    async def from_id(cls, conn: Connection, user_id: int) -> Optional[DBUser]:
         """Construct a specific `DBUser` from the database.
 
         Returns `None` if the given ID was not found.
@@ -208,7 +207,7 @@ class DBUser(DBUserInfo):
             return cls.from_row(conn, row)
         return None
 
-    async def get_aliases(self) -> Iterator['DBUserAlias']:
+    async def get_aliases(self) -> Iterator[DBUserAlias]:
         """Generator that fetches a list of this user's aliases, if any."""
         async with self._connection.cursor() as cur:
             await cur.execute(
@@ -251,7 +250,7 @@ class DBUserAlias(DBUserInfo):
 
     @classmethod
     def from_row(cls, conn: Connection, row: sqlite3.Row,
-                 user: DBUser = None) -> 'DBUserAlias':
+                 user: DBUser = None) -> DBUserAlias:
         """Construct a `DBUserAlias` from a database row.
 
         Parameters
@@ -333,7 +332,7 @@ class Participant(DBModel):
 
     @classmethod
     def from_row(cls, conn: Connection, row: sqlite3.Row,
-                 user: DBUser = None) -> 'Participant':
+                 user: DBUser = None) -> Participant:
         """Construct a `Participant` from a database row.
 
         Parameters
@@ -351,7 +350,7 @@ class Participant(DBModel):
 
     @classmethod
     async def from_id(cls, conn: Connection,
-                      participant_id: int) -> Optional['Participant']:
+                      participant_id: int) -> Optional[Participant]:
         """Construct a `Participant` by ID from the database.
 
         Returns `None` if there was no `Participant` with the given ID.
@@ -375,7 +374,7 @@ class Participant(DBModel):
 
     @classmethod
     async def from_name(cls, conn: Connection,
-                        name: str) -> Optional['Participant']:
+                        name: str) -> Optional[Participant]:
         """Construct a `Participant` by name from the database.
 
         Parameters
@@ -396,7 +395,7 @@ class Participant(DBModel):
 
     @classmethod
     async def from_user(cls, conn: Connection,
-                        user: Union[DBUser, int]) -> Optional['Participant']:
+                        user: Union[DBUser, int]) -> Optional[Participant]:
         """Construct a `Participant` linked to the given user.
 
         Parameters
