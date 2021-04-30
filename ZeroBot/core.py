@@ -924,6 +924,10 @@ class Core:
             self.logger.info(f'Restarting with command line: {sys.argv}')
             os.execl(sys.executable, sys.executable, *sys.argv)
 
+    async def run_async(self, func, *args):
+        """Run a synchronous function on the `Core` event loop."""
+        return await self.eventloop.run_in_executor(None, func, *args)
+
     def command_register(self, module_id: str, *cmds: CommandParser):
         """Register requested commands from a module.
 

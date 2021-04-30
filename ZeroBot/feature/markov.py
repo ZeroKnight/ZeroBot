@@ -464,7 +464,7 @@ async def module_on_config_changed(ctx, name, key, old, new):
     elif name == 'modules' and root == 'Markov':
         if subkey == 'Order':
             CHAIN.order = new
-            update_chain_dump()
+            await CORE.run_async(update_chain_dump)
 
 
 # TODO: also add patterns from config
@@ -503,8 +503,8 @@ async def _init_chain():
             if len(chain.corpus) != await database_corpus_count():
                 logger.info('Chain corpus out of date, pulling from database')
                 chain.corpus = [line async for line in database_get_corpus()]
-                chain.rebuild()
-                update_chain_dump(chain)
+                await CORE.run_async(chain.rebuild)
+                await CORE.run_async(update_chain_dump, chain)
         except (OSError, pickle.UnpicklingError) as ex:
             logger.error(f'Failed to load chain dump file: {ex}')
         else:
@@ -517,7 +517,7 @@ async def _init_chain():
         logger.info('Building chain from scratch')
         corpus = [line async for line in database_get_corpus()]
         chain = MarkovSentenceGenerator(corpus, CFG.get('Order'))
-        update_chain_dump(chain)
+        await CORE.run_async(update_chain_dump, chain)
     return chain
 
 
@@ -620,7 +620,7 @@ async def module_command_markov(ctx, parsed):
             else:
                 response = "I'm not paying attention at the moment."
     elif subcmd == 'info':
-        lines, words = CHAIN.corpus_counts()
+        lines, words = await CORE.run_async(CHAIN.corpus_counts)
         learning = '' if CFG.get('Learning.Enabled', False) else ' not'
         response = (
             f"My chain's corpus currently holds {lines:,} lines consisting of "
@@ -632,16 +632,16 @@ async def module_command_markov(ctx, parsed):
             await ctx.reply_command_result(
                 parsed, f'Sorry, currently only {ctx.owner.name} can do that.')
             return
-        before = CHAIN.corpus_counts()
-        CHAIN.rebuild()
-        after = CHAIN.corpus_counts()
+        before = await CORE.run_async(CHAIN.corpus_counts)
+        await CORE.run_async(CHAIN.rebuild)
+        after = await CORE.run_async(CHAIN.corpus_counts)
         response = f'Chain rebuilt with a line delta of {after[0] - before[0]}'
     elif subcmd == 'dump':
         if parsed.invoker != ctx.owner:
             await ctx.reply_command_result(
                 parsed, f'Sorry, currently only {ctx.owner.name} can do that.')
             return
-        path = update_chain_dump()
+        path = await CORE.run_async(update_chain_dump)
         size = path.stat().st_size / 1024 ** 2
         response = f'Dumped chain to {path} ({size:,.2f}MB)'
 
