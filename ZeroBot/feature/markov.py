@@ -309,6 +309,14 @@ class MarkovSentenceGenerator:
                 return sentence
         return None
 
+    def corpus_counts(self) -> tuple[int, int]:
+        """Return the number of lines and total words in the corpus."""
+        lines, words = 0, 0
+        for line in self.corpus:
+            lines += 1
+            words += len(line)
+        return lines, words
+
 
 class Tokenizer:
     """Customizable string tokenizer."""
@@ -548,6 +556,8 @@ async def _register_commands():
         help='Toggle learning on or off, or show the current state.')
 
     subcmd_info = add_subcmd('info', 'Show information about the Markov chain')
+    subcmd_rebuild = add_subcmd(
+        'rebuild', 'Force a rebuild of the Markov chain from the database corpus')
     subcmd_dump = add_subcmd(
         'dump', 'Save the state of the Markov chain to disk.')
     cmds.append(cmd_markov)
@@ -610,16 +620,22 @@ async def module_command_markov(ctx, parsed):
             else:
                 response = "I'm not paying attention at the moment."
     elif subcmd == 'info':
-        lines, words = 0, 0
-        for line in CHAIN.corpus:
-            lines += 1
-            words += len(line)
+        lines, words = CHAIN.corpus_counts()
         learning = '' if CFG.get('Learning.Enabled', False) else ' not'
         response = (
             f"My chain's corpus currently holds {lines:,} lines consisting of "
             f'{words:,} words, averaging {words / lines:,.3f} words per line. '
             f'I am{learning} currently learning new lines.'
         )
+    elif subcmd == 'rebuild':
+        if parsed.invoker != ctx.owner:
+            await ctx.reply_command_result(
+                parsed, f'Sorry, currently only {ctx.owner.name} can do that.')
+            return
+        before = CHAIN.corpus_counts()
+        CHAIN.rebuild()
+        after = CHAIN.corpus_counts()
+        response = f'Chain rebuilt with a line delta of {after[0] - before[0]}'
     elif subcmd == 'dump':
         if parsed.invoker != ctx.owner:
             await ctx.reply_command_result(
