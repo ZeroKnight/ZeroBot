@@ -13,6 +13,7 @@ import logging
 import pickle
 import random
 import re
+import zlib
 from collections import deque
 from functools import partial
 from io import StringIO
@@ -523,7 +524,7 @@ async def _init_chain():
                 chain.corpus = [line async for line in database_get_corpus()]
                 await CORE.run_async(chain.rebuild)
                 await CORE.run_async(update_chain_dump, chain)
-        except (OSError, pickle.UnpicklingError) as ex:
+        except (OSError, EOFError, zlib.error, pickle.UnpicklingError) as ex:
             logger.error(f'Failed to load chain dump file: {ex}')
         else:
             from_scratch = False
