@@ -660,7 +660,7 @@ async def module_command_markov(ctx, parsed):
         before = await CORE.run_async(CHAIN.corpus_counts)
         await CORE.run_async(CHAIN.rebuild)
         after = await CORE.run_async(CHAIN.corpus_counts)
-        response = f'Chain rebuilt with a line delta of {after[0] - before[0]}'
+        response = f'Chain rebuilt with a line delta of {after[0] - before[0]:+,}'
     elif subcmd == 'dump':
         if parsed.invoker != ctx.owner:
             await ctx.reply_command_result(
