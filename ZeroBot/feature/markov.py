@@ -50,7 +50,6 @@ DEFAULT_DUMP_PATH = None
 # his mind, he chooses to at random, etc.) and we're on discord, send
 # a "typing" event and wait for 1.0-3.0 seconds before sending
 
-# TODO: method to "hot insert" a new line into the corpus and state_map
 # TODO: method to pre-compute state weights like markovify
 class MarkovSentenceGenerator:
     """An *m*-order Markov chain for generating sentences.
@@ -149,6 +148,16 @@ class MarkovSentenceGenerator:
         """
         pickle.dump(self, file)
 
+    def _add_tokens_to_model(self, tokens: list[Token], model: ChainModel):
+        for i in range(len(tokens) - self._order):
+            token_seq = tuple(tokens[i:i + self._order])
+            next_token = tokens[i + self._order]
+            try:
+                edges = model.setdefault(token_seq, {})
+                edges[next_token] += 1
+            except KeyError:
+                edges[next_token] = 1
+
     def build(self, corpus: Corpus) -> ChainModel:
         """Build a chain's state map based on the given corpus.
 
@@ -167,19 +176,28 @@ class MarkovSentenceGenerator:
             tokens = ([self.SENTENCE_BEGIN] * self._order
                       + line
                       + [self.SENTENCE_END])
-            for i in range(len(tokens) - self._order):
-                token_seq = tuple(tokens[i:i + self._order])
-                next_token = tokens[i + self._order]
-                try:
-                    edges = state_map.setdefault(token_seq, {})
-                    edges[next_token] += 1
-                except KeyError:
-                    edges[next_token] = 1
+            self._add_tokens_to_model(tokens, state_map)
         return state_map
 
     def rebuild(self):
         """Rebuild the chain's state map from the current corpus."""
         self.state_map = self.build(self.corpus)
+
+    def insert(self, tokens: list[Token]):
+        """Add a line to the chain's corpus *and* the current model.
+
+        Facilitates simple, incremental addition of input to the chain and does
+        not require a complete rebuild of the chain model, which can be an
+        expensive process.
+
+        Parameters
+        ----------
+        tokens : list[Token]
+            A list of tokens to add, typically the result of
+            `Tokenizer.tokenize`.
+        """
+        self.corpus.append(tokens)
+        self._add_tokens_to_model(tokens, self.state_map)
 
     def transition(self, state: ChainState) -> str:
         """Return the next word following the given state.
@@ -569,17 +587,24 @@ async def _register_commands():
     CORE.command_register(MOD_ID, *cmds)
 
 
+def can_learn(ctx, message) -> bool:
+    """Check if ZeroBot can learn from the given message."""
+    if (
+        ctx.user == message.source
+        or not CFG.get('Learning.Enabled', False)
+        # TODO: Proper protocol-agnostic 'DirectMessage' class
+        # For privacy reasons, don't learn from direct messages
+        or hasattr(message.destination, 'recipient')
+        or message.channel.name in CFG.get('Learning.Blacklist', [])
+    ):
+        return False
+    return True
+
+
 async def module_on_message(ctx, message):
     """Handle `Core` message event."""
-    if not CFG.get('Learning.Enabled', False) or ctx.user == message.source:
-        return
-    # TODO: Proper protocol-agnostic 'DirectMessage' class
-    if hasattr(message.destination, 'recipient'):
-        # For privacy reasons, don't learn from direct messages
-        return
-    if message.channel.name in CFG.get('Learning.Blacklist', []):
-        return
-    if not (body := message.clean_content.strip()):
+    body = message.clean_content.strip()
+    if not (can_learn(ctx, message) and body):
         return
     async with DB.cursor() as cur:
         for line in body.split('\n'):
@@ -595,7 +620,7 @@ async def module_on_message(ctx, message):
                 INSERT INTO markov_corpus (line, source, author, timestamp)
                 VALUES (?, ?, ?, ?)
             """, (' '.join(tokens), source.id, author.id, date))
-            # TODO: hot insert line into chain
+            CHAIN.insert(tokens)
     await DB.commit()
 
 
