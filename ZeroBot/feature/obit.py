@@ -86,10 +86,22 @@ async def _init_database():
             "kills"          INTEGER NOT NULL DEFAULT 0,
             "deaths"         INTEGER NOT NULL DEFAULT 0,
             "suicides"       INTEGER NOT NULL DEFAULT 0,
+            "last_victim"    INTEGER,
+            "last_murderer"  INTEGER,
+            "last_kill"      DATETIME,
+            "last_death"     DATETIME,
             PRIMARY KEY ("participant_id"),
             FOREIGN KEY ("participant_id")
                 REFERENCES "{Participant.table_name}" ("participant_id")
                 ON DELETE SET DEFAULT
+                ON UPDATE CASCADE,
+            FOREIGN KEY ("last_victim")
+                REFERENCES "{Participant.table_name}" ("participant_id")
+                ON DELETE SET NULL
+                ON UPDATE CASCADE,
+            FOREIGN KEY ("last_murderer")
+                REFERENCES "{Participant.table_name}" ("participant_id")
+                ON DELETE SET NULL
                 ON UPDATE CASCADE
         );
         CREATE TABLE IF NOT EXISTS "obit_strings" (
@@ -220,12 +232,11 @@ async def fetch_part(otype: ObitPart) -> Optional[sqlite3.Row]:
         return part
 
 
-# TODO: Add "last_victim", "last_murderer", "last_kill" (time), and
-# "last_death" (time) columns
 async def update_death_toll(killer: Participant, victim: Participant):
     """Update the obit table's kill counts."""
     killer_params = (killer.id, 1, 0, 0)
     victim_params = (victim.id, 0, 1, 0)
+    date = datetime.utcnow().replace(microsecond=0)
     async with DB.cursor() as cur:
         if killer == victim:
             values = 'VALUES (?, ?, ?, ?)'
@@ -235,13 +246,21 @@ async def update_death_toll(killer: Participant, victim: Participant):
             params = killer_params + victim_params
 
         await cur.execute(f"""
-            INSERT INTO obit
+            INSERT INTO obit (participant_id, kills, deaths, suicides)
             {values}
             ON CONFLICT (participant_id) DO UPDATE SET
                 kills = kills + excluded.kills,
                 deaths = deaths + excluded.deaths,
                 suicides = suicides + excluded.suicides
         """, params)
+        await cur.execute("""
+            UPDATE obit SET last_victim = ?, last_kill = ?
+            WHERE participant_id = ?
+        """, (victim.id, date, killer.id))
+        await cur.execute("""
+            UPDATE obit SET last_murderer = ?, last_death = ?
+            WHERE participant_id = ?
+        """, (killer.id, date, victim.id))
     await DB.commit()
 
 
