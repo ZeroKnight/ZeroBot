@@ -505,6 +505,40 @@ async def get_participant(conn: Connection, name: str,
     return participant
 
 
+async def find_participant(conn: Connection, pattern: str,
+                           case_sensitive: bool = False) -> Optional[Participant]:
+    """Return the first Participant that matches `pattern`.
+
+    Parameters
+    ----------
+    conn : Connection
+        The database connection to use.
+    pattern : str
+        A regular expression to match participants.
+    case_sensitive : bool, optional
+        Whether or not the pattern should be case sensitive. Defaults to
+        `False`.
+    """
+    if pattern is None:
+        return None
+    # The `m` flag is included because of the use of
+    # `group_concat(name, char(10))` in queries needing to match aliases.
+    re_flags = 'm' if case_sensitive else 'mi'
+    pattern = f'(?{re_flags}:{pattern})'
+    async with conn.cursor() as cur:
+        await cur.execute(f"""
+            SELECT participant_id,
+                   group_concat(name, char(10)) AS "name_list"
+            FROM participants_all_names
+            GROUP BY participant_id
+            HAVING name_list REGEXP ?
+        """, (pattern,))
+        row = await cur.fetchone()
+    if row is None:
+        return None
+    return await Participant.from_id(conn, row[0])
+
+
 async def get_user(conn: Connection, name: str,
                    ignore_case: bool = True) -> Optional[DBUser]:
     """Get an existing user by their name or an alias.
