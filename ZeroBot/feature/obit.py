@@ -463,6 +463,21 @@ async def obit_edit(ctx, parsed, otype: ObitPart, content: str,
 
 async def module_command_obitstats(ctx, parsed):
     """Get stats about the obit database."""
+    def _format_last_kd(user: Participant, victim: tuple, murderer: tuple):
+        last_msg = []
+        try:
+            if victim[0] == murderer[0] == user:
+                return f'Their last victim was ...themself at {victim[1]}'
+        except AttributeError:
+            pass
+        if victim[0]:
+            last_msg.append(
+                f'Their last victim was {victim[0]} at {victim[1]}.')
+        if murderer[0]:
+            last_msg.append(
+                f'They were last killed by {murderer[0]} at {murderer[1]}.')
+        return ' '.join(last_msg)
+
     if parsed.args['global'] and parsed.args['user']:
         # These are mutually exclusive arguments
         await CORE.module_send_event(
@@ -527,11 +542,6 @@ async def module_command_obitstats(ctx, parsed):
         murderer = await Participant.from_id(DB, row['last_murderer'])
         msg = [f"{user.name} has {row['kills']} kills, {row['deaths']} "
                f"deaths, and {row['suicides']} suicides."]
-        if victim:
-            msg.append(
-                f"Their last victim was {victim} at {row['last_kill']}.")
-        if murderer:
-            killed_by = 'by... themself' if murderer == user else f'by {murderer}'
-            msg.append(
-                f"They were last killed {killed_by} at {row['last_death']}.")
+        msg.append(_format_last_kd(
+            user, (victim, row['last_kill']), (murderer, row['last_death'])))
         await ctx.module_message(parsed.source, ' '.join(msg))
