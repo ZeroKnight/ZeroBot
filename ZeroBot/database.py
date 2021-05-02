@@ -476,6 +476,8 @@ async def get_participant(conn: Connection, name: str,
     user/participant discrepencies, getting a `Participant` without its
     associated `DBUser`, having a user with no associated participant, etc.
     """
+    if name is None:
+        return None
     if name.strip() == '':
         raise ValueError('Name is empty or whitespace')
     if ignore_case:
