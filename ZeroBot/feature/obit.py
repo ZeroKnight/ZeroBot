@@ -21,6 +21,7 @@ from typing import Optional, Union
 from ZeroBot.common import CommandParser, rand_chance
 from ZeroBot.common.enums import CmdErrorType
 from ZeroBot.database import DBUser, Participant
+from ZeroBot.database import find_participant as findpart
 from ZeroBot.database import get_participant as getpart
 
 MODULE_NAME = 'Obit'
@@ -36,6 +37,7 @@ CFG = None
 DB = None
 MOD_ID = __name__.rsplit('.', 1)[-1]
 get_participant = None
+find_participant = None
 
 logger = logging.getLogger('ZeroBot.Feature.Obit')
 
@@ -57,7 +59,7 @@ class ObitPart(Enum):
 
 async def module_register(core):
     """Initialize module."""
-    global CORE, CFG, DB, get_participant
+    global CORE, CFG, DB, get_participant, find_participant
     CORE = core
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
@@ -70,6 +72,7 @@ async def module_register(core):
     await DB.create_function('cooldown', 0, lambda: cooldown)
     await _init_database()
     get_participant = partial(getpart, DB)
+    find_participant = partial(findpart, DB)
 
     _register_commands()
 
@@ -118,6 +121,20 @@ async def _init_database():
 
         CREATE INDEX IF NOT EXISTS "idx_obit_strings_type"
         ON "obit_strings" ("type" ASC);
+
+        CREATE VIEW IF NOT EXISTS "obit_merged" AS
+        SELECT p.name AS "User",
+               kills AS "Kills",
+               deaths AS "Deaths",
+               suicides AS "Suicides",
+               victims.name AS "Last Victim",
+               last_kill AS "Last Victim Killed At",
+               murderers.name AS "Last Murderer",
+               last_death AS "Last Killed At"
+        FROM obit
+        JOIN "{Participant.table_name}" AS "p" USING (participant_id)
+        LEFT JOIN "{Participant.table_name}" AS "victims" ON last_victim = victims.participant_id
+        LEFT JOIN "{Participant.table_name}" AS "murderers" ON last_murderer = murderers.participant_id;
     """)
 
 
@@ -147,6 +164,7 @@ def _register_commands():
               '`$zerobot`. Wrap the placeholder name in curly braces to '
               'expand them within a word, e.g. `${killer}Man`. Reference '
               'existing obituaries to see how to phrase your content.'))
+
     subcmd_del = add_subcmd(
         'del', f'Remove a {type_list} from the database.',
         aliases=['rm', 'remove', 'delete'])
@@ -158,6 +176,7 @@ def _register_commands():
         help=('The content to remove. Must exactly match an existing entry, '
               'with placeholders NOT expanded, i.e. `$killer` as-is. Refer to '
               'the `add` subcommand help for more details.'))
+
     subcmd_edit = add_subcmd(
         'edit', f'Edit an existing {type_list} in the database.')
     subcmd_edit.add_argument(
@@ -181,7 +200,15 @@ def _register_commands():
               'the `add` subcommand help for more details.'))
     cmds.append(cmd_obitdb)
 
-    # TODO: stats command
+    cmd_obitstats = CommandParser(
+        'obitstats', 'Show various stats about obit kills')
+    cmd_obitstats.add_argument(
+        'user', nargs='?',
+        help='Retrieve stats for the given user. If omitted, return stats for yourself.')
+    cmd_obitstats.add_argument(
+        '-g', '--global', action='store_true',
+        help='Retrieve general stats about the obit database as a whole.')
+    cmds.append(cmd_obitstats)
 
     CORE.command_register(MOD_ID, *cmds)
 
@@ -432,3 +459,79 @@ async def obit_edit(ctx, parsed, otype: ObitPart, content: str,
     await DB.commit()
     await ctx.module_message(
         parsed.source, f'Okay, content is now: `{edited}`')
+
+
+async def module_command_obitstats(ctx, parsed):
+    """Get stats about the obit database."""
+    if parsed.args['global'] and parsed.args['user']:
+        # These are mutually exclusive arguments
+        await CORE.module_send_event(
+            'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
+        return
+    if parsed.args['global']:
+        async with DB.cursor() as cur:
+            await cur.execute("""
+                WITH ranks AS (
+                    SELECT name AS "User",
+                           rank() OVER (ORDER BY kills DESC) AS "Kill Rank",
+                           kills AS "Kills",
+                           rank() OVER (ORDER BY deaths DESC) AS "Death Rank",
+                           deaths AS "Deaths",
+                           rank() OVER (ORDER BY suicides DESC) AS "Suicide Rank",
+                           suicides AS "Suicides"
+                    FROM obit
+                    JOIN participants USING (participant_id)
+                )
+                SELECT * FROM ranks
+                WHERE "Kill Rank" = 1 OR "Death Rank" = 1 OR "Suicide Rank" = 1
+            """)
+            rows = await cur.fetchall()
+        if not rows:
+            await ctx.module_message(
+                parsed.source, 'Amazingly, not a single soul has perished yet.')
+            return
+        kills, deaths, suicides = [], [], []
+        for row in rows:
+            if row['Kill Rank'] == 1:
+                kills.append((row['User'], row['Kills']))
+            if row['Death Rank'] == 1:
+                deaths.append((row['User'], row['Deaths']))
+            if row['Suicide Rank'] == 1:
+                suicides.append((row['User'], row['Suicides']))
+        msg = []
+        for category, top_ranks in zip(
+                ('Kills', 'Deaths', 'Suicides'), (kills, deaths, suicides)):
+            if top_ranks:
+                users = ', '.join(
+                    f'{user[0]} ({user[1]})' for user in top_ranks)
+                msg.append(f'**Most {category}**: {users}')
+        await ctx.module_message(parsed.source, '\n'.join(msg))
+    else:
+        try:
+            user = await find_participant(parsed.args['user'].lstrip('@'))
+        except AttributeError:
+            user = await find_participant(parsed.invoker.name)
+        except ValueError:
+            await CORE.module_send_event(
+                'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
+            return
+        async with DB.cursor() as cur:
+            await cur.execute(
+                'SELECT * FROM obit WHERE participant_id = ?', (user.id,))
+            row = await cur.fetchone()
+        if row is None:
+            await CORE.module_send_event(
+                'invalid_command', ctx, parsed.msg, CmdErrorType.NoResults)
+            return
+        victim = await Participant.from_id(DB, row['last_victim'])
+        murderer = await Participant.from_id(DB, row['last_murderer'])
+        msg = [f"{user.name} has {row['kills']} kills, {row['deaths']} "
+               f"deaths, and {row['suicides']} suicides."]
+        if victim:
+            msg.append(
+                f"Their last victim was {victim} at {row['last_kill']}.")
+        if murderer:
+            killed_by = 'by... themself' if murderer == user else f'by {murderer}'
+            msg.append(
+                f"They were last killed {killed_by} at {row['last_death']}.")
+        await ctx.module_message(parsed.source, ' '.join(msg))
