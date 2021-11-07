@@ -188,10 +188,24 @@ async def get_random_quote() -> Optional[Quote]:
 
 
 async def get_quote_by_id(quote_id: int) -> Optional[Quote]:
-    """Fetch the quote with the given ID from the database."""
-    return await fetch_quote(
-        f'SELECT * FROM {Quote.table_name} WHERE quote_id = ?',
-        (quote_id,), cooldown=False)
+    """Fetch the quote with the given ID from the database.
+
+    If `quote_id` is negative, the *nth* most recent quote is returned.
+    """
+    if quote_id < 0:
+        async with DB.cursor() as cur:
+            await cur.execute(
+                f'SELECT * FROM {Quote.table_name} ORDER BY quote_id DESC')
+            row = (await cur.fetchall())[-quote_id - 1]
+        if row is not None:
+            quote = await Quote.from_row(DB, row)
+        else:
+            quote = None
+    else:
+        quote = await fetch_quote(
+            f'SELECT * FROM {Quote.table_name} WHERE quote_id = ?',
+            (quote_id,), cooldown=False)
+    return quote
 
 
 def read_datestamp(datestamp: str) -> Optional[datetime]:
