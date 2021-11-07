@@ -23,6 +23,11 @@ logger = logging.getLogger('ZeroBot.Database')
 sqlite3.register_converter('BOOLEAN', lambda x: bool(int(x)))
 sqlite3.converters['DATETIME'] = sqlite3.converters['TIMESTAMP']  # alias
 
+# HACK: "Extend" the default datetime adapter to trim microseconds
+_orig_adapter = sqlite3.adapters[(datetime, sqlite3.PrepareProtocol)]
+sqlite3.adapters[
+    (datetime, sqlite3.PrepareProtocol)] = lambda val: _orig_adapter(val).partition('.')[0]
+
 
 # Why does Python not include this?
 def regexp(pattern: AnyStr, string: AnyStr) -> bool:

@@ -207,7 +207,7 @@ def read_datestamp(datestamp: str) -> Optional[datetime]:
             date = datetime.utcfromtimestamp(int(datestamp))
         except ValueError:
             return None
-    return date.replace(microsecond=0)
+    return date
 
 
 def handle_action_line(line: str, msg: Message) -> tuple[bool, str]:
@@ -305,7 +305,7 @@ async def quote_add(ctx, parsed):
                 'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
             return
     else:
-        date = datetime.utcnow().replace(microsecond=0)
+        date = datetime.utcnow()
     author = await get_participant(parsed.args['author'])
     body = ' '.join(parsed.args['body'])
     quote = Quote(DB, None, submitter, date=date, style=style)
@@ -710,7 +710,7 @@ async def quote_quick(ctx, parsed):
                 'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
             return
     else:
-        date = datetime.utcnow().replace(microsecond=0)
+        date = datetime.utcnow()
 
     # Try cache first
     if not parsed.args['id'] and not user:
@@ -765,7 +765,7 @@ async def quote_quick(ctx, parsed):
 
     author = await get_participant(msg.author.name)
     if parsed.args['date'] is None:
-        date = msg.created_at.replace(microsecond=0)
+        date = msg.created_at
     action, body = handle_action_line(msg.clean_content, DiscordMessage(msg))
     lines.append((body, author, action))
 

@@ -56,7 +56,7 @@ class Counter:
                  blacklist: list[str] = None, created_at: datetime = None,
                  last_triggered: datetime = None,
                  last_user: Participant = None, last_channel: str = None):
-        now = datetime.utcnow().replace(microsecond=0)
+        now = datetime.utcnow()
         self.name = name
         self.description = description
         if announcement is not None:
@@ -155,7 +155,7 @@ class Counter:
             Where the increment occurred.
         """
         self.count += n
-        now = datetime.utcnow().replace(microsecond=0)
+        now = datetime.utcnow()
         async with DB.cursor() as cur:
             if isinstance(participant, str):
                 await cur.execute("""

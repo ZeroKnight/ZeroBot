@@ -263,7 +263,7 @@ async def update_death_toll(killer: Participant, victim: Participant):
     """Update the obit table's kill counts."""
     killer_params = (killer.id, 1, 0, 0)
     victim_params = (victim.id, 0, 1, 0)
-    date = datetime.utcnow().replace(microsecond=0)
+    date = datetime.utcnow()
     async with DB.cursor() as cur:
         if killer == victim:
             values = 'VALUES (?, ?, ?, ?)'
@@ -407,7 +407,7 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
         await ctx.reply_command_result(
             parsed, f'There is already a {otype.name}: `{content}`')
         return
-    date = datetime.utcnow().replace(microsecond=0)
+    date = datetime.utcnow()
     submitter = await get_participant(parsed.invoker.name)
 
     async with DB.cursor() as cur:

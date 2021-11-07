@@ -652,7 +652,7 @@ async def module_on_message(ctx, message):
                 ctx.protocol, TOKENIZERS['_default_']).tokenize(line)
             if len(tokens) < 2:
                 continue
-            date = message.created_at.replace(microsecond=0)
+            date = message.created_at
             author = await get_participant(message.author.name)
             source = await get_source(
                 ctx.protocol, message.server.name, message.channel.name)
