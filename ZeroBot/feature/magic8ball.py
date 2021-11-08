@@ -82,8 +82,14 @@ class ResponsePart():
     def __str__(self):
         return self.format()
 
+    def __getitem__(self, idx) -> str:
+        return self.text[idx]
+
     def format(self):
         return f'*{self.text}*' if self.action else self.text
+
+    def capitalize(self):
+        return self.text[0].upper() + self.text[1:]
 
 
 async def module_register(core):
@@ -196,7 +202,7 @@ async def module_on_config_changed(ctx, name, key, old, new):
 async def module_command_8ball(ctx, parsed):
     """Handle `8ball` command."""
     question = ' '.join(parsed.args['question'])
-    phrase = None
+    phrase, answer = None, None
 
     if not re.search(r'\?[!?]*$', question):
         phrase, action, *_ = await fetch_part(ResponseType.NotAQuestion)
@@ -226,19 +232,28 @@ async def module_command_8ball(ctx, parsed):
         answer = ResponsePart(*(await fetch_part(
             ResponseType.answer(), prelude.expects_action)))
 
-    output = f'{intro} ╱ '
+    output = f'{intro} '
     if intro.action and prelude.action and answer.action:
         output = f'*{intro.text}, {prelude.text}, then {answer.text}*'
     elif answer.action and prelude.action:
-        output += f'*{prelude.text}, then {answer.text}*'
+        output += f'*{prelude.capitalize()}, then {answer.text}*'
     elif answer.action:
-        output += f'{prelude} {answer}'
+        output += f'{prelude.capitalize()} {answer}'
     else:
         if prelude.action:
-            output += f'{prelude}, it reads: {answer}'
+            output += f'*{prelude.capitalize()}*, it reads: {answer}'
         else:
-            output += f'{prelude} It reads: {answer}'
+            output += f'{prelude.capitalize()} It reads: {answer}'
+
+    # Simplify repeat occurrances of "the 8-Ball" ...
+    pat = re.compile(r'the\s+(?:magic\s+)?8-ball', flags=re.I)
+    matches = list(pat.finditer(output))
+    if len(matches) > 1:
+        output = output[:matches[0].end()] + pat.sub('it', output[matches[0].end():])
+
+    # ... but not in the outro, as it's a separate sentence.
     output += f'\n{outro}'
     output = Template(output).safe_substitute(
         {'zerobot': ctx.user.name, 'asker': parsed.invoker.name})
+
     await ctx.module_message(parsed.msg.destination, output)
