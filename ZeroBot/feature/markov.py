@@ -19,12 +19,14 @@ from functools import partial
 from io import StringIO
 from itertools import repeat
 from pathlib import Path
-from typing import (AsyncGenerator, Dict, Generator, List, Optional, Tuple,
-                    Union)
+from typing import (AsyncGenerator, Any, Dict, Generator, List, Optional,
+                    Tuple, Union)
 from urllib.parse import urlparse
 
 from ZeroBot.common import CommandParser
+from ZeroBot.common.enums import CmdErrorType
 from ZeroBot.database import get_participant as getpart
+from ZeroBot.database import find_participant as findpart
 from ZeroBot.database import get_source as getsrc
 
 MODULE_NAME = 'Markov'
@@ -38,6 +40,7 @@ CFG = None
 DB = None
 MOD_ID = __name__.rsplit('.', 1)[-1]
 get_participant = None
+find_participant = None
 get_source = None
 
 logger = logging.getLogger('ZeroBot.Feature.Markov')
@@ -45,7 +48,9 @@ logger = logging.getLogger('ZeroBot.Feature.Markov')
 CHAIN = None
 TOKENIZERS = None
 DEFAULT_DUMP_PATH = None
+DEFAULT_ORDER = 2
 DEFAULT_SIMILARITY_THRESHOLD = 0.6
+FOCUSED_CHAINS = {}
 
 
 # TODO: if a markov request was generated naturally (asking zerobot what's on
@@ -501,27 +506,34 @@ async def database_corpus_count() -> int:
         return (await cur.fetchone())[0]
 
 
-async def database_get_corpus() -> AsyncGenerator[list[str]]:
+async def database_get_corpus(criteria: tuple[str, Any] = None) -> AsyncGenerator[list[str]]:
     """Yield lines from the database corpus.
 
     Each yielded line consists of a list of words, conveniently assignable to
     a chain corpus.
     """
     async with DB.cursor() as cur:
-        await cur.execute('SELECT line FROM markov_corpus')
+        if criteria is not None:
+            await cur.execute(f"""
+                SELECT line FROM markov_corpus
+                WHERE {criteria[0]} = ?
+            """, (criteria[1],))
+        else:
+            await cur.execute('SELECT line FROM markov_corpus')
         for line in (row['line'] for row in await cur.fetchall()):
             yield line.split()
 
 
 async def module_register(core):
     """Initialize mdoule."""
-    global CORE, CFG, DB, get_participant, get_source, CHAIN, TOKENIZERS, DEFAULT_DUMP_PATH
+    global CORE, CFG, DB, get_participant, find_participant, get_source, CHAIN, TOKENIZERS, DEFAULT_DUMP_PATH
     CORE = core
     DEFAULT_DUMP_PATH = CORE.data_dir / 'markov.pickle'
 
     DB = await core.database_connect(MOD_ID)
     await _init_database()
     get_participant = partial(getpart, DB)
+    find_participant = partial(findpart, DB)
     get_source = partial(getsrc, DB)
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
@@ -608,7 +620,7 @@ async def _init_chain():
             logger.info('No chain dump file found')
         logger.info('Building chain from scratch')
         corpus = [line async for line in database_get_corpus()]
-        chain = MarkovSentenceGenerator(corpus, CFG.get('Order'))
+        chain = MarkovSentenceGenerator(corpus, CFG.get('Order', DEFAULT_ORDER))
         await CORE.run_async(update_chain_dump, chain)
     return chain
 
@@ -658,6 +670,9 @@ async def _register_commands():
     cmd_talk.add_argument(
         '-s', '--starts-with', nargs='+', metavar='word',
         help='Make the generated sentence start with the given value.')
+    cmd_talk.add_argument(
+        '-f', '--focus', metavar='target',
+        help='Only use data from a specific user/channel to generate sentences')
     cmds.append(cmd_talk)
 
     CORE.command_register(MOD_ID, *cmds)
@@ -686,7 +701,7 @@ async def module_on_message(ctx, message):
         for line in body.split('\n'):
             tokens = TOKENIZERS.get(
                 ctx.protocol, TOKENIZERS['_default_']).tokenize(line)
-            if len(tokens) < 2:
+            if len(tokens) < CFG.get('Order', DEFAULT_ORDER):
                 continue
             date = message.created_at
             author = await get_participant(message.author.name)
@@ -749,17 +764,48 @@ async def module_command_markov(ctx, parsed):
     await ctx.module_message(parsed.source, response)
 
 
+async def make_focused_chain(target: str) -> MarkovSentenceGenerator:
+    if target[0] == '#':
+        raise NotImplementedError('Not yet implemented')
+    else:
+        corpus_src = await find_participant(target)
+    if corpus_src is None:
+        raise ValueError('Bad target')
+    corpus = [line async for line in database_get_corpus(('author', corpus_src.id))]
+    return MarkovSentenceGenerator(
+        corpus=corpus, order=CFG.get('Order', DEFAULT_ORDER))
+
+
 async def module_command_talk(ctx, parsed):
     """Handle `talk` command."""
     attempts = CFG.get('Sentences.Attempts', 0)
     sw_attempts = CFG.get('Sentences.StartsWithAttempts', 10000)
+
+    focus = parsed.args['focus']
+    if focus is not None:
+        try:
+            # TODO: limit number of cached chains
+            chain = FOCUSED_CHAINS[focus]
+        except KeyError:
+            try:
+                chain = await make_focused_chain(focus)
+                FOCUSED_CHAINS[focus] = chain
+            except ValueError:
+                await CORE.module_send_event(
+                    'invalid_command', ctx, parsed.msg, CmdErrorType.NotFound)
+                return
+            except NotImplementedError as ex:
+                await ctx.reply_command_result(parsed, ex.msg)
+                return
+    else:
+        chain = CHAIN
 
     # Enforce an attempt limit when starts_with is given to avoid trying to
     # generate an impossible sentence
     if parsed.args['starts_with']:
         attempts = min(max(attempts, sw_attempts + 1), sw_attempts)
 
-    sentence = CHAIN.make_sentence(
+    sentence = chain.make_sentence(
         attempts=attempts,
         min_words=CFG.get('Sentences.MinWords'),
         max_words=CFG.get('Sentences.MaxWords'),
