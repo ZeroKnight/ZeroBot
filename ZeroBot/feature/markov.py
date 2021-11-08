@@ -78,7 +78,8 @@ class MarkovSentenceGenerator:
     Corpus = List[List[str]]
     Token = Union[type(SENTENCE_BEGIN), type(SENTENCE_END), str]
     ChainState = Tuple[Token, ...]
-    ChainModel = Dict[ChainState, Dict[Token, int]]
+    Candidates = Dict[Token, int]
+    ChainModel = Dict[ChainState, Candidates]
 
     def __init__(self, corpus: Corpus, order: int = 1,
                  state_map: ChainModel = None):
@@ -160,6 +161,11 @@ class MarkovSentenceGenerator:
             except KeyError:
                 edges[next_token] = 1
 
+    @staticmethod
+    def _choose_next_word(candidates: Candidates) -> str:
+        words, weights = zip(*candidates.items())
+        return random.choices(words, weights)[0]
+
     def build(self, corpus: Corpus) -> ChainModel:
         """Build a chain's state map based on the given corpus.
 
@@ -217,8 +223,7 @@ class MarkovSentenceGenerator:
         str
             A randomly chosen word following `state`.
         """
-        candidates, weights = zip(*self.state_map[state].items())
-        return random.choices(candidates, weights)[0]
+        return self._choose_next_word(self.state_map[state])
 
     def sentence_gen(self, start: ChainState = None) -> Generator[str]:
         """Successively yield words from a random walk on the chain.
@@ -232,11 +237,18 @@ class MarkovSentenceGenerator:
             The chain state to begin at. If unspecified, the chain will start
             at the `SENTENCE_BEGIN` state.
 
+        Raises
+        ------
+        KeyError
+            May raise `KeyError` depending on the chain order if the randomly
+            chosen state is not in the chain.
+
         Yields
         ------
         str
             A randomly selected word from the chain.
         """
+        word, prev_word = None, None
         if start is None:
             start = [self.SENTENCE_BEGIN] * self._order
         elif len(start) != self._order:
@@ -289,10 +301,9 @@ class MarkovSentenceGenerator:
                     return True
         return False
 
-    # TODO: starts_with parameter; ensure sentence begins with the given
-    # string. mutually exclusive with start
     def make_sentence(self, attempts: int = 20, start: ChainState = None, *,
                       min_words: int = 1, max_words: int = None,
+                      starts_with: Union[str, list[str]]= None,
                       strict_quotes: bool = True,
                       similarity_threshold: float = 0.6) -> Optional[str]:
         """Attempt to generate a sentence with variable quality control.
@@ -306,11 +317,16 @@ class MarkovSentenceGenerator:
         ----------
         attempts : int, optional
             Maximum number of tries to generate a conformant sentence before
-            giving up. and returning `None`. If `attempts` is `None`, sentences
-            will be endlessly generated until a valid one is generated.
+            giving up. and returning `None`. If `attempts` is 0, sentences will
+            be endlessly generated until a valid one is generated.
             Defaults to 20.
         start : ChainState, optional
             The chain state to begin with. Same as for `gen_sentence`.
+            Mutually exclusive with `starts_with`.
+        starts_with : str or list of str, optional
+            The generated sentence must begin with the specified sentence
+            fragment. May either be a single string or a list of words.
+            Mutually exlcusive with `start`.
         min_words : int, optional
             The generated sentence must have at least this many words. Defaults
             to 1.
@@ -338,23 +354,40 @@ class MarkovSentenceGenerator:
             raise ValueError('min_words cannot be negative')
         if max_words is not None and max_words < 0:
             raise ValueError('max_words cannot be negative')
-        limit = repeat(True) if attempts is None else range(attempts)
+        if starts_with is not None:
+            if start is not None:
+                raise ValueError(
+                    "Parameters 'start' and 'starts_with' are mutually exclusive")
+            if isinstance(starts_with, str):
+                starts_with = starts_with.split(' ')
+            if len(starts_with) < self.order:
+                pad = (self.SENTENCE_BEGIN,) * (self.order - len(starts_with))
+                start = pad + tuple(starts_with)
+            else:
+                start = tuple(starts_with[:self.order])
+        limit = repeat(True) if attempts == 0 else range(attempts)
         close_quote_pat = re.compile(r'"[.!?]*$')
         for _ in limit:
             tokens = []
             quote_stack = []
-            for token in self.sentence_gen(start):
-                if strict_quotes:
-                    if token == '"' or '"' in token[1:-1]:
-                        continue
-                    if token[0] == '"':
-                        quote_stack.append('o')  # open quote
-                    if close_quote_pat.search(token):
-                        quote_stack.append('c')  # closing quote
-                tokens.append(token)
+            try:
+                for token in self.sentence_gen(start):
+                    if strict_quotes:
+                        if token == '"' or '"' in token[1:-1]:
+                            continue
+                        if token[0] == '"':
+                            quote_stack.append('o')  # open quote
+                        if close_quote_pat.search(token):
+                            quote_stack.append('c')  # closing quote
+                    tokens.append(token)
+            except KeyError as ex:
+                logger.debug(f'Hit bad chain state: {ex}')
+                continue
             word_count = len(tokens)
             if (word_count < min_words
                     or max_words is not None and word_count > max_words):
+                continue
+            if starts_with is not None and not all(a == b for a, b in zip(tokens, starts_with)):
                 continue
             if strict_quotes and quote_stack:
                 if quote_stack[0] == 'c' or len(quote_stack) % 2 != 0:
@@ -622,6 +655,9 @@ async def _register_commands():
 
     cmd_talk = CommandParser(
         'talk', "Make ZeroBot say what's on his mind; generates a sentence from the Markov chain.")
+    cmd_talk.add_argument(
+        '-s', '--starts-with', nargs='+', metavar='word',
+        help='Make the generated sentence start with the given value.')
     cmds.append(cmd_talk)
 
     CORE.command_register(MOD_ID, *cmds)
@@ -715,12 +751,30 @@ async def module_command_markov(ctx, parsed):
 
 async def module_command_talk(ctx, parsed):
     """Handle `talk` command."""
+    attempts = CFG.get('Sentences.Attempts', 0)
+    sw_attempts = CFG.get('Sentences.StartsWithAttempts', 10000)
+
+    # Enforce an attempt limit when starts_with is given to avoid trying to
+    # generate an impossible sentence
+    if parsed.args['starts_with']:
+        attempts = min(max(attempts, sw_attempts + 1), sw_attempts)
+
     sentence = CHAIN.make_sentence(
-        attempts=CFG.get('Sentences.Attempts'),
+        attempts=attempts,
         min_words=CFG.get('Sentences.MinWords'),
         max_words=CFG.get('Sentences.MaxWords'),
         strict_quotes=CFG.get('Sentences.StrictQuotes'),
+        starts_with=parsed.args['starts_with'],
         similarity_threshold=CFG.get(
             'Sentences.SimilarityThreshold', DEFAULT_SIMILARITY_THRESHOLD)
     )
-    await ctx.module_message(parsed.source, sentence)
+    if sentence is None:
+        idk_response = random.choice((
+            "Yeah, I've got nothing for that one...",
+            'I no can word that good yet...',
+            "I literally can't even",
+            'I hurt my head trying to think of something for that...'))
+        await ctx.module_message(
+            parsed.source, f'{parsed.invoker.mention} {idk_response}')
+    else:
+        await ctx.module_message(parsed.source, sentence)
