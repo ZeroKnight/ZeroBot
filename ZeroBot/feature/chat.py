@@ -44,8 +44,20 @@ EXCLAMATION_CHARS = '!¡❕❗﹗！'
 QUESTION_CHARS = '?¿‽⁇⁈⁉❓❔⸮﹖？'
 ALL_CHARS = DOT_CHARS + EXCLAMATION_CHARS + QUESTION_CHARS
 
-PATTERN_WAT = re.compile(r'(?:h+w+|w+h*)[aou]+t\s*\??\s*$')
-PATTERN_DOTS = re.compile(r'^\s*[' + ALL_CHARS + r']+\s*$')
+PATTERN_WAT = re.compile(rf'(?:h+w+|w+h*)[aou]+t\s*[{ALL_CHARS}]*\s*$', re.I)
+PATTERN_DOTS = re.compile(
+    rf"""
+    (?:  # Line is only punctuation
+        ^\s*
+        ([{ALL_CHARS}]+)
+        \s*$
+    ) |
+    (?:  # Message ends with at least 2 punctuation
+        [-\w()]+\s*
+        ([{ALL_CHARS}]{{2,}})
+        \s*$
+    )
+""", re.X)
 
 DEFAULT_ACTIVITY_INTERVAL = 1800
 DEFAULT_BERATE_CHANCE = 0.5
@@ -297,10 +309,12 @@ async def module_on_message(ctx, message):
         return
 
     # Dots...!
-    if PATTERN_DOTS.match(message.content):
-        char = random.choice(EXCLAMATION_CHARS + QUESTION_CHARS)
+    if match := PATTERN_DOTS.search(message.content):
+        dots = ''.join(
+            random.choices(
+                EXCLAMATION_CHARS + QUESTION_CHARS, k=random.randint(1, 3)))
         await ctx.module_message(
-            message.destination, f'{message.content}{char}')
+            message.destination, f'{match[1] or match[2]}{dots}')
         return
 
     # Answer Questions
