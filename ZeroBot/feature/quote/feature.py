@@ -183,6 +183,7 @@ async def get_random_quote() -> Optional[Quote]:
     """Fetch a random quote from the database."""
     return await fetch_quote(f"""
         SELECT * FROM {Quote.table_name}
+        WHERE hidden = 0
         ORDER BY RANDOM() LIMIT cooldown() + 1
     """)
 
@@ -488,6 +489,7 @@ async def quote_search(ctx, parsed):
                 JOIN participant_names AS "authors" USING (participant_id)
                 JOIN participant_names AS "submitters"
                     ON submitter = submitters.participant_id
+                WHERE quote.hidden = 0
         """
         if parsed.args['basic']:
             pattern = prepare_pattern(

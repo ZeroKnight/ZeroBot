@@ -13,6 +13,7 @@ TABLES = f"""
         "submitter"       INTEGER NOT NULL DEFAULT 0,
         "submission_date" DATETIME DEFAULT CURRENT_TIMESTAMP,
         "style"           INTEGER NOT NULL DEFAULT 1,
+        "hidden"          BOOLEAN NOT NULL DEFAULT 0 CHECK("hidden" IN (0,1)),
         PRIMARY KEY ("quote_id")
         FOREIGN KEY ("submitter")
             REFERENCES "{Participant.table_name}" ("participant_id")
@@ -25,7 +26,7 @@ TABLES = f"""
         "line"           TEXT NOT NULL,
         "participant_id" INTEGER NOT NULL DEFAULT 0,
         "author_num"     INTEGER NOT NULL DEFAULT 1,
-        "action"         BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
+        "action"         BOOLEAN NOT NULL DEFAULT 0 CHECK("action" IN (0,1)),
         PRIMARY KEY ("quote_id", "line_num"),
         FOREIGN KEY ("quote_id") REFERENCES "quote" ("quote_id")
             ON DELETE CASCADE,
@@ -62,7 +63,8 @@ VIEWS = f"""
            submission_date AS "Submission Date",
            submitters.name AS "Submitter",
            action AS "Action?",
-           style AS "Style"
+           style AS "Style",
+           hidden AS "Hidden?"
     FROM {Quote.table_name}
     JOIN {QuoteLine.table_name} USING (quote_id)
     JOIN {Participant.table_name} AS "submitters" ON submitter = submitters.participant_id
