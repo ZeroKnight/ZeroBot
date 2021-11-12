@@ -242,7 +242,9 @@ class Quote(DBModel):
         async with self._connection.cursor() as cur:
             await cur.execute('BEGIN TRANSACTION')
             await cur.execute(f"""
-                INSERT INTO {self.table_name} VALUES (?, ?, ?, ?)
+                INSERT INTO {self.table_name}
+                (quote_id, submitter, submission_date, style)
+                VALUES (?, ?, ?, ?)
                 ON CONFLICT (quote_id) DO UPDATE SET
                     submitter = excluded.submitter,
                     submission_date = excluded.submission_date,
