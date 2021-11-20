@@ -489,7 +489,6 @@ async def quote_search(ctx, parsed):
                 JOIN participant_names AS "authors" USING (participant_id)
                 JOIN participant_names AS "submitters"
                     ON submitter = submitters.participant_id
-                WHERE quote.hidden = 0
         """
         if parsed.args['basic']:
             pattern = prepare_pattern(
@@ -507,7 +506,8 @@ async def quote_search(ctx, parsed):
                 parsed.args['submitter'], case_sensitive)
             search_method = 'REGEXP'
         sql += f"""
-                WHERE line {search_method} ? AND
+                WHERE hidden = 0 AND
+                      line {search_method} ? AND
                       authors.name_list {search_method} ? AND
                       submitters.name_list {search_method} ?
             )
