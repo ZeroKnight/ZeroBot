@@ -62,7 +62,7 @@ class User(ProtocolDetails, metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def mentioned(self, message: 'Message') -> bool:
+    def mentioned(self, message: "Message") -> bool:
         """Check if the user was mentioned in the given message."""
         raise NotImplementedError
 

@@ -26,6 +26,6 @@ def irc_time_format(time: datetime.datetime) -> str:
         the IRCv3 ``server-time`` extension. Specifically:
         ``YYYY-MM-DDThh:mm:ss.sssZ``.
     """
-    if not time.tzname() or time.tzname() != 'UTC':
+    if not time.tzname() or time.tzname() != "UTC":
         time = time.replace(tzinfo=datetime.timezone.utc)
-    return time.isoformat('T', 'milliseconds').replace('+00:00', 'Z')
+    return time.isoformat("T", "milliseconds").replace("+00:00", "Z")

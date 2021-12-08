@@ -19,8 +19,7 @@ from functools import partial
 from io import StringIO
 from itertools import repeat
 from pathlib import Path
-from typing import (AsyncGenerator, Any, Dict, Generator, List, Optional,
-                    Tuple, Union)
+from typing import AsyncGenerator, Any, Dict, Generator, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from ZeroBot.common import CommandParser
@@ -29,21 +28,21 @@ from ZeroBot.database import get_participant as getpart
 from ZeroBot.database import find_participant as findpart
 from ZeroBot.database import get_source as getsrc
 
-MODULE_NAME = 'Markov'
-MODULE_AUTHOR = 'ZeroKnight'
-MODULE_VERSION = '0.1'
-MODULE_LICENSE = 'MIT'
-MODULE_DESC = 'Markov chain powered sentence generator'
+MODULE_NAME = "Markov"
+MODULE_AUTHOR = "ZeroKnight"
+MODULE_VERSION = "0.1"
+MODULE_LICENSE = "MIT"
+MODULE_DESC = "Markov chain powered sentence generator"
 
 CORE = None
 CFG = None
 DB = None
-MOD_ID = __name__.rsplit('.', 1)[-1]
+MOD_ID = __name__.rsplit(".", 1)[-1]
 get_participant = None
 find_participant = None
 get_source = None
 
-logger = logging.getLogger('ZeroBot.Feature.Markov')
+logger = logging.getLogger("ZeroBot.Feature.Markov")
 
 CHAIN = None
 TOKENIZERS = None
@@ -76,8 +75,8 @@ class MarkovSentenceGenerator:
         A pre-built state map.
     """
 
-    SENTENCE_BEGIN = '___ZB_MARKOV_SENTENCE_BEGIN___'
-    SENTENCE_END = '___ZB_MARKOV_SENTENCE_END___'
+    SENTENCE_BEGIN = "___ZB_MARKOV_SENTENCE_BEGIN___"
+    SENTENCE_END = "___ZB_MARKOV_SENTENCE_END___"
 
     # Type aliases
     Corpus = List[List[str]]
@@ -86,10 +85,9 @@ class MarkovSentenceGenerator:
     Candidates = Dict[Token, int]
     ChainModel = Dict[ChainState, Candidates]
 
-    def __init__(self, corpus: Corpus, order: int = 1,
-                 state_map: ChainModel = None):
+    def __init__(self, corpus: Corpus, order: int = 1, state_map: ChainModel = None):
         if order < 1:
-            raise ValueError('Chain order must be at least 1')
+            raise ValueError("Chain order must be at least 1")
         self._order = order
         self.corpus = corpus
         if state_map is None:
@@ -121,7 +119,7 @@ class MarkovSentenceGenerator:
         if new_order == self._order:
             return
         if new_order < 1:
-            raise ValueError('Chain order must be at least 1')
+            raise ValueError("Chain order must be at least 1")
         self._order = new_order
         self.state_map = self.build(self.corpus)
 
@@ -130,9 +128,9 @@ class MarkovSentenceGenerator:
         """Return a formatted sentence from the given tokens."""
         with StringIO() as sentence:
             for token in tokens:
-                if token in '.,;!?':
+                if token in ".,;!?":
                     sentence.seek(max(0, sentence.tell() - 1))
-                sentence.write(f'{token} ')
+                sentence.write(f"{token} ")
             return sentence.getvalue().strip()
 
     @classmethod
@@ -158,7 +156,7 @@ class MarkovSentenceGenerator:
 
     def _add_tokens_to_model(self, tokens: list[Token], model: ChainModel):
         for i in range(len(tokens) - self._order):
-            token_seq = tuple(tokens[i:i + self._order])
+            token_seq = tuple(tokens[i : i + self._order])
             next_token = tokens[i + self._order]
             try:
                 edges = model.setdefault(token_seq, {})
@@ -186,9 +184,7 @@ class MarkovSentenceGenerator:
         """
         state_map = {}
         for line in corpus:
-            tokens = ([self.SENTENCE_BEGIN] * self._order
-                      + line
-                      + [self.SENTENCE_END])
+            tokens = [self.SENTENCE_BEGIN] * self._order + line + [self.SENTENCE_END]
             self._add_tokens_to_model(tokens, state_map)
         return state_map
 
@@ -257,8 +253,7 @@ class MarkovSentenceGenerator:
         if start is None:
             start = [self.SENTENCE_BEGIN] * self._order
         elif len(start) != self._order:
-            raise TypeError(
-                f"start sequence length must match the chain's order ({self._order})")
+            raise TypeError(f"start sequence length must match the chain's order ({self._order})")
         else:
             yield from filter(lambda x: x is not self.SENTENCE_BEGIN, start)
         sequence = deque(start, maxlen=self._order)
@@ -292,7 +287,7 @@ class MarkovSentenceGenerator:
             return False
         seq_len = round(len(tokens) * threshold)
         for i in range(len(tokens) - seq_len):
-            sequence = tokens[i:i + seq_len]
+            sequence = tokens[i : i + seq_len]
             for line in self.corpus:
                 word_count = len(line)
                 if word_count < seq_len or (seq_len < word_count / seq_len):
@@ -306,11 +301,17 @@ class MarkovSentenceGenerator:
                     return True
         return False
 
-    def make_sentence(self, attempts: int = 20, start: ChainState = None, *,
-                      min_words: int = 1, max_words: int = None,
-                      starts_with: Union[str, list[str]]= None,
-                      strict_quotes: bool = True,
-                      similarity_threshold: float = 0.6) -> Optional[str]:
+    def make_sentence(
+        self,
+        attempts: int = 20,
+        start: ChainState = None,
+        *,
+        min_words: int = 1,
+        max_words: int = None,
+        starts_with: Union[str, list[str]] = None,
+        strict_quotes: bool = True,
+        similarity_threshold: float = 0.6,
+    ) -> Optional[str]:
         """Attempt to generate a sentence with variable quality control.
 
         This method will repeated generate sentences until one is generated
@@ -356,20 +357,19 @@ class MarkovSentenceGenerator:
             generated within the specified number of attempts.
         """
         if min_words < 0:
-            raise ValueError('min_words cannot be negative')
+            raise ValueError("min_words cannot be negative")
         if max_words is not None and max_words < 0:
-            raise ValueError('max_words cannot be negative')
+            raise ValueError("max_words cannot be negative")
         if starts_with is not None:
             if start is not None:
-                raise ValueError(
-                    "Parameters 'start' and 'starts_with' are mutually exclusive")
+                raise ValueError("Parameters 'start' and 'starts_with' are mutually exclusive")
             if isinstance(starts_with, str):
-                starts_with = starts_with.split(' ')
+                starts_with = starts_with.split(" ")
             if len(starts_with) < self.order:
                 pad = (self.SENTENCE_BEGIN,) * (self.order - len(starts_with))
                 start = pad + tuple(starts_with)
             else:
-                start = tuple(starts_with[:self.order])
+                start = tuple(starts_with[: self.order])
         limit = repeat(True) if attempts == 0 else range(attempts)
         close_quote_pat = re.compile(r'"[.!?]*$')
         for _ in limit:
@@ -381,26 +381,24 @@ class MarkovSentenceGenerator:
                         if token == '"' or '"' in token[1:-1]:
                             continue
                         if token[0] == '"':
-                            quote_stack.append('o')  # open quote
+                            quote_stack.append("o")  # open quote
                         if close_quote_pat.search(token):
-                            quote_stack.append('c')  # closing quote
+                            quote_stack.append("c")  # closing quote
                     tokens.append(token)
             except KeyError as ex:
-                logger.debug(f'Hit bad chain state: {ex}')
+                logger.debug(f"Hit bad chain state: {ex}")
                 continue
             word_count = len(tokens)
-            if (word_count < min_words
-                    or max_words is not None and word_count > max_words):
+            if word_count < min_words or max_words is not None and word_count > max_words:
                 continue
             if starts_with is not None and not all(a == b for a, b in zip(tokens, starts_with)):
                 continue
             if strict_quotes and quote_stack:
-                if quote_stack[0] == 'c' or len(quote_stack) % 2 != 0:
+                if quote_stack[0] == "c" or len(quote_stack) % 2 != 0:
                     continue  # At least one quote is missing
                 if not all(a != b for a, b in zip(*[iter(quote_stack)] * 2)):
                     continue  # Mismatched open/close quotes
-            if (similarity_threshold
-                    and self.check_similarity(tokens, similarity_threshold)):
+            if similarity_threshold and self.check_similarity(tokens, similarity_threshold):
                 continue
             if sentence := self.format_sentence(tokens):
                 return sentence
@@ -419,17 +417,19 @@ class Tokenizer:
     """Customizable string tokenizer."""
 
     COMMON_URI_SCHEMES = re.compile(
-        r'[jo]dbc|[st]?ftp|about|bitcoin|bzr|chrome-?|cvs|dav|dns|doi|file|geo'
-        r'|git|http|imap|irc|ldap|magnet|mailto|nfs|rsync|rt(mf?|s)p|s3|sip'
-        r'|skype|slack|smb|sms|spotify|ssh|steam|stun|svn|vnc|xmpp'
+        r"[jo]dbc|[st]?ftp|about|bitcoin|bzr|chrome-?|cvs|dav|dns|doi|file|geo"
+        r"|git|http|imap|irc|ldap|magnet|mailto|nfs|rsync|rt(mf?|s)p|s3|sip"
+        r"|skype|slack|smb|sms|spotify|ssh|steam|stun|svn|vnc|xmpp"
     )
 
-    def __init__(self, *,
-                 reject_patterns: list[str] = None,
-                 accept_patterns: list[str] = None,
-                 filter_patterns: list[str] = None,
-                 word_split_pat: str = r'\s+'):
-
+    def __init__(
+        self,
+        *,
+        reject_patterns: list[str] = None,
+        accept_patterns: list[str] = None,
+        filter_patterns: list[str] = None,
+        word_split_pat: str = r"\s+",
+    ):
         def init_patterns(patterns):
             if patterns is None:
                 return []
@@ -454,10 +454,7 @@ class Tokenizer:
                 if any(pat.search(word) for pat in self.accept_patterns):
                     valid = True
                 else:
-                    valid = (
-                        not self.is_probably_uri(word)
-                        and not any(pat.search(word) for pat in self.filter_patterns)
-                    )
+                    valid = not self.is_probably_uri(word) and not any(pat.search(word) for pat in self.filter_patterns)
                 if not valid:
                     continue
                 tokens.append(word)
@@ -466,7 +463,7 @@ class Tokenizer:
     # TODO: handle markdown links, e.g. [foo](https://example.com)
     def is_probably_uri(self, token: str) -> bool:
         """Check if the given token is probably a URI."""
-        if ':' in token and not token.endswith(':'):
+        if ":" in token and not token.endswith(":"):
             maybe_uri = urlparse(token)
             if maybe_uri.scheme and maybe_uri.scheme[0].isdecimal():
                 # urllib isn't strict about this...
@@ -475,7 +472,8 @@ class Tokenizer:
                 self.COMMON_URI_SCHEMES.match(maybe_uri.scheme)
                 or maybe_uri.netloc
                 # 2-char schemes are rare or otherwise obscure
-                or len(maybe_uri.scheme) > 2 and maybe_uri.path
+                or len(maybe_uri.scheme) > 2
+                and maybe_uri.path
             )
         return False
 
@@ -484,16 +482,15 @@ def update_chain_dump(chain: MarkovSentenceGenerator = None) -> Optional[Path]:
     """Serialize the current state of the Markov chain to disk, if enabled."""
     if chain is None:
         chain = CHAIN
-    path = CFG.get('DumpPath', DEFAULT_DUMP_PATH)
-    if CFG.get('SaveToDisk', False):
-        if compress := CFG.get('CompressSave', True):
-            path = path.with_suffix('.pickle.gz')
+    path = CFG.get("DumpPath", DEFAULT_DUMP_PATH)
+    if CFG.get("SaveToDisk", False):
+        if compress := CFG.get("CompressSave", True):
+            path = path.with_suffix(".pickle.gz")
             open_func = gzip.open
         else:
             open_func = open
-        logger.debug(
-            f"Dumping {'un' if not compress else ''}compressed chain to {path}")
-        with open_func(path, 'wb') as dumpfile:
+        logger.debug(f"Dumping {'un' if not compress else ''}compressed chain to {path}")
+        with open_func(path, "wb") as dumpfile:
             chain.dump(dumpfile)
         return path
     return None
@@ -502,7 +499,7 @@ def update_chain_dump(chain: MarkovSentenceGenerator = None) -> Optional[Path]:
 async def database_corpus_count() -> int:
     """Return the number of lines in the database corpus."""
     async with DB.cursor() as cur:
-        await cur.execute('SELECT count(*) FROM markov_corpus')
+        await cur.execute("SELECT count(*) FROM markov_corpus")
         return (await cur.fetchone())[0]
 
 
@@ -514,13 +511,16 @@ async def database_get_corpus(criteria: tuple[str, Any] = None) -> AsyncGenerato
     """
     async with DB.cursor() as cur:
         if criteria is not None:
-            await cur.execute(f"""
+            await cur.execute(
+                f"""
                 SELECT line FROM markov_corpus
                 WHERE {criteria[0]} = ?
-            """, (criteria[1],))
+            """,
+                (criteria[1],),
+            )
         else:
-            await cur.execute('SELECT line FROM markov_corpus')
-        for line in (row['line'] for row in await cur.fetchall()):
+            await cur.execute("SELECT line FROM markov_corpus")
+        for line in (row["line"] for row in await cur.fetchall()):
             yield line.split()
 
 
@@ -528,7 +528,7 @@ async def module_register(core):
     """Initialize mdoule."""
     global CORE, CFG, DB, get_participant, find_participant, get_source, CHAIN, TOKENIZERS, DEFAULT_DUMP_PATH
     CORE = core
-    DEFAULT_DUMP_PATH = CORE.data_dir / 'markov.pickle'
+    DEFAULT_DUMP_PATH = CORE.data_dir / "markov.pickle"
 
     DB = await core.database_connect(MOD_ID)
     await _init_database()
@@ -537,7 +537,7 @@ async def module_register(core):
     get_source = partial(getsrc, DB)
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
-    CFG = core.load_config('modules')[MODULE_NAME]
+    CFG = core.load_config("modules")[MODULE_NAME]
 
     TOKENIZERS = _init_tokenizers()
     CHAIN = await _init_chain()
@@ -552,7 +552,7 @@ async def module_unregister():
 
 async def module_on_config_reloaded(ctx, name):
     """Handle `Core` config reload event."""
-    if name == 'ZeroBot':
+    if name == "ZeroBot":
         _init_tokenizers()
         _init_chain()
 
@@ -560,13 +560,13 @@ async def module_on_config_reloaded(ctx, name):
 async def module_on_config_changed(ctx, name, key, old, new):
     """Handle `Core` config change event."""
     try:
-        root, subkey = key.split('.', maxsplit=1)
+        root, subkey = key.split(".", maxsplit=1)
     except IndexError:
         root, subkey = key, None
-    if name == 'ZeroBot' and key == 'Core.CmdPrefix':
+    if name == "ZeroBot" and key == "Core.CmdPrefix":
         _init_tokenizers()
-    elif name == 'modules' and root == 'Markov':
-        if subkey == 'Order':
+    elif name == "modules" and root == "Markov":
+        if subkey == "Order":
             CHAIN.order = new
             await CORE.run_async(update_chain_dump)
 
@@ -575,14 +575,15 @@ async def module_on_config_changed(ctx, name, key, old, new):
 def _init_tokenizers():
     """Set up protocol tokenizers."""
     tokenizers = {
-        '_default_': Tokenizer(
-            reject_patterns=[f'^{CORE.cmdprefix}\\w+']
+        "_default_": Tokenizer(reject_patterns=[f"^{CORE.cmdprefix}\\w+"]),
+        "discord": Tokenizer(
+            reject_patterns=[
+                r"\|\|.*\|\|",
+                f"^{CORE.cmdprefix}\\w+",
+                r"^(?:@\S+\s*)+$",
+            ],
+            filter_patterns=[r"<a?:\w+:\d+>", r"<(@[!&]?|#)\d+>"],
         ),
-        'discord': Tokenizer(
-            reject_patterns=[r'\|\|.*\|\|', f'^{CORE.cmdprefix}\\w+',
-                             r'^(?:@\S+\s*)+$'],
-            filter_patterns=[r'<a?:\w+:\d+>', r'<(@[!&]?|#)\d+>'],
-        )
     }
     return tokenizers
 
@@ -590,44 +591,45 @@ def _init_tokenizers():
 async def _init_chain():
     """Set up Markov chain."""
     from_scratch, tried_load = True, False
-    chain_dump = CFG.get('DumpPath', DEFAULT_DUMP_PATH)
-    if CFG.get('CompressSave', True):
+    chain_dump = CFG.get("DumpPath", DEFAULT_DUMP_PATH)
+    if CFG.get("CompressSave", True):
         chain_dump.unlink(missing_ok=True)
-        chain_dump = chain_dump.with_suffix('.pickle.gz')
+        chain_dump = chain_dump.with_suffix(".pickle.gz")
         open_func = gzip.open
     else:
-        chain_dump.with_suffix('.pickle.gz').unlink(missing_ok=True)
+        chain_dump.with_suffix(".pickle.gz").unlink(missing_ok=True)
         open_func = open
 
     if chain_dump.exists():
-        logger.info('Found chain dump file; loading from disk')
+        logger.info("Found chain dump file; loading from disk")
         try:
-            with open_func(chain_dump, 'rb') as dumpfile:
+            with open_func(chain_dump, "rb") as dumpfile:
                 chain = MarkovSentenceGenerator.from_dump(dumpfile)
             if len(chain.corpus) != await database_corpus_count():
-                logger.info('Chain corpus out of date, pulling from database')
+                logger.info("Chain corpus out of date, pulling from database")
                 chain.corpus = [line async for line in database_get_corpus()]
                 await CORE.run_async(chain.rebuild)
                 await CORE.run_async(update_chain_dump, chain)
         except (OSError, EOFError, zlib.error, pickle.UnpicklingError) as ex:
-            logger.error(f'Failed to load chain dump file: {ex}')
+            logger.error(f"Failed to load chain dump file: {ex}")
         else:
             from_scratch = False
         finally:
             tried_load = True
     if from_scratch:
         if not tried_load:
-            logger.info('No chain dump file found')
-        logger.info('Building chain from scratch')
+            logger.info("No chain dump file found")
+        logger.info("Building chain from scratch")
         corpus = [line async for line in database_get_corpus()]
-        chain = MarkovSentenceGenerator(corpus, CFG.get('Order', DEFAULT_ORDER))
+        chain = MarkovSentenceGenerator(corpus, CFG.get("Order", DEFAULT_ORDER))
         await CORE.run_async(update_chain_dump, chain)
     return chain
 
 
 async def _init_database():
     """Initialize database tables."""
-    await DB.executescript("""
+    await DB.executescript(
+        """
         CREATE TABLE IF NOT EXISTS "markov_corpus" (
             "line_id"   INTEGER NOT NULL,
             "line"      TEXT NOT NULL,
@@ -642,37 +644,47 @@ async def _init_database():
                 ON UPDATE CASCADE
                 ON DELETE SET NULL
         );
-    """)
+    """
+    )
 
 
 async def _register_commands():
     """Register our commands."""
     cmds = []
-    cmd_markov = CommandParser(
-        'markov', "Manage ZeroBot's Markov chain sentence generator.")
-    add_subcmd = cmd_markov.make_adder(metavar='OPERATION', dest='subcmd',
-                                       required=False)
+    cmd_markov = CommandParser("markov", "Manage ZeroBot's Markov chain sentence generator.")
+    add_subcmd = cmd_markov.make_adder(metavar="OPERATION", dest="subcmd", required=False)
 
-    subcmd_learn = add_subcmd('learn', 'Query or adjust learning settings')
+    subcmd_learn = add_subcmd("learn", "Query or adjust learning settings")
     subcmd_learn.add_argument(
-        'state', nargs='?', choices=['on', 'off'], type=lambda x: x.lower(),
-        help='Toggle learning on or off, or show the current state.')
+        "state",
+        nargs="?",
+        choices=["on", "off"],
+        type=lambda x: x.lower(),
+        help="Toggle learning on or off, or show the current state.",
+    )
 
-    subcmd_info = add_subcmd('info', 'Show information about the Markov chain')
-    subcmd_rebuild = add_subcmd(
-        'rebuild', 'Force a rebuild of the Markov chain from the database corpus')
-    subcmd_dump = add_subcmd(
-        'dump', 'Save the state of the Markov chain to disk.')
+    subcmd_info = add_subcmd("info", "Show information about the Markov chain")
+    subcmd_rebuild = add_subcmd("rebuild", "Force a rebuild of the Markov chain from the database corpus")
+    subcmd_dump = add_subcmd("dump", "Save the state of the Markov chain to disk.")
     cmds.append(cmd_markov)
 
     cmd_talk = CommandParser(
-        'talk', "Make ZeroBot say what's on his mind; generates a sentence from the Markov chain.")
+        "talk",
+        "Make ZeroBot say what's on his mind; generates a sentence from the Markov chain.",
+    )
     cmd_talk.add_argument(
-        '-s', '--starts-with', nargs='+', metavar='word',
-        help='Make the generated sentence start with the given value.')
+        "-s",
+        "--starts-with",
+        nargs="+",
+        metavar="word",
+        help="Make the generated sentence start with the given value.",
+    )
     cmd_talk.add_argument(
-        '-f', '--focus', metavar='target',
-        help='Only use data from a specific user/channel to generate sentences')
+        "-f",
+        "--focus",
+        metavar="target",
+        help="Only use data from a specific user/channel to generate sentences",
+    )
     cmds.append(cmd_talk)
 
     CORE.command_register(MOD_ID, *cmds)
@@ -682,11 +694,11 @@ def can_learn(ctx, message) -> bool:
     """Check if ZeroBot can learn from the given message."""
     if (
         ctx.user == message.source
-        or not CFG.get('Learning.Enabled', False)
+        or not CFG.get("Learning.Enabled", False)
         # TODO: Proper protocol-agnostic 'DirectMessage' class
         # For privacy reasons, don't learn from direct messages
-        or hasattr(message.destination, 'recipient')
-        or message.channel.name in CFG.get('Learning.Blacklist', [])
+        or hasattr(message.destination, "recipient")
+        or message.channel.name in CFG.get("Learning.Blacklist", [])
     ):
         return False
     return True
@@ -698,19 +710,20 @@ async def module_on_message(ctx, message):
     if not (can_learn(ctx, message) and body):
         return
     async with DB.cursor() as cur:
-        for line in body.split('\n'):
-            tokens = TOKENIZERS.get(
-                ctx.protocol, TOKENIZERS['_default_']).tokenize(line)
-            if len(tokens) < CFG.get('Order', DEFAULT_ORDER):
+        for line in body.split("\n"):
+            tokens = TOKENIZERS.get(ctx.protocol, TOKENIZERS["_default_"]).tokenize(line)
+            if len(tokens) < CFG.get("Order", DEFAULT_ORDER):
                 continue
             date = message.created_at
             author = await get_participant(message.author.name)
-            source = await get_source(
-                ctx.protocol, message.server.name, message.channel.name)
-            await cur.execute("""
+            source = await get_source(ctx.protocol, message.server.name, message.channel.name)
+            await cur.execute(
+                """
                 INSERT INTO markov_corpus (line, source, author, timestamp)
                 VALUES (?, ?, ?, ?)
-            """, (' '.join(tokens), source.id, author.id, date))
+            """,
+                (" ".join(tokens), source.id, author.id, date),
+            )
             CHAIN.insert(tokens)
     await DB.commit()
 
@@ -718,70 +731,66 @@ async def module_on_message(ctx, message):
 async def module_command_markov(ctx, parsed):
     """Handle `markov` command."""
     subcmd = parsed.subcmd
-    if subcmd == 'learn':
-        if parsed.args['state'] is not None:
+    if subcmd == "learn":
+        if parsed.args["state"] is not None:
             if parsed.invoker != ctx.owner:
-                await ctx.reply_command_result(
-                    parsed, f'Sorry, currently only {ctx.owner.name} can do that.')
+                await ctx.reply_command_result(parsed, f"Sorry, currently only {ctx.owner.name} can do that.")
                 return
-            state = parsed.args['state'] == 'on'
-            CFG['Learning.Enabled'] = state
+            state = parsed.args["state"] == "on"
+            CFG["Learning.Enabled"] = state
             if state:
-                response = 'Okay, now learning how to speak!'
+                response = "Okay, now learning how to speak!"
             else:
-                response = 'Gotcha, no longer paying attention.'
+                response = "Gotcha, no longer paying attention."
         else:
-            if CFG['Learning.Enabled']:
-                response = 'I am currently learning.'
+            if CFG["Learning.Enabled"]:
+                response = "I am currently learning."
             else:
                 response = "I'm not paying attention at the moment."
-    elif subcmd == 'info':
+    elif subcmd == "info":
         lines, words = await CORE.run_async(CHAIN.corpus_counts)
-        learning = '' if CFG.get('Learning.Enabled', False) else ' not'
+        learning = "" if CFG.get("Learning.Enabled", False) else " not"
         response = (
             f"My chain's corpus currently holds {lines:,} lines consisting of "
-            f'{words:,} words, averaging {words / lines:,.3f} words per line. '
-            f'I am{learning} currently learning new lines.'
+            f"{words:,} words, averaging {words / lines:,.3f} words per line. "
+            f"I am{learning} currently learning new lines."
         )
-    elif subcmd == 'rebuild':
+    elif subcmd == "rebuild":
         if parsed.invoker != ctx.owner:
-            await ctx.reply_command_result(
-                parsed, f'Sorry, currently only {ctx.owner.name} can do that.')
+            await ctx.reply_command_result(parsed, f"Sorry, currently only {ctx.owner.name} can do that.")
             return
         before = await CORE.run_async(CHAIN.corpus_counts)
         await CORE.run_async(CHAIN.rebuild)
         after = await CORE.run_async(CHAIN.corpus_counts)
-        response = f'Chain rebuilt with a line delta of {after[0] - before[0]:+,}'
-    elif subcmd == 'dump':
+        response = f"Chain rebuilt with a line delta of {after[0] - before[0]:+,}"
+    elif subcmd == "dump":
         if parsed.invoker != ctx.owner:
-            await ctx.reply_command_result(
-                parsed, f'Sorry, currently only {ctx.owner.name} can do that.')
+            await ctx.reply_command_result(parsed, f"Sorry, currently only {ctx.owner.name} can do that.")
             return
         path = await CORE.run_async(update_chain_dump)
         size = path.stat().st_size / 1024 ** 2
-        response = f'Dumped chain to {path} ({size:,.2f}MB)'
+        response = f"Dumped chain to {path} ({size:,.2f}MB)"
 
     await ctx.module_message(parsed.source, response)
 
 
 async def make_focused_chain(target: str) -> MarkovSentenceGenerator:
-    if target[0] == '#':
-        raise NotImplementedError('Not yet implemented')
+    if target[0] == "#":
+        raise NotImplementedError("Not yet implemented")
     else:
         corpus_src = await find_participant(target)
     if corpus_src is None:
-        raise ValueError('Bad target')
-    corpus = [line async for line in database_get_corpus(('author', corpus_src.id))]
-    return MarkovSentenceGenerator(
-        corpus=corpus, order=CFG.get('Order', DEFAULT_ORDER))
+        raise ValueError("Bad target")
+    corpus = [line async for line in database_get_corpus(("author", corpus_src.id))]
+    return MarkovSentenceGenerator(corpus=corpus, order=CFG.get("Order", DEFAULT_ORDER))
 
 
 async def module_command_talk(ctx, parsed):
     """Handle `talk` command."""
-    attempts = CFG.get('Sentences.Attempts', 0)
-    sw_attempts = CFG.get('Sentences.StartsWithAttempts', 10000)
+    attempts = CFG.get("Sentences.Attempts", 0)
+    sw_attempts = CFG.get("Sentences.StartsWithAttempts", 10000)
 
-    focus = parsed.args['focus']
+    focus = parsed.args["focus"]
     if focus is not None:
         try:
             # TODO: limit number of cached chains
@@ -791,8 +800,7 @@ async def module_command_talk(ctx, parsed):
                 chain = await make_focused_chain(focus)
                 FOCUSED_CHAINS[focus] = chain
             except ValueError:
-                await CORE.module_send_event(
-                    'invalid_command', ctx, parsed.msg, CmdErrorType.NotFound)
+                await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NotFound)
                 return
             except NotImplementedError as ex:
                 await ctx.reply_command_result(parsed, ex.msg)
@@ -802,25 +810,26 @@ async def module_command_talk(ctx, parsed):
 
     # Enforce an attempt limit when starts_with is given to avoid trying to
     # generate an impossible sentence
-    if parsed.args['starts_with']:
+    if parsed.args["starts_with"]:
         attempts = min(max(attempts, sw_attempts + 1), sw_attempts)
 
     sentence = chain.make_sentence(
         attempts=attempts,
-        min_words=CFG.get('Sentences.MinWords'),
-        max_words=CFG.get('Sentences.MaxWords'),
-        strict_quotes=CFG.get('Sentences.StrictQuotes'),
-        starts_with=parsed.args['starts_with'],
-        similarity_threshold=CFG.get(
-            'Sentences.SimilarityThreshold', DEFAULT_SIMILARITY_THRESHOLD)
+        min_words=CFG.get("Sentences.MinWords"),
+        max_words=CFG.get("Sentences.MaxWords"),
+        strict_quotes=CFG.get("Sentences.StrictQuotes"),
+        starts_with=parsed.args["starts_with"],
+        similarity_threshold=CFG.get("Sentences.SimilarityThreshold", DEFAULT_SIMILARITY_THRESHOLD),
     )
     if sentence is None:
-        idk_response = random.choice((
-            "Yeah, I've got nothing for that one...",
-            'I no can word that good yet...',
-            "I literally can't even",
-            'I hurt my head trying to think of something for that...'))
-        await ctx.module_message(
-            parsed.source, f'{parsed.invoker.mention} {idk_response}')
+        idk_response = random.choice(
+            (
+                "Yeah, I've got nothing for that one...",
+                "I no can word that good yet...",
+                "I literally can't even",
+                "I hurt my head trying to think of something for that...",
+            )
+        )
+        await ctx.module_message(parsed.source, f"{parsed.invoker.mention} {idk_response}")
     else:
         await ctx.module_message(parsed.source, sentence)

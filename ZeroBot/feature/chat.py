@@ -22,29 +22,30 @@ from ZeroBot.common.enums import CmdErrorType
 try:
     import discord
     import discord.ext.tasks
+
     _discord_available = True
 except ImportError:
     _discord_available = False
 
-MODULE_NAME = 'Chat'
-MODULE_AUTHOR = 'ZeroKnight'
-MODULE_VERSION = '0.1'
-MODULE_LICENSE = 'MIT'
-MODULE_DESC = 'Allows ZeroBot to chat and respond to conversation in various ways.'
+MODULE_NAME = "Chat"
+MODULE_AUTHOR = "ZeroKnight"
+MODULE_VERSION = "0.1"
+MODULE_LICENSE = "MIT"
+MODULE_DESC = "Allows ZeroBot to chat and respond to conversation in various ways."
 
 CORE = None
 CFG = None
 DB = None
-MOD_ID = __name__.rsplit('.', 1)[-1]
+MOD_ID = __name__.rsplit(".", 1)[-1]
 
-logger = logging.getLogger('ZeroBot.Feature.Chat')
+logger = logging.getLogger("ZeroBot.Feature.Chat")
 
-DOT_CHARS = '.·․‥…⋯'
-EXCLAMATION_CHARS = '!¡❕❗﹗！'
-QUESTION_CHARS = '?¿‽⁇⁈⁉❓❔⸮﹖？'
+DOT_CHARS = ".·․‥…⋯"
+EXCLAMATION_CHARS = "!¡❕❗﹗！"
+QUESTION_CHARS = "?¿‽⁇⁈⁉❓❔⸮﹖？"
 ALL_CHARS = DOT_CHARS + EXCLAMATION_CHARS + QUESTION_CHARS
 
-PATTERN_WAT = re.compile(rf'(?:h+w+|w+h*)[aou]+t\s*[{ALL_CHARS}]*\s*$', re.I)
+PATTERN_WAT = re.compile(rf"(?:h+w+|w+h*)[aou]+t\s*[{ALL_CHARS}]*\s*$", re.I)
 PATTERN_DOTS = re.compile(
     rf"""
     (?:  # Line is only punctuation
@@ -57,14 +58,15 @@ PATTERN_DOTS = re.compile(
         ([{ALL_CHARS}]{{2,}})
         \s*$
     )
-""", re.X)
+""",
+    re.X,
+)
 
 DEFAULT_ACTIVITY_INTERVAL = 1800
 DEFAULT_BERATE_CHANCE = 0.5
 DEFAULT_VAGUE_CHANCE = 0.5
 
-tables = ['activity', 'badcmd', 'berate',
-          'greetings', 'mentioned', 'questioned']
+tables = ["activity", "badcmd", "berate", "greetings", "mentioned", "questioned"]
 recent_phrases = {}
 kicked_from = set()
 shuffler_tasks = []
@@ -95,27 +97,31 @@ async def module_register(core):
     CORE = core
 
     DB = await core.database_connect(MOD_ID)
-    await DB.create_function(
-        'cooldown', 0, lambda: CFG.get('PhraseCooldown', 0))
+    await DB.create_function("cooldown", 0, lambda: CFG.get("PhraseCooldown", 0))
     await _init_database()
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
-    CFG = core.load_config('modules')[MODULE_NAME]
+    CFG = core.load_config("modules")[MODULE_NAME]
     for table in tables:
-        recent_phrases[table] = deque(maxlen=CFG.get('PhraseCooldown', 0))
+        recent_phrases[table] = deque(maxlen=CFG.get("PhraseCooldown", 0))
 
     _register_commands()
 
     # Schedule Activity Shufflers
     if _discord_available:
-        interval = CFG.get('Activity.Interval', DEFAULT_ACTIVITY_INTERVAL)
-        for ctx in filter(lambda x: x.protocol == 'discord', CORE.get_contexts()):
+        interval = CFG.get("Activity.Interval", DEFAULT_ACTIVITY_INTERVAL)
+        for ctx in filter(lambda x: x.protocol == "discord", CORE.get_contexts()):
             global shuffler_tasks
-            logger.debug(f'Adding Activity Shuffler task for context {ctx}')
+            logger.debug(f"Adding Activity Shuffler task for context {ctx}")
             task = discord.ext.tasks.Loop(
                 shuffle_discord_activity,
-                seconds=interval, minutes=0, hours=0,
-                count=None, reconnect=True, loop=CORE.eventloop)
+                seconds=interval,
+                minutes=0,
+                hours=0,
+                count=None,
+                reconnect=True,
+                loop=CORE.eventloop,
+            )
             shuffler_tasks.append(task)
             task.start(ctx)
 
@@ -129,7 +135,8 @@ async def module_unregister():
 
 
 async def _init_database():
-    await DB.executescript("""
+    await DB.executescript(
+        """
         CREATE TABLE IF NOT EXISTS "chat_activity" (
             "activity"   TEXT NOT NULL,
             "type"       INTEGER NOT NULL DEFAULT 1,
@@ -173,40 +180,49 @@ async def _init_database():
 
         CREATE INDEX IF NOT EXISTS "idx_chat_questioned_response_type"
         ON "chat_questioned" ("response_type" ASC);
-    """)
+    """
+    )
 
 
 def _register_commands():
     """Create and register our commands."""
     cmds = []
-    cmd_say = CommandParser('say', 'Force ZeroBot to say something')
-    cmd_say.add_argument('msg', nargs='+', help='The message to send')
+    cmd_say = CommandParser("say", "Force ZeroBot to say something")
+    cmd_say.add_argument("msg", nargs="+", help="The message to send")
     cmd_say.add_argument(
-        '-t', '--to', action='append', metavar='target',
-        help=('Where to send the message. Can be given more than once to '
-              'include multiple targets. The default target is the channel '
-              'where the command was sent.')
+        "-t",
+        "--to",
+        action="append",
+        metavar="target",
+        help=(
+            "Where to send the message. Can be given more than once to "
+            "include multiple targets. The default target is the channel "
+            "where the command was sent."
+        ),
     )
     cmd_say.add_argument(
-        '-a', '--action', action='store_true',
-        help=('If specified, the message will be sent as an "action" instead '
-              'of a normal message.')
+        "-a",
+        "--action",
+        action="store_true",
+        help='If specified, the message will be sent as an "action" instead of a normal message.',
     )
     cmds.append(cmd_say)
 
-    cmd_fortune = CommandParser('fortune', 'Crack open a UNIX fortune cookie')
+    cmd_fortune = CommandParser("fortune", "Crack open a UNIX fortune cookie")
     # NOTE: Due to a bug(?) in argparse, this has to be an option, since a lone
     # positional argument with nargs=REMAINDER still rejects unknown options.
     cmd_fortune.add_argument(
-        '-a', '--args', nargs=argparse.REMAINDER,
-        help='Arguments to pass to the system `fortune` command')
+        "-a",
+        "--args",
+        nargs=argparse.REMAINDER,
+        help="Arguments to pass to the system `fortune` command",
+    )
     cmds.append(cmd_fortune)
 
     CORE.command_register(MOD_ID, *cmds)
 
 
-async def fetch_phrase(table: str, columns: Iterable[str],
-                       query: str = None, parameters: tuple = None) -> tuple:
+async def fetch_phrase(table: str, columns: Iterable[str], query: str = None, parameters: tuple = None) -> tuple:
     """Convenient wrapper for fetching phrases.
 
     Wraps a query intended to return a phrase from one of the Chat tables.
@@ -237,49 +253,50 @@ async def fetch_phrase(table: str, columns: Iterable[str],
     they should not be included in `query`. The limit is chosen based on the
     current value of the ``Chat.PhraseCooldown`` setting.
     """
-    columns = ('phrase', *columns)
+    columns = ("phrase", *columns)
     async with DB.cursor() as cur:
         await cur.execute(
             f"""SELECT {', '.join(columns)} FROM chat_{table}
             {query}
-            ORDER BY RANDOM() LIMIT cooldown() + 1""", parameters)
+            ORDER BY RANDOM() LIMIT cooldown() + 1""",
+            parameters,
+        )
         row = await cur.fetchone()
-        while row['phrase'] in recent_phrases[table]:
+        while row["phrase"] in recent_phrases[table]:
             row = await cur.fetchone()
-    recent_phrases[table].append(row['phrase'])
+    recent_phrases[table].append(row["phrase"])
     return row
 
 
 def _resize_phrase_deques():
     for table in tables:
-        new_len = CFG['PhraseCooldown']
+        new_len = CFG["PhraseCooldown"]
         if new_len == recent_phrases[table].maxlen:
             break
-        recent_phrases[table] = deque(
-            recent_phrases[table].copy(), maxlen=new_len)
+        recent_phrases[table] = deque(recent_phrases[table].copy(), maxlen=new_len)
 
 
 async def module_on_config_reloaded(ctx, name):
     """Handle `Core` config reload event."""
-    if name != 'modules':
+    if name != "modules":
         return
 
     _resize_phrase_deques()
 
-    interval = CFG.get('Activity.Interval', DEFAULT_ACTIVITY_INTERVAL)
+    interval = CFG.get("Activity.Interval", DEFAULT_ACTIVITY_INTERVAL)
     for task in shuffler_tasks:
         task.change_interval(seconds=interval)
 
 
 async def module_on_config_changed(ctx, name, key, old, new):
     """Handle `Core` config change event."""
-    if name != 'modules' or not key.startswith(MODULE_NAME):
+    if name != "modules" or not key.startswith(MODULE_NAME):
         return
-    key = key[len(MODULE_NAME) + 1:]
+    key = key[len(MODULE_NAME) + 1 :]
 
-    if key == 'PhraseCooldown':
+    if key == "PhraseCooldown":
         _resize_phrase_deques()
-    elif key == 'Activity.Interval':
+    elif key == "Activity.Interval":
         interval = new if new is not None else DEFAULT_ACTIVITY_INTERVAL
         for task in shuffler_tasks:
             task.change_interval(seconds=interval)
@@ -290,87 +307,82 @@ async def module_on_message(ctx, message):
     sender = message.source
 
     # Don't respond to our own messages.
-    if ctx.user == sender or not CFG.get('Enabled'):
+    if ctx.user == sender or not CFG.get("Enabled"):
         return
 
     # Berate
-    if CFG.get('Berate.Enabled') and sender.name in CFG.get('Berate.UserList'):
-        if rand_chance(CFG.get('Berate.Chance', DEFAULT_BERATE_CHANCE)):
-            phrase, action = await fetch_phrase('berate', ['action'])
-            phrase.replace('%0', sender.name)
+    if CFG.get("Berate.Enabled") and sender.name in CFG.get("Berate.UserList"):
+        if rand_chance(CFG.get("Berate.Chance", DEFAULT_BERATE_CHANCE)):
+            phrase, action = await fetch_phrase("berate", ["action"])
+            phrase.replace("%0", sender.name)
             await ctx.module_message(message.destination, phrase, action)
             return
 
     # wat
     if PATTERN_WAT.search(message.content):
-        await ctx.module_message(
-            message.destination,
-            random.choice(('wat', 'wut', 'wot', 'what', 'whut')))
+        await ctx.module_message(message.destination, random.choice(("wat", "wut", "wot", "what", "whut")))
         return
 
     # Dots...!
     if match := PATTERN_DOTS.search(message.content):
-        dots = ''.join(
-            random.choices(
-                EXCLAMATION_CHARS + QUESTION_CHARS, k=random.randint(1, 3)))
-        await ctx.module_message(
-            message.destination, f'{match[1] or match[2]}{dots}')
+        dots = "".join(random.choices(EXCLAMATION_CHARS + QUESTION_CHARS, k=random.randint(1, 3)))
+        await ctx.module_message(message.destination, f"{match[1] or match[2]}{dots}")
         return
 
     # Answer Questions
-    if CFG.get('Questioned.Enabled'):
-        for pattern in CFG.get('Questioned.Triggers'):
+    if CFG.get("Questioned.Enabled"):
+        for pattern in CFG.get("Questioned.Triggers"):
             # Check against bare name and mention string to handle protocols
             # where these may differ, like Discord.
-            pattern = pattern.replace(r'\z', f'{ctx.user.mention_pattern()}')
-            pattern = pattern.replace(r'\q', f'[{QUESTION_CHARS}]')
+            pattern = pattern.replace(r"\z", f"{ctx.user.mention_pattern()}")
+            pattern = pattern.replace(r"\q", f"[{QUESTION_CHARS}]")
             if re.search(pattern, message.content, re.I):
-                if re.search(r'would you kindly', message.content, re.I):
+                if re.search(r"would you kindly", message.content, re.I):
                     if rand_chance(0.95):
                         phrase, action = await fetch_phrase(
-                            'questioned', ['action'],
-                            'WHERE response_type = ?',
-                            (QuestionResponse.Positive.value,))
+                            "questioned",
+                            ["action"],
+                            "WHERE response_type = ?",
+                            (QuestionResponse.Positive.value,),
+                        )
                     else:
-                        phrase = f'beats {sender.name} to death with a golf club'
+                        phrase = f"beats {sender.name} to death with a golf club"
                         action = True
                 else:
-                    phrase, action = await fetch_phrase(
-                        'questioned', ['action'])
+                    phrase, action = await fetch_phrase("questioned", ["action"])
                 await ctx.module_message(message.destination, phrase, action)
                 return
 
     # Respond to being mentioned... oddly
     # NOTE: Needs to be LOW priority
-    if CFG.get('Mentioned.Enabled') and ctx.user.mentioned(message):
-        phrase, action = await fetch_phrase('mentioned', ['action'])
+    if CFG.get("Mentioned.Enabled") and ctx.user.mentioned(message):
+        phrase, action = await fetch_phrase("mentioned", ["action"])
         await ctx.module_message(message.destination, phrase, action)
 
 
 async def module_on_join(ctx, channel, user):
     """Handle `Core` join event."""
-    if not (CFG.get('Enabled') and CFG.get('Greet.Enabled')):
+    if not (CFG.get("Enabled") and CFG.get("Greet.Enabled")):
         return
     if user == ctx.user:
         if channel in kicked_from:
             # Don't greet if we've been kicked from here
             kicked_from.remove(channel)
     else:
-        phrase, action = await fetch_phrase('greetings', ['action'])
+        phrase, action = await fetch_phrase("greetings", ["action"])
         await ctx.module_message(channel, phrase, action)
 
 
 async def module_on_invalid_command(ctx, cmd_msg, err=CmdErrorType.Unspecified):
     """Handle `Core` invalid_command event."""
     # Insult a user when they enter a malformed or invalid command.
-    if not (CFG.get('Enabled') and CFG.get('BadCmd.Enabled')):
+    if not (CFG.get("Enabled") and CFG.get("BadCmd.Enabled")):
         return
-    vague_chance = CFG.get('BadCmd.VagueChance', DEFAULT_VAGUE_CHANCE)
+    vague_chance = CFG.get("BadCmd.VagueChance", DEFAULT_VAGUE_CHANCE)
     if err != CmdErrorType.Unspecified and rand_chance(vague_chance):
         # ZeroBot might still be vague regardless
         err = CmdErrorType.Unspecified
-    phrase, action = await fetch_phrase(
-        'badcmd', ['action'], 'WHERE error_type = ?', (err.value,))
+    phrase, action = await fetch_phrase("badcmd", ["action"], "WHERE error_type = ?", (err.value,))
     await ctx.module_message(cmd_msg.destination, phrase, action)
 
 
@@ -384,43 +396,41 @@ async def module_on_kick(ctx, channel, user):
 async def module_command_say(ctx, parsed):
     """Handle `say` command."""
     targets = []
-    if parsed.args['to']:
-        for target in parsed.args['to']:
-            if ctx.protocol == 'discord':
+    if parsed.args["to"]:
+        for target in parsed.args["to"]:
+            if ctx.protocol == "discord":
                 target = ctx.get_target(target)
             targets.append(target)
     else:
         targets.append(parsed.msg.destination)
     for target in targets:
-        await ctx.module_message(
-            target, ' '.join(parsed.args['msg']), parsed.args['action'])
+        await ctx.module_message(target, " ".join(parsed.args["msg"]), parsed.args["action"])
 
 
 async def module_command_fortune(ctx, parsed):
     """Handle `fortune` command."""
-    fortune_path = shutil.which('fortune')
+    fortune_path = shutil.which("fortune")
     if not fortune_path:
-        await ctx.reply_command_result(
-            parsed, 'fortune is not available. No cookie for you :(')
+        await ctx.reply_command_result(parsed, "fortune is not available. No cookie for you :(")
         return
     try:
         lines = []
-        args = parsed.args['args'] or []
+        args = parsed.args["args"] or []
         proc = await asyncio.create_subprocess_exec(
-            fortune_path, *args,
+            fortune_path,
+            *args,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL)
+            stderr=asyncio.subprocess.DEVNULL,
+        )
         while data := await proc.stdout.readline():
             lines.append(data.decode().rstrip())
         await proc.wait()
         if proc.returncode != 0:
-            await CORE.module_send_event(
-                'invalid_command', ctx, parsed.msg, CmdErrorType.BadSyntax)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
             return
         await ctx.reply_command_result(parsed, lines)
     except OSError:
-        await ctx.reply_command_result(
-            parsed, 'Your fortune cookie seems to have crumbled...')
+        await ctx.reply_command_result(parsed, "Your fortune cookie seems to have crumbled...")
 
 
 async def shuffle_discord_activity(ctx):
@@ -429,23 +439,24 @@ async def shuffle_discord_activity(ctx):
     This is for Discord contexts, and sets the "Playing", "Listening to",
     "Watching", etc. status.
     """
-    if not (CFG.get('Enabled') and CFG.get('Activity.Enabled')):
+    if not (CFG.get("Enabled") and CFG.get("Activity.Enabled")):
         return
     await ctx.wait_until_ready()
     async with DB.cursor() as cur:
-        await cur.execute("""
+        await cur.execute(
+            """
             SELECT type, activity, emoji FROM chat_activity
             ORDER BY RANDOM() LIMIT cooldown() + 1
-        """)
+        """
+        )
         row = await cur.fetchone()
-        while row['activity'] in recent_phrases['activity']:
+        while row["activity"] in recent_phrases["activity"]:
             row = await cur.fetchone()
-    recent_phrases['activity'].append(row['activity'])
+    recent_phrases["activity"].append(row["activity"])
 
-    name = row['activity']
-    if row['emoji']:
+    name = row["activity"]
+    if row["emoji"]:
         name += f" {row['emoji']}"
-    activity = discord.Activity(
-        type=ActivityType(row['type']).as_discord(), name=name)
-    logger.info(f'Shuffling activity to: {name}')
+    activity = discord.Activity(type=ActivityType(row["type"]).as_discord(), name=name)
+    logger.info(f"Shuffling activity to: {name}")
     await ctx.change_presence(activity=activity)

@@ -13,6 +13,7 @@ class ZeroBotException(Exception):
 
 # Modules
 
+
 class ZeroBotModuleError(ZeroBotException):
     """Base exception for ZeroBot module errors.
 
@@ -33,8 +34,7 @@ class ModuleLoadError(ZeroBotModuleError, ImportError):
     Extension of `ImportError`.
     """
 
-    def __init__(self, *args, mod_id: str, name: str = None, path: str = None,
-                 exc: ImportError = None):
+    def __init__(self, *args, mod_id: str, name: str = None, path: str = None, exc: ImportError = None):
         if exc:
             name, path = exc.name, exc.path
         super().__init__(*args, mod_id=mod_id)
@@ -47,8 +47,7 @@ class NoSuchModule(ModuleLoadError, ModuleNotFoundError):
     Subclass of `ModuleLoadError`. Extension of `ModuleNotFoundError`.
     """
 
-    def __init__(self, *args, mod_id: str, name: str = None, path: str = None,
-                 exc: ModuleNotFoundError = None):
+    def __init__(self, *args, mod_id: str, name: str = None, path: str = None, exc: ModuleNotFoundError = None):
         if exc:
             name, path = exc.name, exc.path
         super().__init__(*args, mod_id=mod_id, name=name, path=path)
@@ -74,6 +73,7 @@ class ModuleHasNoCommands(ZeroBotModuleError):
 
 
 # Commands
+
 
 class ZeroBotCommandError(ZeroBotException):
     """Base exception for ZeroBot command errors.
@@ -127,6 +127,7 @@ class CommandAlreadyRegistered(ZeroBotCommandError):
 
 # Config
 
+
 class ZeroBotConfigError(ZeroBotException):
     """Base exception for ZeroBot config errors.
 
@@ -172,6 +173,7 @@ class ConfigEncodeError(ZeroBotConfigError):
 
 
 # Database
+
 
 class ZeroBotDatabaseError(ZeroBotException):
     """Base exception for ZeroBot database errors.

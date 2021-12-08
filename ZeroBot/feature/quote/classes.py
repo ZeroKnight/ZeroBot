@@ -45,11 +45,20 @@ class QuoteLine(DBModel):
         than something written or spoken. Defaults to `False`.
     """
 
-    table_name = 'quote_lines'
+    table_name = "quote_lines"
 
-    def __init__(self, conn: Connection, quote_id: int, body: str,
-                 author: Participant, *, quote: 'Quote' = None,
-                 line_num: int = 1, author_num: int = 1, action: bool = False):
+    def __init__(
+        self,
+        conn: Connection,
+        quote_id: int,
+        body: str,
+        author: Participant,
+        *,
+        quote: "Quote" = None,
+        line_num: int = 1,
+        author_num: int = 1,
+        action: bool = False,
+    ):
         super().__init__(conn)
         self.quote_id = quote_id
         self.body = body
@@ -58,24 +67,21 @@ class QuoteLine(DBModel):
         self.author_num = author_num
         self.action = action
         if quote is not None and quote.id != self.quote_id:
-            raise ValueError(
-                'The given quote.id does not match quote_id: '
-                f'{quote.id=} {self.quote_id}')
+            raise ValueError(f"The given quote.id does not match quote_id: {quote.id=} {self.quote_id}")
         self.quote = quote
 
     def __repr__(self):
-        attrs = ['quote_id', 'line_num', 'body', 'author', 'author_num',
-                 'action']
-        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
-        return f'<{self.__class__.__name__} {repr_str}>'
+        attrs = ["quote_id", "line_num", "body", "author", "author_num", "action"]
+        repr_str = " ".join(f"{a}={getattr(self, a)!r}" for a in attrs)
+        return f"<{self.__class__.__name__} {repr_str}>"
 
     def __str__(self):
         if self.action:
-            return f'* {self.author} {self.body}'
-        return f'<{self.author}> {self.body}'
+            return f"* {self.author} {self.body}"
+        return f"<{self.author}> {self.body}"
 
     @classmethod
-    async def from_row(cls, conn: Connection, row: Row) -> 'QuoteLine':
+    async def from_row(cls, conn: Connection, row: Row) -> "QuoteLine":
         """Construct a `QuoteLine` from a database row.
 
         Parameters
@@ -85,12 +91,9 @@ class QuoteLine(DBModel):
         row: sqlite3.Row
             A row returned from the database.
         """
-        attrs = {
-            name: row[name] for name in
-            ('quote_id', 'line_num', 'author_num', 'action')
-        }
-        author = await Participant.from_id(conn, row['participant_id'])
-        return cls(conn, body=row['line'], author=author, **attrs)
+        attrs = {name: row[name] for name in ("quote_id", "line_num", "author_num", "action")}
+        author = await Participant.from_id(conn, row["participant_id"])
+        return cls(conn, body=row["line"], author=author, **attrs)
 
 
 class Quote(DBModel):
@@ -114,11 +117,17 @@ class Quote(DBModel):
     id
     """
 
-    table_name = 'quote'
+    table_name = "quote"
 
-    def __init__(self, conn: Connection, quote_id: Optional[int],
-                 submitter: Participant, *, date: datetime = datetime.utcnow(),
-                 style: QuoteStyle = QuoteStyle.Standard):
+    def __init__(
+        self,
+        conn: Connection,
+        quote_id: Optional[int],
+        submitter: Participant,
+        *,
+        date: datetime = datetime.utcnow(),
+        style: QuoteStyle = QuoteStyle.Standard,
+    ):
         super().__init__(conn)
         self.id = quote_id
         self.submitter = submitter
@@ -128,22 +137,22 @@ class Quote(DBModel):
         self.authors = []
 
     def __repr__(self):
-        attrs = ['id', 'submitter', 'date', 'style', 'lines']
-        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
-        return f'<{self.__class__.__name__} {repr_str}>'
+        attrs = ["id", "submitter", "date", "style", "lines"]
+        repr_str = " ".join(f"{a}={getattr(self, a)!r}" for a in attrs)
+        return f"<{self.__class__.__name__} {repr_str}>"
 
     def __str__(self):
         if self.style is QuoteStyle.Standard:
-            return '\n'.join(str(line) for line in self.lines)
+            return "\n".join(str(line) for line in self.lines)
         if self.style is QuoteStyle.Epigraph:
-            formatted = '\n'.join(line.body for line in self.lines)
+            formatted = "\n".join(line.body for line in self.lines)
             return f'"{formatted}" —{self.lines[0].author.name}'
         if self.style is QuoteStyle.Unstyled:
-            return '\n'.join(line.body for line in self.lines)
-        raise ValueError(f'Invalid QuoteStyle: {self.style}')
+            return "\n".join(line.body for line in self.lines)
+        raise ValueError(f"Invalid QuoteStyle: {self.style}")
 
     @classmethod
-    async def from_row(cls, conn: Connection, row: Row) -> 'Quote':
+    async def from_row(cls, conn: Connection, row: Row) -> "Quote":
         """Construct a `Quote` from a database row.
 
         Also fetches the associated `QuoteLine`s.
@@ -155,10 +164,13 @@ class Quote(DBModel):
         row : sqlite3.Row
             A row returned from the database.
         """
-        submitter = await Participant.from_id(conn, row['submitter'])
+        submitter = await Participant.from_id(conn, row["submitter"])
         quote = cls(
-            conn, quote_id=row['quote_id'], submitter=submitter,
-            date=row['submission_date'], style=QuoteStyle(row['style'])
+            conn,
+            quote_id=row["quote_id"],
+            submitter=submitter,
+            date=row["submission_date"],
+            style=QuoteStyle(row["style"]),
         )
         await quote.fetch_lines()
         return quote
@@ -169,14 +181,14 @@ class Quote(DBModel):
         Sets `self.lines` to the fetched lines and returns them.
         """
         async with self._connection.cursor() as cur:
-            await cur.execute(f"""
+            await cur.execute(
+                f"""
                 SELECT * FROM {QuoteLine.table_name} WHERE quote_id = ?
                 ORDER BY line_num
-            """, (self.id,))
-            self.lines = [
-                await QuoteLine.from_row(self._connection, row)
-                for row in await cur.fetchall()
-            ]
+            """,
+                (self.id,),
+            )
+            self.lines = [await QuoteLine.from_row(self._connection, row) for row in await cur.fetchall()]
         return self.lines
 
     async def fetch_authors(self) -> list[Participant]:
@@ -186,15 +198,15 @@ class Quote(DBModel):
         `self.authors` to the fetched authors and returns them.
         """
         async with self._connection.cursor() as cur:
-            await cur.execute(f"""
+            await cur.execute(
+                f"""
                 SELECT DISTINCT participant_id FROM {QuoteLine.table_name}
                 WHERE quote_id = ?
                 ORDER BY author_num
-            """, (self.id))
-            self.authors = [
-                await Participant.from_id(self._connection, pid)
-                for pid in await cur.fetchall()
-            ]
+            """,
+                (self.id),
+            )
+            self.authors = [await Participant.from_id(self._connection, pid) for pid in await cur.fetchall()]
         return self.authors
 
     def get_author_num(self, author: Participant) -> int:
@@ -218,8 +230,7 @@ class Quote(DBModel):
             seen.add(line.author_num)
         return max(seen) + 1
 
-    async def add_line(self, body: str, author: Participant,
-                       action: bool = False):
+    async def add_line(self, body: str, author: Participant, action: bool = False):
         """Add a line to this quote.
 
         Parameters
@@ -234,14 +245,24 @@ class Quote(DBModel):
         line_num = len(self.lines) + 1
         author_num = self.get_author_num(author)
         self.lines.append(
-            QuoteLine(self._connection, self.id, body, author, quote=self,
-                      line_num=line_num, author_num=author_num, action=action))
+            QuoteLine(
+                self._connection,
+                self.id,
+                body,
+                author,
+                quote=self,
+                line_num=line_num,
+                author_num=author_num,
+                action=action,
+            )
+        )
 
     async def save(self):
         """Save this `Quote` to the database."""
         async with self._connection.cursor() as cur:
-            await cur.execute('BEGIN TRANSACTION')
-            await cur.execute(f"""
+            await cur.execute("BEGIN TRANSACTION")
+            await cur.execute(
+                f"""
                 INSERT INTO {self.table_name}
                 (quote_id, submitter, submission_date, style)
                 VALUES (?, ?, ?, ?)
@@ -249,27 +270,22 @@ class Quote(DBModel):
                     submitter = excluded.submitter,
                     submission_date = excluded.submission_date,
                     style = excluded.style
-            """, (self.id, self.submitter.id, self.date, self.style.value))
+            """,
+                (self.id, self.submitter.id, self.date, self.style.value),
+            )
 
             self.id = cur.lastrowid
             for line in self.lines:
                 line.quote_id = self.id
 
-            await cur.execute(
-                f'DELETE FROM {QuoteLine.table_name} WHERE quote_id = ?',
-                (self.id,))
-            params = [(self.id, ql.line_num, ql.body, ql.author.id,
-                       ql.author_num, ql.action) for ql in self.lines]
-            await cur.executemany(
-                f'INSERT INTO {QuoteLine.table_name} VALUES(?, ?, ?, ?, ?, ?)',
-                params)
+            await cur.execute(f"DELETE FROM {QuoteLine.table_name} WHERE quote_id = ?", (self.id,))
+            params = [(self.id, ql.line_num, ql.body, ql.author.id, ql.author_num, ql.action) for ql in self.lines]
+            await cur.executemany(f"INSERT INTO {QuoteLine.table_name} VALUES(?, ?, ?, ?, ?, ?)", params)
 
-            await cur.execute('COMMIT TRANSACTION')
+            await cur.execute("COMMIT TRANSACTION")
 
     async def delete(self):
         """Remove this `Quote` from the database."""
         async with self._connection.cursor() as cur:
-            await cur.execute(
-                f'DELETE FROM {Quote.table_name} WHERE quote_id = ?',
-                (self.id,))
+            await cur.execute(f"DELETE FROM {Quote.table_name} WHERE quote_id = ?", (self.id,))
         await self._connection.commit()

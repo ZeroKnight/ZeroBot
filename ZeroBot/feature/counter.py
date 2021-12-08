@@ -17,27 +17,26 @@ from ZeroBot.common import CommandParser
 from ZeroBot.common.enums import CmdErrorType
 from ZeroBot.database import Participant
 
-MODULE_NAME = 'Counter'
-MODULE_AUTHOR = 'ZeroKnight'
-MODULE_VERSION = '0.1'
-MODULE_LICENSE = 'MIT'
-MODULE_DESC = ('Keep a running total of arbitrary events or statements and '
-               'announce when they happen.')
+MODULE_NAME = "Counter"
+MODULE_AUTHOR = "ZeroKnight"
+MODULE_VERSION = "0.1"
+MODULE_LICENSE = "MIT"
+MODULE_DESC = "Keep a running total of arbitrary events or statements and announce when they happen."
 
 CORE = None
 CFG = None
 DB = None
-MOD_ID = __name__.rsplit('.', 1)[-1]
+MOD_ID = __name__.rsplit(".", 1)[-1]
 
-logger = logging.getLogger('ZeroBot.Feature.Counter')
+logger = logging.getLogger("ZeroBot.Feature.Counter")
 
 SPECIAL_NUMBERS = {
-    42: 'Ah, the meaning of life. It was right here the whole time.',
-    69: 'Lmao, nice.',
-    420: 'Blaze it. 🔥',
-    666: '*death metal sounds in the distance*',
-    999: 'Hit the damage cap.',
-    1337: '5!(|< //!13570z3, |3|20'
+    42: "Ah, the meaning of life. It was right here the whole time.",
+    69: "Lmao, nice.",
+    420: "Blaze it. 🔥",
+    666: "*death metal sounds in the distance*",
+    999: "Hit the damage cap.",
+    1337: "5!(|< //!13570z3, |3|20",
 }
 counters = {}
 
@@ -50,12 +49,23 @@ class Counter:
     and location of the trigger is recorded.
     """
 
-    def __init__(self, name: str, description: str, announcement: str = None,
-                 count: int = 0, *, enabled: bool = True, muted: bool = False,
-                 triggers: list[str] = None, restrictions: list[str] = None,
-                 blacklist: list[str] = None, created_at: datetime = None,
-                 last_triggered: datetime = None,
-                 last_user: Participant = None, last_channel: str = None):
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        announcement: str = None,
+        count: int = 0,
+        *,
+        enabled: bool = True,
+        muted: bool = False,
+        triggers: list[str] = None,
+        restrictions: list[str] = None,
+        blacklist: list[str] = None,
+        created_at: datetime = None,
+        last_triggered: datetime = None,
+        last_user: Participant = None,
+        last_channel: str = None,
+    ):
         now = datetime.utcnow()
         self.name = name
         self.description = description
@@ -66,8 +76,7 @@ class Counter:
         self.count = count
         self.enabled = enabled
         self.muted = muted
-        self.triggers = [
-            re.compile(trigger, re.I) for trigger in (triggers or [])]
+        self.triggers = [re.compile(trigger, re.I) for trigger in (triggers or [])]
         self.restrictions = restrictions or []
         self.blacklist = blacklist or []
         self.created_at = created_at or now
@@ -76,10 +85,16 @@ class Counter:
         self.last_channel = last_channel
 
     def __repr__(self):
-        attrs = ['name', 'count', 'created_at', 'last_triggered', 'last_user',
-                 'last_channel']
-        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
-        return f'<{self.__class__.__name__} {repr_str}>'
+        attrs = [
+            "name",
+            "count",
+            "created_at",
+            "last_triggered",
+            "last_user",
+            "last_channel",
+        ]
+        repr_str = " ".join(f"{a}={getattr(self, a)!r}" for a in attrs)
+        return f"<{self.__class__.__name__} {repr_str}>"
 
     def __str__(self):
         return self.name
@@ -94,13 +109,12 @@ class Counter:
         if it doesn't exist.
         """
         async with DB.cursor() as cur:
-            await cur.execute(
-                'SELECT * FROM counter WHERE name = ?', (self.name,))
+            await cur.execute("SELECT * FROM counter WHERE name = ?", (self.name,))
             row = await cur.fetchone()
         if row is None:
             return False
-        self.last_user = await Participant.from_id(DB, row['last_user'])
-        for attr in ('count', 'created_at', 'last_triggered', 'last_channel'):
+        self.last_user = await Participant.from_id(DB, row["last_user"])
+        for attr in ("count", "created_at", "last_triggered", "last_channel"):
             setattr(self, attr, row[attr])
         return True
 
@@ -111,7 +125,7 @@ class Counter:
         in the list. Regardless, the result is always `False` if `name` is in
         the blacklist.
         """
-        if name in self.blacklist or name in CFG['Blacklist']:
+        if name in self.blacklist or name in CFG["Blacklist"]:
             return False
         return len(self.restrictions) == 0 or name in self.restrictions
 
@@ -135,11 +149,14 @@ class Counter:
 
         Counter announcements can be disabled globally or per-counter.
         """
-        return CFG['Announce'] or self.muted
+        return CFG["Announce"] or self.muted
 
-    async def increment(self, n: int = 1,
-                        participant: Union[Participant, str] = None,
-                        channel: str = None):
+    async def increment(
+        self,
+        n: int = 1,
+        participant: Union[Participant, str] = None,
+        channel: str = None,
+    ):
         """Increment the counter and update its metadata and the database.
 
         Ensures that the counter's last trigger time, channel, and so on are
@@ -158,22 +175,27 @@ class Counter:
         now = datetime.utcnow()
         async with DB.cursor() as cur:
             if isinstance(participant, str):
-                await cur.execute("""
+                await cur.execute(
+                    """
                     SELECT participant_id FROM participants_all_names
                     WHERE name = ?
-                """, (participant,))
+                """,
+                    (participant,),
+                )
                 row = await cur.fetchone()
-                participant = await Participant.from_id(
-                    DB, row['participant_id'])
+                participant = await Participant.from_id(DB, row["participant_id"])
 
-            await cur.execute("""
+            await cur.execute(
+                """
                 UPDATE counter SET
                     count = ?,
                     last_triggered = ?,
                     last_user = ?,
                     last_channel = ?
                 WHERE name = ?
-            """, (self.count, now, participant.id, channel, self.name))
+            """,
+                (self.count, now, participant.id, channel, self.name),
+            )
             await DB.commit()
 
 
@@ -183,15 +205,15 @@ async def module_register(core):
     CORE = core
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
-    CFG = core.load_config('modules')[MODULE_NAME]
+    CFG = core.load_config("modules")[MODULE_NAME]
 
     DB = await core.database_connect(MOD_ID)
     await _init_database()
     loaded = await load_counters()
     if loaded:
-        logger.info(f'Loaded {loaded} Counters')
+        logger.info(f"Loaded {loaded} Counters")
     else:
-        logger.warning('No Counters loaded.')
+        logger.warning("No Counters loaded.")
 
     _register_commands()
 
@@ -202,7 +224,8 @@ async def module_unregister():
 
 
 async def _init_database():
-    await DB.execute(f"""
+    await DB.execute(
+        f"""
         CREATE TABLE IF NOT EXISTS "counter" (
             "name"           TEXT NOT NULL UNIQUE,
             "count"          INTEGER NOT NULL DEFAULT 0,
@@ -216,46 +239,52 @@ async def _init_database():
                 ON DELETE SET NULL
                 ON UPDATE CASCADE
         ) WITHOUT ROWID
-    """)
+    """
+    )
 
 
 def _register_commands():
     """Create and register our commands."""
     cmds = []
-    cmd_count = CommandParser('count', 'Manually increment a counter.')
+    cmd_count = CommandParser("count", "Manually increment a counter.")
+    cmd_count.add_argument("counter", help="The name of the counter to increment.")
     cmd_count.add_argument(
-        'counter', help='The name of the counter to increment.')
+        "-n",
+        "--count",
+        type=int,
+        default=1,
+        help="The number of times to increment the counter. Default is once.",
+    )
     cmd_count.add_argument(
-        '-n', '--count', type=int, default=1,
-        help='The number of times to increment the counter. Default is once.')
-    cmd_count.add_argument(
-        '-q', '--quiet', action='store_true',
-        help='Increment the counter without announcing it.')
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Increment the counter without announcing it.",
+    )
     cmds.append(cmd_count)
 
-    cmd_counter = CommandParser(
-        'counter', 'List available counters or show their current counts.')
-    add_subcmd = cmd_counter.make_adder(
-        metavar='OPERATION', dest='subcmd', required=True)
+    cmd_counter = CommandParser("counter", "List available counters or show their current counts.")
+    add_subcmd = cmd_counter.make_adder(metavar="OPERATION", dest="subcmd", required=True)
     subcmd_announce = add_subcmd(
-        'announce',
-        'Show the current count for a counter without incrementing it.',
-        aliases=['show'])
-    subcmd_announce.add_argument(
-        'counter', help='The name of the counter to announce.')
-    subcmd_list = add_subcmd(
-        'list', 'List available counters and their current counts.',
-        aliases=['ls'])
+        "announce",
+        "Show the current count for a counter without incrementing it.",
+        aliases=["show"],
+    )
+    subcmd_announce.add_argument("counter", help="The name of the counter to announce.")
+    subcmd_list = add_subcmd("list", "List available counters and their current counts.", aliases=["ls"])
     subcmd_list.add_argument(
-        'counter', nargs='*',
-        help=('Get counts only for the specified counters. If omitted, all '
-              'available counters will be lsited.'))
+        "counter",
+        nargs="*",
+        help="Get counts only for the specified counters. If omitted, all available counters will be lsited.",
+    )
     subcmd_list.add_argument(
-        '-f', '--full', action='store_true',
-        help='Show current count and descriptions for each counter as well.')
-    subcmd_info = add_subcmd(
-        'info', 'Show information about available counters.')
-    subcmd_info.add_argument('counter', help='The counter to show info for.')
+        "-f",
+        "--full",
+        action="store_true",
+        help="Show current count and descriptions for each counter as well.",
+    )
+    subcmd_info = add_subcmd("info", "Show information about available counters.")
+    subcmd_info.add_argument("counter", help="The counter to show info for.")
     cmds.append(cmd_counter)
 
     CORE.command_register(MOD_ID, *cmds)
@@ -263,17 +292,16 @@ def _register_commands():
 
 async def module_on_config_reloaded(ctx, name):
     """Handle `Core` config reload event."""
-    if name == 'modules':
+    if name == "modules":
         await load_counters()
 
 
 async def module_on_config_changed(ctx, name, key, old, new):
     """Handle `Core` config change event."""
-    if name == 'modules' and key.startswith('Counter.Instance'):
-        counter_name, attr = key.split('.', maxsplit=3)[2:]
+    if name == "modules" and key.startswith("Counter.Instance"):
+        counter_name, attr = key.split(".", maxsplit=3)[2:]
         counter = counters[counter_name]
-        logger.info(f"Setting Counter '{counter_name}' attribute {attr} to "
-                    f'{new} (was {old}).')
+        logger.info(f"Setting Counter '{counter_name}' attribute {attr} to {new} (was {old}).")
         setattr(counter, attr, new)
 
 
@@ -283,16 +311,16 @@ async def load_counters() -> int:
     Returns the number of loaded `Counter`s.
     """
     loaded = 0
-    for name, instance in CFG['Instance'].items():
+    for name, instance in CFG["Instance"].items():
         args = {
-            'name': name,
-            'description': instance.get('Description', 'No description'),
-            'announcement': instance.get('AnnounceString'),
-            'enabled': instance.get('Enabled', True),
-            'muted': instance.get('Announce', True),
-            'triggers': instance.get('Triggers', []),
-            'restrictions': instance.get('RestrictedTo', []),
-            'blacklist': instance.get('Blacklist', [])
+            "name": name,
+            "description": instance.get("Description", "No description"),
+            "announcement": instance.get("AnnounceString"),
+            "enabled": instance.get("Enabled", True),
+            "muted": instance.get("Announce", True),
+            "triggers": instance.get("Triggers", []),
+            "restrictions": instance.get("RestrictedTo", []),
+            "blacklist": instance.get("Blacklist", []),
         }
         counter = Counter(**args)
         if not await counter.fetch_data():
@@ -306,15 +334,22 @@ async def load_counters() -> int:
 async def add_counter(counter):
     """Add a new counter to the database."""
     async with DB.cursor() as cur:
-        parameters = tuple(getattr(counter, attr) for attr in (
-            'name', 'count', 'created_at', 'last_triggered', 'last_user',
-            'last_channel'))
-        await cur.execute(
-            'INSERT INTO counter VALUES(?, ?, ?, ?, ?, ?)', parameters)
+        parameters = tuple(
+            getattr(counter, attr)
+            for attr in (
+                "name",
+                "count",
+                "created_at",
+                "last_triggered",
+                "last_user",
+                "last_channel",
+            )
+        )
+        await cur.execute("INSERT INTO counter VALUES(?, ?, ?, ?, ?, ?)", parameters)
         await DB.commit()
 
 
-def or_join(iterable: Iterable, separator: str = ', ') -> str:
+def or_join(iterable: Iterable, separator: str = ", ") -> str:
     """Pretty print a list of names.
 
     Similar to `str.join`, but the final element is prefixed with "or ".
@@ -335,12 +370,12 @@ def or_join(iterable: Iterable, separator: str = ', ') -> str:
     """
     length = len(iterable)
     if not length:
-        return ''
+        return ""
     if length == 1:
         return str(iterable[0])
     if length == 2:
-        return f'{iterable[0]} or {iterable[1]}'
-    return separator.join(iterable[:-1]) + f' or {iterable[-1]}'
+        return f"{iterable[0]} or {iterable[1]}"
+    return separator.join(iterable[:-1]) + f" or {iterable[-1]}"
 
 
 async def announce(ctx, destination, counter: Counter, /, **kwargs):
@@ -349,7 +384,7 @@ async def announce(ctx, destination, counter: Counter, /, **kwargs):
     await ctx.module_message(destination, announcement)
     if (msg := SPECIAL_NUMBERS.get(counter.count)) is not None:
         await asyncio.sleep(1)
-        action = msg.startswith('*') and msg.endswith('*')
+        action = msg.startswith("*") and msg.endswith("*")
         await ctx.module_message(destination, msg, action)
 
 
@@ -361,38 +396,34 @@ async def module_on_message(ctx, message):
         channel = message.destination.name
     except AttributeError:
         channel = sender.name
-    if not CFG['Enabled'] or ctx.user == sender:
+    if not CFG["Enabled"] or ctx.user == sender:
         return
 
     for counter in counters.values():
         if not counter.enabled:
             continue
-        if (counter.can_trigger(sender.name)
-                and counter.check(message.clean_content)):
+        if counter.can_trigger(sender.name) and counter.check(message.clean_content):
             await counter.increment(participant=sender.name, channel=channel)
             if counter.should_announce():
-                await announce(
-                    ctx, message.destination, counter, user=sender.name)
+                await announce(ctx, message.destination, counter, user=sender.name)
 
 
 async def module_command_count(ctx, parsed):
     """Handle `count` command."""
     sender = parsed.invoker
     try:
-        counter = counters[parsed.args['counter']]
+        counter = counters[parsed.args["counter"]]
     except KeyError:
-        await CORE.module_send_event(
-            'invalid_command', ctx, parsed.msg, CmdErrorType.NoResults)
+        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NoResults)
         return
     # TODO: Proper 'DirectMessage' class
     try:
         channel = parsed.source.name
     except AttributeError:
         channel = parsed.invoker.name
-    await counter.increment(
-        parsed.args['count'], participant=sender.name, channel=channel)
-    if parsed.args['quiet']:
-        await ctx.module_message(parsed.source, 'Okay, done.')
+    await counter.increment(parsed.args["count"], participant=sender.name, channel=channel)
+    if parsed.args["quiet"]:
+        await ctx.module_message(parsed.source, "Okay, done.")
     else:
         user = None
         if len(counter.restrictions) > 0:
@@ -403,21 +434,20 @@ async def module_command_count(ctx, parsed):
 async def module_command_counter(ctx, parsed):
     """Handle `counter` command."""
     subcmd = parsed.subcmd
-    if subcmd == 'announce':
+    if subcmd == "announce":
         try:
-            counter = counters[parsed.args['counter']]
+            counter = counters[parsed.args["counter"]]
         except KeyError:
-            await CORE.module_send_event(
-                'invalid_command', ctx, parsed.msg, CmdErrorType.NoResults)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NoResults)
             return
         user = None
         if len(counter.restrictions) > 0:
             user = or_join(counter.restrictions)
         response = counter.get_announcement(user=user)
-    elif subcmd == 'list':
+    elif subcmd == "list":
         lines, found, not_found = [], [], []
-        if parsed.args['counter']:
-            for counter in parsed.args['counter']:
+        if parsed.args["counter"]:
+            for counter in parsed.args["counter"]:
                 if counter in counters:
                     found.append(counter)
                 else:
@@ -425,36 +455,35 @@ async def module_command_counter(ctx, parsed):
         else:
             found = counters.keys()
         if found:
-            lines.append('**Available Counters**')
-            if parsed.args['full']:
+            lines.append("**Available Counters**")
+            if parsed.args["full"]:
                 for name in found:
                     counter = counters[name]
-                    lines.append(
-                        f'[**{name}**] ({counter.count}) - '
-                        f'{counter.description}')
+                    lines.append(f"[**{name}**] ({counter.count}) - {counter.description}")
             else:
-                lines.append(', '.join(found))
+                lines.append(", ".join(found))
         if not_found:
-            lines.append('\n**No such Counter**: ' + ', '.join(not_found))
-        response = '\n'.join(lines)
-    elif subcmd == 'info':
+            lines.append("\n**No such Counter**: " + ", ".join(not_found))
+        response = "\n".join(lines)
+    elif subcmd == "info":
         try:
-            counter = counters[parsed.args['counter']]
+            counter = counters[parsed.args["counter"]]
         except KeyError:
-            await CORE.module_send_event(
-                'invalid_command', ctx, parsed.msg, CmdErrorType.NoResults)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NoResults)
             return
         if counter.last_user is not None:
             last_user = counter.last_user.name
         else:
-            last_user = 'N/A'
+            last_user = "N/A"
         if counter.last_triggered is not None:
             last_triggered = str(counter.last_triggered)
         else:
-            last_triggered = 'Never'
-        response = (f'Information for Counter [**{counter.name}**]\n'
-                    f'**Current Count**: {counter.count}\n'
-                    f'**Description**: {counter.description}\n'
-                    f'**Created**: {counter.created_at}\n'
-                    f'**Last Triggered**: {last_triggered} by {last_user}\n')
+            last_triggered = "Never"
+        response = (
+            f"Information for Counter [**{counter.name}**]\n"
+            f"**Current Count**: {counter.count}\n"
+            f"**Description**: {counter.description}\n"
+            f"**Created**: {counter.created_at}\n"
+            f"**Last Triggered**: {last_triggered} by {last_user}\n"
+        )
     await ctx.module_message(parsed.source, response)

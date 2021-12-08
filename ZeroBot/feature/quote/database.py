@@ -165,4 +165,4 @@ VIEWS = f"""
 
 
 async def init_database(conn: Connection):
-    await conn.executescript(f'{TABLES}\n{VIEWS}')
+    await conn.executescript(f"{TABLES}\n{VIEWS}")

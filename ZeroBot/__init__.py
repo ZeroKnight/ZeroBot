@@ -8,9 +8,9 @@ servers that I frequent, so he was originally and always will be a pet project.
 :license: MIT, see LICENSE for more details.
 """
 
-__author__ = 'ZeroKnight'
-__license__ = 'MIT'
+__author__ = "ZeroKnight"
+__license__ = "MIT"
 __copyright__ = 'Copyright 2011-2020 Alex "ZeroKnight" George'
-__version__ = '0.6.0'
+__version__ = "0.6.0"
 
 from .core import Core, VersionInfo

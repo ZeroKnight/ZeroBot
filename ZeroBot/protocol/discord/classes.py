@@ -12,7 +12,7 @@ from discord.abc import GuildChannel, PrivateChannel
 import ZeroBot.common.abc as zabc
 from ZeroBot.util import gen_repr
 
-ACTION_PATTERN = re.compile(r'^\*(?:[^*]|(?<=\\)\*)*\*$')
+ACTION_PATTERN = re.compile(r"^\*(?:[^*]|(?<=\\)\*)*\*$")
 
 
 class DiscordUser(zabc.User, discord.User):
@@ -29,8 +29,8 @@ class DiscordUser(zabc.User, discord.User):
         return getattr(self._original, name)
 
     def __repr__(self):
-        attrs = ['name', 'username', 'bot']
-        extras = {'id': self._original.id}
+        attrs = ["name", "username", "bot"]
+        extras = {"id": self._original.id}
         return gen_repr(self, attrs, **extras)
 
     def __str__(self):
@@ -43,15 +43,14 @@ class DiscordUser(zabc.User, discord.User):
     def mention(self) -> str:
         return self._original.mention
 
-    def mentioned(self, message: 'DiscordMessage') -> bool:
-        return (self._original.mentioned_in(message)
-                or re.search(self.name, message.content, re.I))
+    def mentioned(self, message: "DiscordMessage") -> bool:
+        return self._original.mentioned_in(message) or re.search(self.name, message.content, re.I)
 
     def mention_pattern(self) -> str:
         """Return a pattern that matches the bare name or a mention."""
         # The mention string differs by a '!' if it mentions
         # a nickname or not.
-        return f'({self.name}|<@!?{self.id}>)'
+        return f"({self.name}|<@!?{self.id}>)"
 
 
 class DiscordServer(zabc.Server, discord.Guild):
@@ -67,8 +66,8 @@ class DiscordServer(zabc.Server, discord.Guild):
         return getattr(self._original, name)
 
     def __repr__(self):
-        attrs = ['name']
-        extras = {'id': self._original.id, 'region': self._original.region}
+        attrs = ["name"]
+        extras = {"id": self._original.id, "region": self._original.region}
         return gen_repr(self, attrs, **extras)
 
     def __str__(self):
@@ -107,11 +106,11 @@ class DiscordChannel(zabc.Channel, discord.TextChannel):
         return getattr(self._original, name)
 
     def __repr__(self):
-        attrs = ['name']
+        attrs = ["name"]
         extras = {
-            'id': self._original.id,
-            'guild': self._original.guild,
-            'category': self._original.category
+            "id": self._original.id,
+            "guild": self._original.guild,
+            "category": self._original.category,
         }
         return gen_repr(self, attrs, **extras)
 
@@ -141,12 +140,12 @@ class DiscordMessage(discord.Message, zabc.Message):
         return getattr(self._original, name)
 
     def __repr__(self):
-        attrs = ['source', 'destination', 'content', 'time']
+        attrs = ["source", "destination", "content", "time"]
         extras = {
-            'id': self._original.id,
-            'type': self._original.type,
-            'flags': self._original.flags,
-            'guild': self._original.guild,
+            "id": self._original.id,
+            "type": self._original.type,
+            "flags": self._original.flags,
+            "guild": self._original.guild,
         }
         return gen_repr(self, attrs, **extras)
 
@@ -164,7 +163,7 @@ class DiscordMessage(discord.Message, zabc.Message):
     @staticmethod
     def as_action_str(string: str) -> str:
         """Returns the given string as an action."""
-        return f'*{string}*'
+        return f"*{string}*"
 
     @staticmethod
     def strip_action_str(string: str) -> str:

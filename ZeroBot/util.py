@@ -34,15 +34,14 @@ def gen_repr(obj: Any, attrs: Iterable, **kwargs) -> str:
         A string suitable to return from the class's `__repr__` method.
     """
     name = obj.__class__.__name__
-    body = ' '.join(f'{attr}={getattr(obj, attr)!r}' for attr in attrs)
+    body = " ".join(f"{attr}={getattr(obj, attr)!r}" for attr in attrs)
     if kwargs:
-        extras = ' '.join(f'{attr}={val!r}' for attr, val in kwargs.items())
-        body += ' ' + extras
-    return f'<{name} {body}>'
+        extras = " ".join(f"{attr}={val!r}" for attr, val in kwargs.items())
+        body += " " + extras
+    return f"<{name} {body}>"
 
 
-def map_reduce(key_path: Union[str, list[str]],
-               mapping: Mapping[str, Any]) -> Any:
+def map_reduce(key_path: Union[str, list[str]], mapping: Mapping[str, Any]) -> Any:
     """Reduce a mapping, returning a value from an arbitrarily deep hierarcy.
 
     The result of calling this function is the same as successively
@@ -68,7 +67,7 @@ def map_reduce(key_path: Union[str, list[str]],
         things['foo']['bar']['baz']
     """
     if isinstance(key_path, str):
-        key_path = key_path.split('.')
+        key_path = key_path.split(".")
     return reduce(operator.getitem, key_path, mapping)
 
 
@@ -100,11 +99,11 @@ def shellish_split(string: str) -> list[str]:
                     escaped = False
                 else:
                     quoted = not quoted
-            elif char == '\\':
+            elif char == "\\":
                 if escaped:
                     word.write(char)
                 escaped = not escaped
-            elif char == ' ':
+            elif char == " ":
                 if escaped or quoted:
                     word.write(char)
                     escaped = False
@@ -116,13 +115,13 @@ def shellish_split(string: str) -> list[str]:
                 if escaped:
                     # Only interested in certain escapes, so the backslash
                     # stays in the string.
-                    word.write('\\')
+                    word.write("\\")
                     escaped = False
                 word.write(char)
         if quoted:
             raise ValueError("Unclosed quote")
         if escaped:
             # Include trailing backslash
-            word.write('\\')
+            word.write("\\")
         words.append(word.getvalue())
     return words

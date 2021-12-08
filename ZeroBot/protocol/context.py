@@ -115,8 +115,7 @@ class Context(metaclass=ABCMeta):
         """Leave the given channel, with optional reason."""
 
     @abstractmethod
-    async def reply_command_result(self, command: ParsedCommand,
-                                   result: Union[str, Message]):
+    async def reply_command_result(self, command: ParsedCommand, result: Union[str, Message]):
         """Called by feature modules to display command output.
 
         This method should handle formatting the result best suited for the

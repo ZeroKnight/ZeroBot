@@ -12,12 +12,14 @@ from typing import Any, Mapping, Union
 import toml
 
 import ZeroBot
-from ZeroBot.exceptions import (ConfigDecodeError, ConfigEncodeError,
-                                ConfigReadError, ConfigWriteError)
+from ZeroBot.exceptions import (
+    ConfigDecodeError,
+    ConfigEncodeError,
+    ConfigReadError,
+    ConfigWriteError,
+)
 
-_configvars = {
-    'botversion': ZeroBot.__version__
-}
+_configvars = {"botversion": ZeroBot.__version__}
 
 
 class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
@@ -27,7 +29,7 @@ class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
     """
 
     def __getitem__(self, key):
-        key, *subkeys = key.split('.', 1)
+        key, *subkeys = key.split(".", 1)
         value = super().__getitem__(key)
         if subkeys:
             value = value.__getitem__(subkeys[0])
@@ -40,7 +42,7 @@ class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
         return value
 
     def __setitem__(self, key, value):
-        tail, *subkeys = key.rsplit('.', 1)[::-1]
+        tail, *subkeys = key.rsplit(".", 1)[::-1]
         if subkeys:
             target = self.__getitem__(subkeys[0])
         else:
@@ -50,7 +52,7 @@ class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
         target[tail] = value
 
     def __repr__(self):
-        return f'<{self.__class__.__name__} {super().__repr__()}>'
+        return f"<{self.__class__.__name__} {super().__repr__()}>"
 
     @staticmethod
     def make_fallback(section: Mapping, fallback: Mapping) -> ChainMap:
@@ -86,16 +88,13 @@ class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
         `get` will be returned.
         """
         if not isinstance(section, ConfigDict):
-            raise TypeError(
-                f"section type expects 'ConfigDict', not '{type(section)}")
+            raise TypeError(f"section type expects 'ConfigDict', not '{type(section)}")
         if not isinstance(fallback, ConfigDict):
-            raise TypeError(
-                f"fallback type expects 'ConfigDict', not '{type(fallback)}")
+            raise TypeError(f"fallback type expects 'ConfigDict', not '{type(fallback)}")
         return ChainMap(section, fallback)
 
     # pylint: disable=arguments-differ
-    def get(self, key: str, default: Any = None, *,
-            template_vars: Mapping = None) -> Any:
+    def get(self, key: str, default: Any = None, *, template_vars: Mapping = None) -> Any:
         """Extends `dict.get` with substitution and dotted-subkey access.
 
         The retrieved value can undergo template substitution, i.e.
@@ -228,11 +227,13 @@ class Config(ConfigDict):
         except toml.TomlDecodeError as ex:
             raise ConfigDecodeError(
                 f"Failed to parse config file at '{self.path}'",
-                config_name=self.path.stem) from ex
+                config_name=self.path.stem,
+            ) from ex
         except OSError as ex:
             raise ConfigReadError(
                 f"Could not read config file at '{self.path}'",
-                config_name=self.path.stem) from ex
+                config_name=self.path.stem,
+            ) from ex
         self._last_state = ConfigDict(deepcopy(self.data))
 
     # TODO: testing
@@ -247,15 +248,11 @@ class Config(ConfigDict):
         """
         path = new_path or self.path
         try:
-            with open(path, 'w') as file:
+            with open(path, "w") as file:
                 toml.dump(self.data, file)
         except ValueError as ex:
             cls_name = self.__class__.__name__
-            raise ConfigEncodeError(
-                f'Failed to encode {cls_name} object {self}',
-                config_name=self.path.stem) from ex
+            raise ConfigEncodeError(f"Failed to encode {cls_name} object {self}", config_name=self.path.stem) from ex
         except OSError as ex:
-            raise ConfigWriteError(
-                f"Could not write config file to '{path}'",
-                config_name=self.path.stem) from ex
+            raise ConfigWriteError(f"Could not write config file to '{path}'", config_name=self.path.stem) from ex
         self._last_state = ConfigDict(deepcopy(self.data))

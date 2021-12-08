@@ -16,11 +16,7 @@ from ZeroBot.exceptions import CommandAlreadyRegistered, CommandParseError
 from ZeroBot.module import Module
 from ZeroBot.util import gen_repr
 
-__all__ = [
-    'CommandHelp',
-    'CommandParser',
-    'ParsedCommand'
-]
+__all__ = ["CommandHelp", "CommandParser", "ParsedCommand"]
 
 
 class _NoExitArgumentParser(ArgumentParser):
@@ -64,18 +60,20 @@ class CommandParser(_NoExitArgumentParser):
     `argparse.ArgumentParser` with some ZeroBot-related members.
     """
 
-    def __init__(self, name: Optional[str] = None,
-                 description: Optional[str] = None,
-                 usage: Optional[str] = None, **kwargs):
+    def __init__(
+        self, name: Optional[str] = None, description: Optional[str] = None, usage: Optional[str] = None, **kwargs
+    ):
         # NOTE: Might be able to make use of formatter_class if need be
         if not name:
-            name = kwargs.get('name', kwargs.get('prog'))
-        kwargs.update({
-            'prog': name,
-            'description': description,
-            'usage': usage,
-            'add_help': False
-        })
+            name = kwargs.get("name", kwargs.get("prog"))
+        kwargs.update(
+            {
+                "prog": name,
+                "description": description,
+                "usage": usage,
+                "add_help": False,
+            }
+        )
         super().__init__(**kwargs)
         self.name = name
         self._module = None
@@ -86,7 +84,7 @@ class CommandParser(_NoExitArgumentParser):
         self._positionals = blank_group
 
     def __repr__(self):
-        attrs = ['name', 'description', 'module']
+        attrs = ["name", "description", "module"]
         return gen_repr(self, attrs)
 
     def __str__(self):
@@ -106,14 +104,14 @@ class CommandParser(_NoExitArgumentParser):
         foo_adder = cmd_foo.make_adder(metavar='OPERATION', required=True)
         bar_subcmd = foo_adder('bar', description='Does bar stuff to foo')
         """
-        kwargs.setdefault('dest', 'subcmd')
+        kwargs.setdefault("dest", "subcmd")
         subp = self.add_subparsers(*args, **kwargs)
         return partial(self.add_subcommand, subp)
 
     @staticmethod
-    def add_subcommand(subp: _SubParsersAction, name: str,
-                       description: Optional[str] = None,
-                       **kwargs) -> 'CommandParser':
+    def add_subcommand(
+        subp: _SubParsersAction, name: str, description: Optional[str] = None, **kwargs
+    ) -> "CommandParser":
         """Helper method for adding subcommands.
 
         Wrapper around `add_parser` that simplifies adding subcommands to
@@ -132,7 +130,7 @@ class CommandParser(_NoExitArgumentParser):
         kwargs
             Extra arguments to pass to the `CommandParser` constructor.
         """
-        desc_help = {'description': description, 'help': description}
+        desc_help = {"description": description, "help": description}
         return subp.add_parser(name, **desc_help, **kwargs)
 
     @property
@@ -278,14 +276,12 @@ class CommandHelp:
     usage: str = None
     aliases: list[str] = field(default_factory=list)
     args: dict[str, tuple[Optional[str], bool]] = field(default_factory=dict)
-    opts: dict[tuple[str, ...],
-               Optional[
-                   tuple[str, Optional[str]]]] = field(default_factory=dict)
+    opts: dict[tuple[str, ...], Optional[tuple[str, Optional[str]]]] = field(default_factory=dict)
     cmds: dict[str, dict[str, str]] = field(default_factory=dict)
-    subcmds: dict[str, 'CommandHelp'] = field(default_factory=dict, repr=False)
-    parent: 'CommandHelp' = None
+    subcmds: dict[str, "CommandHelp"] = field(default_factory=dict, repr=False)
+    parent: "CommandHelp" = None
 
-    def get_subcmd(self, name: str) -> 'CommandHelp':
+    def get_subcmd(self, name: str) -> "CommandHelp":
         """Get the `CommandHelp` object for the given subcommand.
 
         `name` may be an alias, in which case it is resolved to the appropriate

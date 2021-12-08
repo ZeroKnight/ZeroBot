@@ -31,7 +31,7 @@ def module_available(module_id: str, mtype: str) -> bool:
     bool
         Whether or not the given module is availble to load.
     """
-    return importlib.util.find_spec(f'ZeroBot.{mtype}.{module_id}') is not None
+    return importlib.util.find_spec(f"ZeroBot.{mtype}.{module_id}") is not None
 
 
 class ZeroBotModuleFinder(MetaPathFinder):
@@ -51,13 +51,11 @@ class ZeroBotModuleFinder(MetaPathFinder):
 
     def find_spec(self, fullname, path, target=None):
         spec = None
-        parts = fullname.split('.')
-        if (parts[0] != 'ZeroBot'
-                or parts[1] not in ('feature', 'protocol')
-                or len(parts) < 3):
+        parts = fullname.split(".")
+        if parts[0] != "ZeroBot" or parts[1] not in ("feature", "protocol") or len(parts) < 3:
             return None
         for loc in self.search_dirs:
-            filename = Path(loc, *parts[1:]).with_suffix('.py')
+            filename = Path(loc, *parts[1:]).with_suffix(".py")
             if filename.exists():
                 spec = spec_from_file_location(fullname, str(filename))
                 if spec is not None:
@@ -68,11 +66,11 @@ class ZeroBotModuleFinder(MetaPathFinder):
 def _load_zerobot_module(import_str: str) -> tuple[ModuleType, bool]:
     module = importlib.import_module(import_str)
     is_package = False
-    if hasattr(module, '__path__'):
+    if hasattr(module, "__path__"):
         # This Module is a package, so load the entry point. E.g. if given
         # 'ZeroBot.feature.foo', then load 'ZeroBot.feature.foo.feature'
-        module_type = import_str.split('.', 2)[1]
-        module = importlib.import_module(f'{import_str}.{module_type}')
+        module_type = import_str.split(".", 2)[1]
+        module = importlib.import_module(f"{import_str}.{module_type}")
         is_package = True
     return module, is_package
 
@@ -125,19 +123,22 @@ class Module:
             self.version = self.handle.MODULE_VERSION
             self.license = self.handle.MODULE_LICENSE
         except AttributeError as ex:
-            name = import_str.rsplit('.', 1)[-1]
-            var = ex.args[0].rsplit(' ', 1)[-1]
+            name = import_str.rsplit(".", 1)[-1]
+            var = ex.args[0].rsplit(" ", 1)[-1]
             raise ModuleLoadError(
-                f'Missing module info variable {var}', mod_id=name,
-                name=import_str, path=self.handle.__file__) from None
-        self._identifier = self.handle.__name__.split('.', 3)[2]
+                f"Missing module info variable {var}",
+                mod_id=name,
+                name=import_str,
+                path=self.handle.__file__,
+            ) from None
+        self._identifier = self.handle.__name__.split(".", 3)[2]
 
     def __repr__(self):
-        attrs = ['name', 'version', 'handle']
+        attrs = ["name", "version", "handle"]
         return gen_repr(self, attrs)
 
     def __str__(self):
-        return f'{self.name} v{self.version}'
+        return f"{self.name} v{self.version}"
 
     @property
     def identifier(self) -> str:
@@ -172,11 +173,11 @@ class FeatureModule(Module):
         """
         current_handle = self.handle
         if self._is_package:
+
             def _filter(name):
-                return (not name.endswith('feature')
-                        and name.startswith(f'{self.handle.__package__}.'))
-            for module in [mod for name, mod in sys.modules.items()
-                           if _filter(name)]:
+                return not name.endswith("feature") and name.startswith(f"{self.handle.__package__}.")
+
+            for module in [mod for name, mod in sys.modules.items() if _filter(name)]:
                 importlib.reload(module)
         self.handle = importlib.reload(current_handle)
         return self.handle
@@ -201,8 +202,7 @@ class ProtocolModule(Module):
 
     def reload(self):
         """Not yet implemented for protocol modules!"""
-        raise NotImplementedError(
-            'Reloading protocol modules is not yet implemented.')
+        raise NotImplementedError("Reloading protocol modules is not yet implemented.")
 
 
 class CoreModule(Module):
@@ -211,12 +211,12 @@ class CoreModule(Module):
     # pylint: disable=super-init-not-called
     def __init__(self, core, version: str):
         self.handle = core
-        self.name = 'Core'
-        self.description = 'ZeroBot Core'
-        self.author = 'ZeroKnight'
+        self.name = "Core"
+        self.description = "ZeroBot Core"
+        self.author = "ZeroKnight"
         self.version = version
-        self.license = 'MIT'
+        self.license = "MIT"
 
     @property
     def identifier(self) -> str:
-        return 'core'
+        return "core"

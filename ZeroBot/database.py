@@ -18,15 +18,14 @@ import aiosqlite
 
 from ZeroBot.module import Module
 
-logger = logging.getLogger('ZeroBot.Database')
+logger = logging.getLogger("ZeroBot.Database")
 
-sqlite3.register_converter('BOOLEAN', lambda x: bool(int(x)))
-sqlite3.converters['DATETIME'] = sqlite3.converters['TIMESTAMP']  # alias
+sqlite3.register_converter("BOOLEAN", lambda x: bool(int(x)))
+sqlite3.converters["DATETIME"] = sqlite3.converters["TIMESTAMP"]  # alias
 
 # HACK: "Extend" the default datetime adapter to trim microseconds
 _orig_adapter = sqlite3.adapters[(datetime, sqlite3.PrepareProtocol)]
-sqlite3.adapters[
-    (datetime, sqlite3.PrepareProtocol)] = lambda val: _orig_adapter(val).partition('.')[0]
+sqlite3.adapters[(datetime, sqlite3.PrepareProtocol)] = lambda val: _orig_adapter(val).partition(".")[0]
 
 
 # Why does Python not include this?
@@ -66,8 +65,7 @@ class Connection(sqlite3.Connection):
 
     def close(self):
         """Close the database connection."""
-        logger.debug(f"Closing connection to database at '{self._dbpath}' "
-                     f'opened by module {self._module!r}')
+        logger.debug(f"Closing connection to database at '{self._dbpath}' opened by module {self._module!r}")
         super().close()
 
 
@@ -129,10 +127,18 @@ class DBUserInfo(DBModel):
 
     table_name = None
 
-    def __init__(self, conn: Connection, user_id: int, name: str, *,
-                 created_at: datetime = None, creation_flags: int = 0,
-                 creation_metadata: dict = None, comment: str = None,
-                 **kwargs):
+    def __init__(
+        self,
+        conn: Connection,
+        user_id: int,
+        name: str,
+        *,
+        created_at: datetime = None,
+        creation_flags: int = 0,
+        creation_metadata: dict = None,
+        comment: str = None,
+        **kwargs,
+    ):
         super().__init__(conn)
         self._id = user_id
         self.name = name
@@ -144,10 +150,16 @@ class DBUserInfo(DBModel):
         self.comment = comment
 
     def __repr__(self):
-        attrs = ['id', 'name', 'created_at', 'creation_flags',
-                 'creation_metadata', 'comment']
-        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
-        return f'<{self.__class__.__name__} {repr_str}>'
+        attrs = [
+            "id",
+            "name",
+            "created_at",
+            "creation_flags",
+            "creation_metadata",
+            "comment",
+        ]
+        repr_str = " ".join(f"{a}={getattr(self, a)!r}" for a in attrs)
+        return f"<{self.__class__.__name__} {repr_str}>"
 
     def __str__(self):
         return self.name
@@ -167,7 +179,7 @@ class DBUser(DBUserInfo):
     whatever else a given module sees fit.
     """
 
-    table_name = 'users'
+    table_name = "users"
 
     @classmethod
     def from_row(cls, conn: Connection, row: sqlite3.Row) -> DBUser:
@@ -180,12 +192,9 @@ class DBUser(DBUserInfo):
         row : sqlite3.Row
             A row returned from the database.
         """
-        attrs = {
-            name: row[name] for name in
-            ('user_id', 'name', 'created_at', 'creation_flags', 'comment')
-        }
-        if row['creation_metadata'] is not None:
-            metadata = json.loads(row['creation_metadata'])
+        attrs = {name: row[name] for name in ("user_id", "name", "created_at", "creation_flags", "comment")}
+        if row["creation_metadata"] is not None:
+            metadata = json.loads(row["creation_metadata"])
         else:
             metadata = None
         return cls(conn, creation_metadata=metadata, **attrs)
@@ -204,9 +213,7 @@ class DBUser(DBUserInfo):
             The ID of the user to fetch.
         """
         async with conn.cursor() as cur:
-            await cur.execute(
-                f'SELECT * FROM {cls.table_name} WHERE user_id = ?',
-                (user_id,))
+            await cur.execute(f"SELECT * FROM {cls.table_name} WHERE user_id = ?", (user_id,))
             row = await cur.fetchone()
         if row is not None:
             return cls.from_row(conn, row)
@@ -215,9 +222,7 @@ class DBUser(DBUserInfo):
     async def get_aliases(self) -> Iterator[DBUserAlias]:
         """Generator that fetches a list of this user's aliases, if any."""
         async with self._connection.cursor() as cur:
-            await cur.execute(
-                f'SELECT * FROM {DBUserAlias.table_name} WHERE user_id = ?',
-                (self.id,))
+            await cur.execute(f"SELECT * FROM {DBUserAlias.table_name} WHERE user_id = ?", (self.id,))
             while row := await cur.fetchone():
                 yield DBUserAlias.from_row(self._connection, row, self)
 
@@ -235,27 +240,31 @@ class DBUserAlias(DBUserInfo):
         Extra arguments are passed to the `DBUserInfo` constructor.
     """
 
-    table_name = 'aliases'
+    table_name = "aliases"
 
-    def __init__(self, *args, user: DBUser = None,
-                 case_sensitive: bool = False, **kwargs):
+    def __init__(self, *args, user: DBUser = None, case_sensitive: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
         self.case_sensitive = case_sensitive
         if user is not None and user.id != self.id:
-            raise ValueError(
-                'The given user.id does not match user_id: '
-                f'{user.id=} {self.id=}')
+            raise ValueError(f"The given user.id does not match user_id: {user.id=} {self.id=}")
         self.user = user
 
     def __repr__(self):
-        attrs = ['id', 'user', 'name', 'case_sensitive', 'created_at',
-                 'creation_flags', 'creation_metadata', 'comment']
-        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
-        return f'<{self.__class__.__name__} {repr_str}>'
+        attrs = [
+            "id",
+            "user",
+            "name",
+            "case_sensitive",
+            "created_at",
+            "creation_flags",
+            "creation_metadata",
+            "comment",
+        ]
+        repr_str = " ".join(f"{a}={getattr(self, a)!r}" for a in attrs)
+        return f"<{self.__class__.__name__} {repr_str}>"
 
     @classmethod
-    def from_row(cls, conn: Connection, row: sqlite3.Row,
-                 user: DBUser = None) -> DBUserAlias:
+    def from_row(cls, conn: Connection, row: sqlite3.Row, user: DBUser = None) -> DBUserAlias:
         """Construct a `DBUserAlias` from a database row.
 
         Parameters
@@ -268,16 +277,21 @@ class DBUserAlias(DBUserInfo):
             The `DBUser` associated with this alias.
         """
         attrs = {
-            name: row[name] for name in
-            ('user_id', 'name', 'created_at', 'creation_flags', 'comment',
-             'case_sensitive')
+            name: row[name]
+            for name in (
+                "user_id",
+                "name",
+                "created_at",
+                "creation_flags",
+                "comment",
+                "case_sensitive",
+            )
         }
-        if row['creation_metadata'] is not None:
-            metadata = json.loads(row['creation_metadata'])
+        if row["creation_metadata"] is not None:
+            metadata = json.loads(row["creation_metadata"])
         else:
             metadata = None
-        return cls(
-            connection=conn, user=user, creation_metadata=metadata, **attrs)
+        return cls(connection=conn, user=user, creation_metadata=metadata, **attrs)
 
     async def fetch_user(self) -> Optional[DBUser]:
         """Fetch the `DBUser` associated with this alias.
@@ -310,24 +324,29 @@ class Participant(DBModel):
     id
     """
 
-    table_name = 'participants'
+    table_name = "participants"
 
-    def __init__(self, conn: Connection, participant_id: int, name: str, *,
-                 user_id: int = None, user: DBUser = None):
+    def __init__(
+        self,
+        conn: Connection,
+        participant_id: int,
+        name: str,
+        *,
+        user_id: int = None,
+        user: DBUser = None,
+    ):
         super().__init__(conn)
         self.id = participant_id
         self.name = name
         self.user_id = user_id
         if user is not None and user.id != self.user_id:
-            raise ValueError(
-                'The given user.id does not match user_id: '
-                f'{user.id=} {self.user_id=}')
+            raise ValueError(f"The given user.id does not match user_id: {user.id=} {self.user_id=}")
         self.user = user
 
     def __repr__(self):
-        attrs = ['id', 'name', 'user']
-        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
-        return f'<{self.__class__.__name__} {repr_str}>'
+        attrs = ["id", "name", "user"]
+        repr_str = " ".join(f"{a}={getattr(self, a)!r}" for a in attrs)
+        return f"<{self.__class__.__name__} {repr_str}>"
 
     def __str__(self):
         return self.name
@@ -336,8 +355,7 @@ class Participant(DBModel):
         return self.id == other.id
 
     @classmethod
-    def from_row(cls, conn: Connection, row: sqlite3.Row,
-                 user: DBUser = None) -> Participant:
+    def from_row(cls, conn: Connection, row: sqlite3.Row, user: DBUser = None) -> Participant:
         """Construct a `Participant` from a database row.
 
         Parameters
@@ -349,13 +367,11 @@ class Participant(DBModel):
         user : DBUser, optional
             The `DBUser` associated with this alias.
         """
-        attrs = {
-            name: row[name] for name in ('participant_id', 'name', 'user_id')}
+        attrs = {name: row[name] for name in ("participant_id", "name", "user_id")}
         return cls(conn, user=user, **attrs)
 
     @classmethod
-    async def from_id(cls, conn: Connection,
-                      participant_id: int) -> Optional[Participant]:
+    async def from_id(cls, conn: Connection, participant_id: int) -> Optional[Participant]:
         """Construct a `Participant` by ID from the database.
 
         Returns `None` if there was no `Participant` with the given ID.
@@ -369,17 +385,17 @@ class Participant(DBModel):
         """
         async with conn.cursor() as cur:
             await cur.execute(
-                f'SELECT * FROM {cls.table_name} WHERE participant_id = ?',
-                (participant_id,))
+                f"SELECT * FROM {cls.table_name} WHERE participant_id = ?",
+                (participant_id,),
+            )
             row = await cur.fetchone()
         if row is None:
             return None
-        user = await DBUser.from_id(conn, row['user_id'])
+        user = await DBUser.from_id(conn, row["user_id"])
         return cls.from_row(conn, row, user)
 
     @classmethod
-    async def from_name(cls, conn: Connection,
-                        name: str) -> Optional[Participant]:
+    async def from_name(cls, conn: Connection, name: str) -> Optional[Participant]:
         """Construct a `Participant` by name from the database.
 
         Parameters
@@ -390,17 +406,15 @@ class Participant(DBModel):
             The name of the participant to fetch.
         """
         async with conn.cursor() as cur:
-            await cur.execute(
-                f'SELECT * FROM {cls.table_name} WHERE name = ?', (name,))
+            await cur.execute(f"SELECT * FROM {cls.table_name} WHERE name = ?", (name,))
             row = await cur.fetchone()
         if row is None:
             return None
-        user = await DBUser.from_id(conn, row['user_id'])
+        user = await DBUser.from_id(conn, row["user_id"])
         return cls.from_row(conn, row, user)
 
     @classmethod
-    async def from_user(cls, conn: Connection,
-                        user: Union[DBUser, int]) -> Optional[Participant]:
+    async def from_user(cls, conn: Connection, user: Union[DBUser, int]) -> Optional[Participant]:
         """Construct a `Participant` linked to the given user.
 
         Parameters
@@ -416,14 +430,12 @@ class Participant(DBModel):
         except AttributeError:
             user_id = int(user)
         async with conn.cursor() as cur:
-            await cur.execute(
-                f'SELECT * FROM {cls.table_name} WHERE user_id = ?',
-                (user_id,))
+            await cur.execute(f"SELECT * FROM {cls.table_name} WHERE user_id = ?", (user_id,))
             row = await cur.fetchone()
         if row is None:
             return None
         if not isinstance(user, DBUser):
-            user = await DBUser.from_id(conn, row['user_id'])
+            user = await DBUser.from_id(conn, row["user_id"])
         return cls.from_row(conn, row, user)
 
     async def fetch_user(self) -> DBUser:
@@ -432,25 +444,27 @@ class Participant(DBModel):
         Sets `self.user` to the fetched `DBUser` and returns it.
         """
         if self.user_id is None:
-            raise ValueError('Participant has no linked user.')
+            raise ValueError("Participant has no linked user.")
         self.user = await DBUser.from_id(self._connection, self.user_id)
         return self.user
 
     async def save(self):
         """Save this `Participant` to the database."""
         async with self._connection.cursor() as cur:
-            await cur.execute(f"""
+            await cur.execute(
+                f"""
                 INSERT INTO {self.table_name} VALUES (?, ?, ?)
                 ON CONFLICT (participant_id) DO UPDATE SET
                     name = excluded.name,
                     user_id = excluded.user_id
-            """, (self.id, self.name, self.user_id))
+            """,
+                (self.id, self.name, self.user_id),
+            )
             self.id = cur.lastrowid
             await self._connection.commit()
 
 
-async def get_participant(conn: Connection, name: str,
-                          ignore_case: bool = True) -> Participant:
+async def get_participant(conn: Connection, name: str, ignore_case: bool = True) -> Participant:
     """Get an existing `Participant` or create a new one.
 
     This is a convenient and generalized function for Zerobot modules that
@@ -483,19 +497,21 @@ async def get_participant(conn: Connection, name: str,
     """
     if name is None:
         return None
-    if name.strip() == '':
-        raise ValueError('Name is empty or whitespace')
+    if name.strip() == "":
+        raise ValueError("Name is empty or whitespace")
     if ignore_case:
-        criteria = 'lower(pan.name) = lower(?1)'
+        criteria = "lower(pan.name) = lower(?1)"
     else:
-        criteria = ('pan.name = ?1 OR case_sensitive = 0 '
-                    'AND lower(pan.name) = lower(?1)')
+        criteria = "pan.name = ?1 OR case_sensitive = 0 AND lower(pan.name) = lower(?1)"
     async with conn.cursor() as cur:
-        await cur.execute(f"""
+        await cur.execute(
+            f"""
             SELECT participant_id, name, user_id
             FROM participants_all_names AS "pan"
             WHERE {criteria}
-        """, (name,))
+        """,
+            (name,),
+        )
         row = await cur.fetchone()
     if row is None:
         # Create a new Participant
@@ -510,8 +526,7 @@ async def get_participant(conn: Connection, name: str,
     return participant
 
 
-async def find_participant(conn: Connection, pattern: str,
-                           case_sensitive: bool = False) -> Optional[Participant]:
+async def find_participant(conn: Connection, pattern: str, case_sensitive: bool = False) -> Optional[Participant]:
     """Return the first Participant that matches `pattern`.
 
     Parameters
@@ -528,24 +543,26 @@ async def find_participant(conn: Connection, pattern: str,
         return None
     # The `m` flag is included because of the use of
     # `group_concat(name, char(10))` in queries needing to match aliases.
-    re_flags = 'm' if case_sensitive else 'mi'
-    pattern = f'(?{re_flags}:{pattern})'
+    re_flags = "m" if case_sensitive else "mi"
+    pattern = f"(?{re_flags}:{pattern})"
     async with conn.cursor() as cur:
-        await cur.execute(f"""
+        await cur.execute(
+            f"""
             SELECT participant_id,
                    group_concat(name, char(10)) AS "name_list"
             FROM participants_all_names
             GROUP BY participant_id
             HAVING name_list REGEXP ?
-        """, (pattern,))
+        """,
+            (pattern,),
+        )
         row = await cur.fetchone()
     if row is None:
         return None
     return await Participant.from_id(conn, row[0])
 
 
-async def get_user(conn: Connection, name: str,
-                   ignore_case: bool = True) -> Optional[DBUser]:
+async def get_user(conn: Connection, name: str, ignore_case: bool = True) -> Optional[DBUser]:
     """Get an existing user by their name or an alias.
 
     This is a convenient and generalized function for ZeroBot modules that
@@ -568,18 +585,20 @@ async def get_user(conn: Connection, name: str,
     Optional[DBUser]
         The matched user or ``None`` if there were no matches for `name`.
     """
-    if name.strip() == '':
-        raise ValueError('Name is empty or whitespace')
+    if name.strip() == "":
+        raise ValueError("Name is empty or whitespace")
     if ignore_case:
-        criteria = 'lower(name) = lower(?1)'
+        criteria = "lower(name) = lower(?1)"
     else:
-        criteria = ('name = ?1 OR case_sensitive = 0'
-                    'AND lower(name) = lower(?1)')
+        criteria = "name = ?1 OR case_sensitive = 0 AND lower(name) = lower(?1)"
     user = None
     async with conn.cursor() as cur:
-        await cur.execute(f"""
+        await cur.execute(
+            f"""
             SELECT user_id FROM users_all_names WHERE {criteria}
-        """, (name,))
+        """,
+            (name,),
+        )
         row = await cur.fetchone()
     if row is not None:
         user = await DBUser.from_id(conn, row[0])
@@ -611,27 +630,32 @@ class Source(DBModel):
     id
     """
 
-    table_name = 'sources'
+    table_name = "sources"
 
-    def __init__(self, conn: Connection, source_id: int, protocol: str,
-                 server: str = None, channel: str = None):
+    def __init__(
+        self,
+        conn: Connection,
+        source_id: int,
+        protocol: str,
+        server: str = None,
+        channel: str = None,
+    ):
         super().__init__(conn)
         self.id = source_id
         if protocol is not None:
             self.protocol = protocol
         else:
-            raise TypeError('protocol cannot be None')
+            raise TypeError("protocol cannot be None")
         self.server = server
         self.channel = channel
 
     def __repr__(self):
-        attrs = ['id', 'protocol', 'server', 'channel']
-        repr_str = ' '.join(f'{a}={getattr(self, a)!r}' for a in attrs)
-        return f'<{self.__class__.__name__} {repr_str}>'
+        attrs = ["id", "protocol", "server", "channel"]
+        repr_str = " ".join(f"{a}={getattr(self, a)!r}" for a in attrs)
+        return f"<{self.__class__.__name__} {repr_str}>"
 
     def __str__(self):
-        return ', '.join(
-            attr for attr in (self.server, self.channel) if attr is not None)
+        return ", ".join(attr for attr in (self.server, self.channel) if attr is not None)
 
     def __eq__(self, other):
         return self.id == other.id
@@ -650,8 +674,7 @@ class Source(DBModel):
         return cls(conn, *row)
 
     @classmethod
-    async def from_id(cls, conn: Connection,
-                      source_id: int) -> Optional[Source]:
+    async def from_id(cls, conn: Connection, source_id: int) -> Optional[Source]:
         """Construct a `Source` by ID from the database.
 
         Returns `None` if there was no `Source` with the given ID.
@@ -664,9 +687,7 @@ class Source(DBModel):
             The ID of the source to fetch.
         """
         async with conn.cursor() as cur:
-            await cur.execute(
-                f'SELECT * FROM {cls.table_name} WHERE source_id = ?',
-                (source_id,))
+            await cur.execute(f"SELECT * FROM {cls.table_name} WHERE source_id = ?", (source_id,))
             row = await cur.fetchone()
         if row is None:
             return None
@@ -675,19 +696,21 @@ class Source(DBModel):
     async def save(self):
         """Save this `Source` to the database."""
         async with self._connection.cursor() as cur:
-            await cur.execute(f"""
+            await cur.execute(
+                f"""
                 INSERT INTO {self.table_name} VALUES (?, ?, ?, ?)
                 ON CONFLICT (source_id) DO UPDATE SET
                     protocol = excluded.protocol,
                     server = excluded.server,
                     channel = excluded.channel
-            """, (self.id, self.protocol, self.server, self.channel))
+            """,
+                (self.id, self.protocol, self.server, self.channel),
+            )
             self.id = cur.lastrowid
             await self._connection.commit()
 
 
-async def get_source(conn: Connection, protocol: str, server: str = None,
-                     channel: str = None) -> int:
+async def get_source(conn: Connection, protocol: str, server: str = None, channel: str = None) -> int:
     """Get an existing source or create a new one.
 
     This is a convenient and generalized function for Zerobot modules that
@@ -710,15 +733,18 @@ async def get_source(conn: Connection, protocol: str, server: str = None,
     int
         The ``source_id`` of either an existing or newly created source.
     """
-    for attr in ('protocol', 'server', 'channel'):
-        if locals()[attr].strip() == '':
-            raise ValueError(f'{attr} is empty or whitespace')
+    for attr in ("protocol", "server", "channel"):
+        if locals()[attr].strip() == "":
+            raise ValueError(f"{attr} is empty or whitespace")
     async with conn.cursor() as cur:
-        await cur.execute(f"""
+        await cur.execute(
+            f"""
             SELECT source_id, protocol, server, channel
             FROM {Source.table_name}
             WHERE protocol = ? AND server = ? AND channel = ?
-        """, (protocol, server, channel))
+        """,
+            (protocol, server, channel),
+        )
         row = await cur.fetchone()
     if row is None:
         # Create new Source
@@ -729,9 +755,13 @@ async def get_source(conn: Connection, protocol: str, server: str = None,
     return source
 
 
-async def create_connection(database: Union[str, Path], module: Module,
-                            loop: asyncio.AbstractEventLoop = None,
-                            readonly: bool = False, **kwargs) -> Connection:
+async def create_connection(
+    database: Union[str, Path],
+    module: Module,
+    loop: asyncio.AbstractEventLoop = None,
+    readonly: bool = False,
+    **kwargs,
+) -> Connection:
     """Establish a new connection to a ZeroBot database.
 
     Modules *should not* use this method or the `connect` method from either
@@ -763,24 +793,32 @@ async def create_connection(database: Union[str, Path], module: Module,
     if loop is None:
         loop = asyncio.get_event_loop()
 
-    logger.debug(f"Creating {'read-only ' if readonly else ''}connection to "
-                 f"database at '{database}' for module {module!r}")
+    logger.debug(
+        f"Creating {'read-only ' if readonly else ''}connection to database at '{database}' for module {module!r}"
+    )
     # NOTE: aiosqlite passes kwargs to sqlite3.connect
     conn = await aiosqlite.connect(
         f"{database.as_uri()}?mode={'ro' if readonly else 'rwc'}",
-        loop=loop, uri=True, factory=Connection,
-        detect_types=sqlite3.PARSE_DECLTYPES, **kwargs)
+        loop=loop,
+        uri=True,
+        factory=Connection,
+        detect_types=sqlite3.PARSE_DECLTYPES,
+        **kwargs,
+    )
     conn.setName(module.identifier)
     conn.row_factory = sqlite3.Row
-    await conn.execute('PRAGMA foreign_keys = ON')
-    await conn.create_function('REGEXP', 2, regexp)
+    await conn.execute("PRAGMA foreign_keys = ON")
+    await conn.create_function("REGEXP", 2, regexp)
     conn._connection._module = module  # pylint: disable=protected-access
     conn._connection._dbpath = database  # pylint: disable=protected-access
     return conn
 
 
-async def create_backup(database: Connection, target: Union[str, Path],
-                        loop: asyncio.AbstractEventLoop = None):
+async def create_backup(
+    database: Connection,
+    target: Union[str, Path],
+    loop: asyncio.AbstractEventLoop = None,
+):
     """Create a full backup of a ZeroBot database.
 
     Modules *should not* use this method or the `backup` method from either

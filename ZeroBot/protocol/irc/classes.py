@@ -49,9 +49,16 @@ class IRCUser(abc.User):
     mask : str
     """
 
-    def __init__(self, name: str, username: str = None, realname: str = None,
-                 *, hostname: Optional[str] = None, modes: dict = None,
-                 bot: bool = False):
+    def __init__(
+        self,
+        name: str,
+        username: str = None,
+        realname: str = None,
+        *,
+        hostname: Optional[str] = None,
+        modes: dict = None,
+        bot: bool = False,
+    ):
         self._auth_id = None
         self._away_msg = None
         self.name = name
@@ -76,7 +83,7 @@ class IRCUser(abc.User):
             A 3-tuple consisting of the nickname, username, and hostname of the
             given mask. Each value may be `None` if not present in the mask.
         """
-        parts = re.split(r'[!@]', mask, maxsplit=2)
+        parts = re.split(r"[!@]", mask, maxsplit=2)
         return tuple(islice(chain(parts, repeat(None, 3)), 3))
 
     @classmethod
@@ -89,7 +96,7 @@ class IRCUser(abc.User):
         return cls(nick, user, realname, hostname=host, bot=bot)
 
     def __repr__(self):
-        attrs = ['mask', 'realname', 'modes', 'auth_id', 'away_msg', 'bot']
+        attrs = ["mask", "realname", "modes", "auth_id", "away_msg", "bot"]
         return gen_repr(self, attrs)
 
     def __str__(self):
@@ -129,7 +136,7 @@ class IRCUser(abc.User):
     @property
     def mask(self):
         """The user/host mask of this user, in the form of `nick!user@host`."""
-        return f'{self.name}!{self.username}@{self.hostname}'
+        return f"{self.name}!{self.username}@{self.hostname}"
 
     def mention(self):
         """Returns a string appropriate to "mention" a user.
@@ -137,9 +144,9 @@ class IRCUser(abc.User):
         Mentioning a user on IRC is also referred to as "pinging" a user, as it
         causes their client to alert them to the message.
         """
-        return f'{self.name}:'
+        return f"{self.name}:"
 
-    def mentioned(self, message: 'IRCMessage'):
+    def mentioned(self, message: "IRCMessage"):
         """Check if the user was mentioned in the given message."""
         return self.name in message.content
 
@@ -149,7 +156,7 @@ class IRCUser(abc.User):
         This is a naive check, as a server may not check for an ident response,
         and server-enforced username prefixes are not standardized.
         """
-        return not self.username.startswith('~')
+        return not self.username.startswith("~")
 
     def set_auth(self, account: Optional[str]):
         """Set this user as authenticated with the given account name."""
@@ -196,9 +203,17 @@ class IRCServer(abc.Server):
         key in ``RPL_ISUPPORT``.
     """
 
-    def __init__(self, hostname: str, port: int = None, *, name: str = None,
-                 ipv6: bool = False, tls: bool = False, password: str = None,
-                 network: str = None):
+    def __init__(
+        self,
+        hostname: str,
+        port: int = None,
+        *,
+        name: str = None,
+        ipv6: bool = False,
+        tls: bool = False,
+        password: str = None,
+        network: str = None,
+    ):
         self._connected = False
         self.hostname = hostname
         if port is None:
@@ -213,15 +228,18 @@ class IRCServer(abc.Server):
         self.name = name if name is not None else self.hostname
 
     def __repr__(self):
-        attrs = ['hostname', 'port', 'password', 'tls', 'ipv6', 'name']
+        attrs = ["hostname", "port", "password", "tls", "ipv6", "name"]
         return gen_repr(self, attrs)
 
     def __str__(self):
         return self.name if self.name is not None else self.hostname
 
     def __eq__(self, other):
-        return ((self.hostname, self.port, self.tls) ==
-                (other.hostname, other.port, other.tls))
+        return (self.hostname, self.port, self.tls) == (
+            other.hostname,
+            other.port,
+            other.tls,
+        )
 
     @property
     def original(self):
@@ -252,7 +270,7 @@ class IRCChannel(abc.Channel):
     """
 
     # Match valid channel prefixes
-    _chanprefix = re.compile(r'^[#&!+]#?')
+    _chanprefix = re.compile(r"^[#&!+]#?")
 
     def __init__(self, name: str, *, password: str = None, modes=None):
         self.name = name
@@ -260,7 +278,7 @@ class IRCChannel(abc.Channel):
         self.modes = modes or {}
 
     def __repr__(self):
-        attrs = ['name', 'password', 'modes']
+        attrs = ["name", "password", "modes"]
         return gen_repr(self, attrs)
 
     def __str__(self):
@@ -279,7 +297,7 @@ class IRCChannel(abc.Channel):
 
     def unprefixed(self):
         """Return the bare channel name, i.e. with no prefix."""
-        return self._chanprefix.sub('', self.name)
+        return self._chanprefix.sub("", self.name)
 
 
 class IRCMessage(abc.Message):
@@ -300,25 +318,30 @@ class IRCMessage(abc.Message):
         to their optional values. A tag with no value is assigned `None`.
     """
 
-    def __init__(self, source: Union[IRCUser, IRCServer],
-                 destination: Union[IRCUser, IRCChannel],
-                 content: str, *, time: datetime.datetime = None,
-                 tags: dict[str, Optional[str]] = None):
+    def __init__(
+        self,
+        source: Union[IRCUser, IRCServer],
+        destination: Union[IRCUser, IRCChannel],
+        content: str,
+        *,
+        time: datetime.datetime = None,
+        tags: dict[str, Optional[str]] = None,
+    ):
         self.source = source
         self.destination = destination
         self.content = content
         self.tags = tags or {}
         if time:
             self.time = time
-        elif 'time' in self.tags:
-            self.time = isoparse(self.tags['time'])
+        elif "time" in self.tags:
+            self.time = isoparse(self.tags["time"])
         else:
             self.time = datetime.datetime.now(datetime.timezone.utc)
-        if 'time' not in self.tags:
-            self.tags['time'] = irc_time_format(self.time)
+        if "time" not in self.tags:
+            self.tags["time"] = irc_time_format(self.time)
 
     def __repr__(self):
-        attrs = ['source', 'destination', 'content', 'tags']
+        attrs = ["source", "destination", "content", "tags"]
         return gen_repr(self, attrs)
 
     def __str__(self):
