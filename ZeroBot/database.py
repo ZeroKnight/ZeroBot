@@ -809,8 +809,8 @@ async def create_connection(
     conn.row_factory = sqlite3.Row
     await conn.execute("PRAGMA foreign_keys = ON")
     await conn.create_function("REGEXP", 2, regexp)
-    conn._connection._module = module  # pylint: disable=protected-access
-    conn._connection._dbpath = database  # pylint: disable=protected-access
+    conn._connection._module = module
+    conn._connection._dbpath = database
     return conn
 
 

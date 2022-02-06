@@ -22,7 +22,7 @@ from ZeroBot.exceptions import (
 _configvars = {"botversion": ZeroBot.__version__}
 
 
-class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
+class ConfigDict(UserDict):
     """Wrapper around a `dict` useful for deserialized config files.
 
     Do not use this class directly, use `Config` instead.
@@ -93,7 +93,6 @@ class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
             raise TypeError(f"fallback type expects 'ConfigDict', not '{type(fallback)}")
         return ChainMap(section, fallback)
 
-    # pylint: disable=arguments-differ
     def get(self, key: str, default: Any = None, *, template_vars: Mapping = None) -> Any:
         """Extends `dict.get` with substitution and dotted-subkey access.
 
@@ -128,7 +127,6 @@ class ConfigDict(UserDict):  # pylint: disable=too-many-ancestors
         return value
 
 
-# pylint: disable=too-many-ancestors
 class Config(ConfigDict):
     """A wrapper around a parsed TOML configuration file.
 

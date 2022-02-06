@@ -208,7 +208,6 @@ class ProtocolModule(Module):
 class CoreModule(Module):
     """Dummy module representing ZeroBot's Core."""
 
-    # pylint: disable=super-init-not-called
     def __init__(self, core, version: str):
         self.handle = core
         self.name = "Core"

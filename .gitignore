@@ -9,6 +9,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Packaging
+*.egg
+*.egg-info
+dist
+sdist
+
 # Environments
 .env
 .venv
@@ -18,6 +24,9 @@ ENV/
 env.bak/
 venv.bak/
 
-# Rope project settings
-.ropeproject
-
+# Testing and Linting
+.coverage/
+.mypy_cache/
+.pytest_cache/
+.ropeproject/
+.tox/

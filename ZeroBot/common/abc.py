@@ -117,8 +117,6 @@ class Message(ProtocolDetails, metaclass=ABCMeta):
         The time that the message was sent, in UTC.
     """
 
-    # pylint: disable=no-member
-
     @abstractmethod
     def __eq__(self, other):
         raise NotImplementedError

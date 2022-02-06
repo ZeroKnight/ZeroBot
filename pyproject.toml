@@ -1,0 +1,21 @@
+[tool.black]
+line-length = 120
+experimental-string-processing = true
+exclude = '''
+/(
+    tests/
+)/
+'''
+
+[tool.isort]
+profile = 'black'
+line_length = 120
+
+[tool.pytest.ini_options]
+minversion = '6.0'
+testpaths = ['tests']
+addopts = ['-ra']
+
+[build-system]
+requires = ['setuptools>=42.0.0', 'wheel']
+build-backend = 'setuptools.build_meta'

@@ -171,7 +171,6 @@ class ParsedCommand:
     msg: Message
 
     def __post_init__(self):
-        # pylint: disable=protected-access
         try:
             action = self.parser._actions[0]
             if isinstance(action, _SubParsersAction):
@@ -216,7 +215,6 @@ class ParsedCommand:
         nested subcommand. As a consequence, a value of ``1`` is the same as
         `subcmd`.
         """
-        # pylint: disable=protected-access
         current = 0
         subparser = self.parser
         try:

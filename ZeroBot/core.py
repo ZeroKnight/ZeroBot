@@ -60,8 +60,6 @@ from ZeroBot.module import (
 from ZeroBot.protocol.context import Context
 from ZeroBot.util import shellish_split
 
-# pylint: disable=broad-except
-
 # Minimal initial logging format for any messages before the config is read and
 # user logging configuration is applied.
 logging.basicConfig(
@@ -910,7 +908,7 @@ class Core:
         """Get a list of all active protocol `Context`s."""
         return [ctx for proto in self._protocols.values() for ctx in proto.contexts]
 
-    def run(self):
+    def run(self) -> int:
         """Start ZeroBot's event loop."""
         try:
             self.eventloop.run_forever()
@@ -919,12 +917,13 @@ class Core:
         except Exception:
             self.logger.exception("Unhandled exception raised, shutting down.")
         finally:
-            self._shutdown()
+            retcode = self._shutdown()
             self.logger.debug("Closing event loop")
             self.eventloop.close()
         if self._restarting:
             self.logger.info(f"Restarting with command line: {sys.argv}")
             os.execl(sys.executable, sys.executable, *sys.argv)
+        return retcode
 
     async def run_async(self, func, *args):
         """Run a synchronous function on the `Core` event loop."""
@@ -965,7 +964,7 @@ class Core:
                     mod_id=module_id,
                 ) from None
         for cmd in cmds:
-            cmd._module = module  # pylint: disable=protected-access
+            cmd._module = module
             self._commands.add(module_id, cmd)
 
     def command_unregister(self, command: str):
@@ -1272,11 +1271,13 @@ class Core:
         self.logger.info("Shutting down ZeroBot" + f' with reason "{reason}"' if reason else "")
         self._shutdown_reason = reason
 
-    def _shutdown(self):
+    # TODO: Proper set of return codes
+    def _shutdown(self) -> int:
         """Unregisters all feature and protocol modules.
 
         Called when ZeroBot is shutting down.
         """
+        retcode = 0
         self.logger.debug("Unregistering feature modules.")
         for feature in self._features.values():
             try:
@@ -1284,6 +1285,7 @@ class Core:
                     self.eventloop.run_until_complete(feature.handle.module_unregister())
             except Exception:
                 self.logger.exception(f"Exception occurred while unregistering feature module '{feature.name}'.")
+                retcode = 1
         self.logger.debug("Unregistering protocol modules.")
         for protocol in self._protocols.values():
             try:
@@ -1293,11 +1295,13 @@ class Core:
                     )
             except Exception:
                 self.logger.exception(f"Exception occurred while unregistering protocol module '{protocol.name}'.")
+                retcode = 1
         self.eventloop.run_until_complete(self.database.close())
         if len(self._db_connections) > 0:
             self.logger.debug("Cleaning up unclosed database connections")
             for module in list(self._db_connections):
                 self.eventloop.run_until_complete(self.database_disconnect(module))
+        return retcode
 
     # Core command implementations
 

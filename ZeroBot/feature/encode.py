@@ -193,7 +193,7 @@ async def handle_transform(ctx, parsed, method):
         digest = xcoder(*args)
         if case is not None:
             digest = case(digest)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
         return
     await ctx.reply_command_result(parsed, digest)
