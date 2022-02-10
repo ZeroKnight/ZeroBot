@@ -44,6 +44,7 @@ DOT_CHARS = ".·․‥…⋯"
 EXCLAMATION_CHARS = "!¡❕❗﹗！"
 QUESTION_CHARS = "?¿‽⁇⁈⁉❓❔⸮﹖？"
 ALL_CHARS = DOT_CHARS + EXCLAMATION_CHARS + QUESTION_CHARS
+ALL_CHARS_EXCEPT_PERIOD = DOT_CHARS[1:] + EXCLAMATION_CHARS + QUESTION_CHARS
 
 PATTERN_WAT = re.compile(rf"(?:h+w+|w+h*)[aou]+t\s*[{ALL_CHARS}]*\s*$", re.I)
 PATTERN_DOTS = re.compile(
@@ -53,9 +54,9 @@ PATTERN_DOTS = re.compile(
         ([{ALL_CHARS}]+)
         \s*$
     ) |
-    (?:  # Message ends with at least 2 punctuation
+    (?:  # Message ends with at least 2 punctuation or excessive ellipses-periods
         [-\w()]+\s*
-        ([{ALL_CHARS}]{{2,}})
+        ([{ALL_CHARS_EXCEPT_PERIOD}]{{2,}} | [{ALL_CHARS}]{{5,}})
         \s*$
     )
 """,
@@ -323,12 +324,6 @@ async def module_on_message(ctx, message):
         await ctx.module_message(message.destination, random.choice(("wat", "wut", "wot", "what", "whut")))
         return
 
-    # Dots...!
-    if match := PATTERN_DOTS.search(message.content):
-        dots = "".join(random.choices(EXCLAMATION_CHARS + QUESTION_CHARS, k=random.randint(1, 3)))
-        await ctx.module_message(message.destination, f"{match[1] or match[2]}{dots}")
-        return
-
     # Answer Questions
     if CFG.get("Questioned.Enabled"):
         for pattern in CFG.get("Questioned.Triggers"):
@@ -354,10 +349,16 @@ async def module_on_message(ctx, message):
                 return
 
     # Respond to being mentioned... oddly
-    # NOTE: Needs to be LOW priority
     if CFG.get("Mentioned.Enabled") and ctx.user.mentioned(message):
         phrase, action = await fetch_phrase("mentioned", ["action"])
         await ctx.module_message(message.destination, phrase, action)
+        return
+
+    # Dots...!
+    if match := PATTERN_DOTS.search(message.content):
+        dots = "".join(random.choices(EXCLAMATION_CHARS + QUESTION_CHARS, k=random.randint(1, 3)))
+        await ctx.module_message(message.destination, f"{match[1] or match[2]}{dots}")
+        return
 
 
 async def module_on_join(ctx, channel, user):
