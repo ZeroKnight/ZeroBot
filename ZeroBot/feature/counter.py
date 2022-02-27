@@ -58,6 +58,7 @@ class Counter:
         *,
         enabled: bool = True,
         muted: bool = False,
+        match_case: bool = False,
         triggers: list[str] = None,
         restrictions: list[str] = None,
         blacklist: list[str] = None,
@@ -76,7 +77,8 @@ class Counter:
         self.count = count
         self.enabled = enabled
         self.muted = muted
-        self.triggers = [re.compile(trigger, re.I) for trigger in (triggers or [])]
+        self.match_case = match_case
+        self.triggers = [re.compile(trigger, (re.I if not match_case else 0)) for trigger in (triggers or [])]
         self.restrictions = restrictions or []
         self.blacklist = blacklist or []
         self.created_at = created_at or now
@@ -318,6 +320,7 @@ async def load_counters() -> int:
             "announcement": instance.get("AnnounceString"),
             "enabled": instance.get("Enabled", True),
             "muted": instance.get("Announce", True),
+            "match_case": instance.get("MatchCase", False),
             "triggers": instance.get("Triggers", []),
             "restrictions": instance.get("RestrictedTo", []),
             "blacklist": instance.get("Blacklist", []),
