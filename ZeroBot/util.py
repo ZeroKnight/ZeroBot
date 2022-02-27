@@ -72,10 +72,10 @@ def map_reduce(key_path: Union[str, list[str]], mapping: Mapping[str, Any]) -> A
 
 
 def flatten(iterable):
-    """Simple generator that flattens nested lists and tuples."""
+    """Simple generator that flattens arbitrarily nested lists and tuples."""
     for elem in iterable:
         if isinstance(elem, (list, tuple)):
-            yield from elem
+            yield from flatten(elem)
         else:
             yield elem
 
