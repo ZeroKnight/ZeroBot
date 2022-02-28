@@ -144,6 +144,10 @@ class Counter:
         If given, `kwargs` are passed to the template substitution for the
         announcement string.
         """
+        if "user" not in kwargs:
+            raise ValueError("Missing required 'user' kwarg")
+        kwargs["r_all"] = or_join(self.restrictions)
+        kwargs["r_user"] = kwargs["user"] if kwargs["user"] in self.restrictions else kwargs["r_all"]
         return self.announcement.safe_substitute(kwargs, count=self.count)
 
     def should_announce(self) -> bool:
@@ -430,10 +434,7 @@ async def module_command_count(ctx, parsed):
     if parsed.args["quiet"]:
         await ctx.module_message(parsed.source, "Okay, done.")
     else:
-        user = None
-        if len(counter.restrictions) > 0:
-            user = or_join(counter.restrictions)
-        await announce(ctx, parsed.source, counter, user=user)
+        await announce(ctx, parsed.source, counter, user=sender.name)
 
 
 async def module_command_counter(ctx, parsed):
@@ -445,10 +446,7 @@ async def module_command_counter(ctx, parsed):
         except KeyError:
             await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NoResults)
             return
-        user = None
-        if len(counter.restrictions) > 0:
-            user = or_join(counter.restrictions)
-        response = counter.get_announcement(user=user)
+        response = counter.get_announcement(user=counter.last_user.name)
     elif subcmd == "list":
         lines, found, not_found = [], [], []
         if parsed.args["counter"]:
