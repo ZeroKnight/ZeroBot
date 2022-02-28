@@ -31,12 +31,29 @@ MOD_ID = __name__.rsplit(".", 1)[-1]
 logger = logging.getLogger("ZeroBot.Feature.Counter")
 
 SPECIAL_NUMBERS = {
+    21: "TWENTY ONE! I WON! SUCK MY DICK!",
     42: "Ah, the meaning of life. It was right here the whole time.",
+    64: "Ohhh, BANANA.",
     69: "Lmao, nice.",
+    76: "It just works.",
+    100: "No longer a low-level counter!",
+    104: "The World ends with Shibuya.",
+    256: "We 8-bit now.",
+    300: "THIS. IS. **SPARTA!**",
+    314: "Mmmm, pie.",
+    358: "*Donald Duck screeches incessently in the background*",
     420: "Blaze it. 🔥",
+    451: "Do you smell something burning?",
+    500: "Okay, we're getting somewhere now.",
     666: "*death metal sounds in the distance*",
-    999: "Hit the damage cap.",
+    777: "A meteor for mother.",
+    833: "🐝",
+    1000: "Impressive.",
     1337: "5!(|< //!13570z3, |3|20",
+    1999: "It's time to party 🎉",
+    8008: "BOOBA.",
+    9999: "Hit the damage cap!",
+    10000: "Absolutely astonishing. We've made it here through either great spam or much time. Or both.",
 }
 counters = {}
 
