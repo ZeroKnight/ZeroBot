@@ -81,7 +81,7 @@ class Counter:
         self.triggers = [re.compile(trigger, (re.I if not match_case else 0)) for trigger in (triggers or [])]
         self.restrictions = restrictions or []
         self.blacklist = blacklist or []
-        self.created_at = created_at or now
+        self.created_at = created_at or now.replace(microsecond=0)
         self.last_triggered = last_triggered
         self.last_user = last_user
         self.last_channel = last_channel
@@ -168,13 +168,14 @@ class Counter:
         ----------
         n : int, optional
             The number to increment the counter by. Defaults to 1.
-        user : Participant or str, optional
+        participant : Participant or str, optional
             The user that caused the increment.
         channel : str, optional
             Where the increment occurred.
         """
         self.count += n
         now = datetime.utcnow()
+        self.last_triggered = now.replace(microsecond=0)
         async with DB.cursor() as cur:
             if isinstance(participant, str):
                 await cur.execute(
@@ -186,6 +187,7 @@ class Counter:
                 )
                 row = await cur.fetchone()
                 participant = await Participant.from_id(DB, row["participant_id"])
+            self.last_user = participant
 
             await cur.execute(
                 """
