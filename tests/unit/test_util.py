@@ -1,4 +1,4 @@
-from string import ascii_letters, punctuation, digits
+from string import ascii_letters, digits, punctuation
 
 import pytest
 
@@ -22,7 +22,7 @@ def nested_dict():
 
 
 @pytest.mark.parametrize(
-    "key,expected",
+    ("key", "expected"),
     [
         (["bang"], 1),
         (["foo", "biz"], 2),
@@ -63,7 +63,7 @@ def test_flatten(iterable):
 
 
 @pytest.mark.parametrize(
-    "s,expected",
+    ("s", "expected"),
     [
         ("foo", ["foo"]),
         ('"foo"', ["foo"]),

@@ -50,13 +50,7 @@ from ZeroBot.exceptions import (
     ZeroBotConfigError,
     ZeroBotModuleError,
 )
-from ZeroBot.module import (
-    CoreModule,
-    FeatureModule,
-    Module,
-    ProtocolModule,
-    ZeroBotModuleFinder,
-)
+from ZeroBot.module import CoreModule, FeatureModule, Module, ProtocolModule, ZeroBotModuleFinder
 from ZeroBot.protocol.context import Context
 from ZeroBot.util import shellish_split
 

@@ -22,8 +22,8 @@ __all__ = ["CommandHelp", "CommandParser", "ParsedCommand"]
 class _NoExitArgumentParser(ArgumentParser):
     """Modified `argparse.ArgumentParser` that doesn't exit on errors."""
 
-    # NOTE: Python 3.9 will add an `exit_on_error` parameter that will stop
-    # argparse from exiting instead of having to override exit and error.
+    # NOTE: Python 3.9 adds an `exit_on_error` attribute, but we still want
+    #       to raise our own ZeroBot exceptions, so we'll stick to a subclass
 
     def exit(self, status=0, message=None):
         pass
