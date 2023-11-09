@@ -1,6 +1,38 @@
+[build-system]
+requires = ['setuptools>=61.0.0']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'ZeroBot'
+description = 'A modular, multi-protocol bot for amusement and utility.'
+version = '0.6.0'
+requires-python = '>=3.8'
+readme = 'README.md'
+license.file = 'LICENSE.txt'
+authors = [
+    { name = 'Alex "ZeroKnight" George', email = 'xzeroknightx@gmail.com' },
+]
+dependencies = [
+    'aiosqlite',
+    'appdirs',
+    'discord.py>=1.5.0',
+    'pydle>=0.9.4',
+    'python-dateutil',
+    'toml',
+]
+
+[project.optional-dependencies]
+dev = ['black>=22.1.0', 'flake8', 'isort>=5.0.0', 'pytest>=6.0']
+
+[project.urls]
+Repository = 'https://github.com/ZeroKnight/ZeroBot'
+
+[project.scripts]
+zerobot = 'ZeroBot.__main__:main'
+
 [tool.black]
 line-length = 120
-experimental-string-processing = true
+preview = true
 exclude = '''
 /(
     tests/
@@ -15,7 +47,3 @@ line_length = 120
 minversion = '6.0'
 testpaths = ['tests']
 addopts = ['-ra']
-
-[build-system]
-requires = ['setuptools>=42.0.0', 'wheel']
-build-backend = 'setuptools.build_meta'
