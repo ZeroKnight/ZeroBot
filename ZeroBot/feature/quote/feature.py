@@ -180,13 +180,11 @@ async def fetch_quote(
 
 async def get_random_quote() -> Optional[Quote]:
     """Fetch a random quote from the database."""
-    return await fetch_quote(
-        f"""
+    return await fetch_quote(f"""
         SELECT * FROM {Quote.table_name}
         WHERE hidden = 0
         ORDER BY RANDOM() LIMIT cooldown() + 1
-    """
-    )
+    """)
 
 
 async def get_quote_by_id(quote_id: int) -> Optional[Quote]:

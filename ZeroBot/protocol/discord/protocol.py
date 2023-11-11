@@ -345,7 +345,7 @@ async def _handle_module_load(embed, command, results):
                     f"{mtype.capitalize()} module **{mod_id}** is not yet "
                     "loaded. Use `module load` if you wish to load it."
                 )
-            lines[-1] = "\u274C " + lines[-1]
+            lines[-1] = "\u274c " + lines[-1]
     if had_ok and had_fail:
         embed.color = discord.Color.gold()
     elif had_ok:
@@ -404,11 +404,11 @@ def _handle_config_save_reload(embed, command, results):
             outcome = f"\u2705 Successfully {verb}"
         elif res.status is ccs.NO_SUCH_CONFIG:
             had_fail = True
-            lines.append(f"\u274C No loaded config with name **{res.config}**")
+            lines.append(f"\u274c No loaded config with name **{res.config}**")
         else:
             had_fail = True
             verb = "save" if subcmd.startswith("save") else "reload"
-            outcome = f"\u274C Failed to {verb}"
+            outcome = f"\u274c Failed to {verb}"
         if outcome:
             lines.append(f"{outcome} config **{res.config.path.name}**")
         if res.new_path:

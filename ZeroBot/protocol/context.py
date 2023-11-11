@@ -95,8 +95,7 @@ class Context(metaclass=ABCMeta):
 
     @owner.setter
     @abstractmethod
-    def owner(self, user: User):
-        ...
+    def owner(self, user: User): ...
 
     @abstractmethod
     async def module_message(self, destination: Any, message: str):

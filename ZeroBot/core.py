@@ -353,25 +353,22 @@ class Core:
                 log_file.parent.mkdir(parents=True, exist_ok=True)
                 handler["filename"] = log_file
 
-        logging.config.dictConfig(
-            {
-                "version": 1,  # dictConfig schema version (required)
-                "loggers": {
-                    "ZeroBot": {
-                        "level": log_sec["Level"],
-                        "handlers": log_sec["Enabled"],
-                        "propagate": False,
-                    }
-                },
-                "formatters": log_sec["Formatters"],
-                "handlers": log_sec["Handlers"],
-            }
-        )
+        logging.config.dictConfig({
+            "version": 1,  # dictConfig schema version (required)
+            "loggers": {
+                "ZeroBot": {
+                    "level": log_sec["Level"],
+                    "handlers": log_sec["Enabled"],
+                    "propagate": False,
+                }
+            },
+            "formatters": log_sec["Formatters"],
+            "handlers": log_sec["Handlers"],
+        })
 
     async def _init_database(self):
         """Create core database objects."""
-        await self.database.executescript(
-            f"""
+        await self.database.executescript(f"""
             CREATE TABLE IF NOT EXISTS "{DBUser.table_name}" (
                 "user_id"           INTEGER PRIMARY KEY AUTOINCREMENT,
                 "name"              TEXT NOT NULL UNIQUE,
@@ -466,8 +463,7 @@ class Core:
                 WHERE participant_id = old.participant_id
                     AND user_id IS NOT NULL;
             END;
-        """
-        )
+        """)
 
     def _register_commands(self):
         """Create and register core commands."""

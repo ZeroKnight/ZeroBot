@@ -66,14 +66,12 @@ class CommandParser(_NoExitArgumentParser):
         # NOTE: Might be able to make use of formatter_class if need be
         if not name:
             name = kwargs.get("name", kwargs.get("prog"))
-        kwargs.update(
-            {
-                "prog": name,
-                "description": description,
-                "usage": usage,
-                "add_help": False,
-            }
-        )
+        kwargs.update({
+            "prog": name,
+            "description": description,
+            "usage": usage,
+            "add_help": False,
+        })
         super().__init__(**kwargs)
         self.name = name
         self._module = None

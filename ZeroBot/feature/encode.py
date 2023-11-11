@@ -78,7 +78,7 @@ def sumn(data: str, n: int = 16) -> int:
     result = 0
     for char in data:
         result += ord(char) & 0xFF
-    return hex(result % 2 ** n)
+    return hex(result % 2**n)
 
 
 encoders = {"crc32": lambda x: crc32(x.encode()), "rot": rot_encode, "sum": sumn}
@@ -90,13 +90,11 @@ for radix in (16, 32, 64, 85):
 encoders["ascii85"] = lambda x: base64.a85encode(x.encode()).decode()
 
 # Assorted hashlib algorithms
-encoders.update(
-    {
-        name: (lambda x, name=name: hashlib.new(name, x.encode()).hexdigest())
-        for name in hashlib.algorithms_available
-        if not name.startswith("shake")  # TODO: support this
-    }
-)
+encoders.update({
+    name: lambda x, name=name: hashlib.new(name, x.encode()).hexdigest()
+    for name in hashlib.algorithms_available
+    if not name.startswith("shake")  # TODO: support this
+})
 
 # Misc
 encoders["adler32"] = adler32

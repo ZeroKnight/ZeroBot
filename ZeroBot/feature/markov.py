@@ -56,6 +56,7 @@ FOCUSED_CHAINS = {}
 # his mind, he chooses to at random, etc.) and we're on discord, send
 # a "typing" event and wait for 1.0-3.0 seconds before sending
 
+
 # TODO: method to pre-compute state weights like markovify
 class MarkovSentenceGenerator:
     """An *m*-order Markov chain for generating sentences.
@@ -628,8 +629,7 @@ async def _init_chain():
 
 async def _init_database():
     """Initialize database tables."""
-    await DB.executescript(
-        """
+    await DB.executescript("""
         CREATE TABLE IF NOT EXISTS "markov_corpus" (
             "line_id"   INTEGER NOT NULL,
             "line"      TEXT NOT NULL,
@@ -644,8 +644,7 @@ async def _init_database():
                 ON UPDATE CASCADE
                 ON DELETE SET NULL
         );
-    """
-    )
+    """)
 
 
 async def _register_commands():
@@ -768,7 +767,7 @@ async def module_command_markov(ctx, parsed):
             await ctx.reply_command_result(parsed, f"Sorry, currently only {ctx.owner.name} can do that.")
             return
         path = await CORE.run_async(update_chain_dump)
-        size = path.stat().st_size / 1024 ** 2
+        size = path.stat().st_size / 1024**2
         response = f"Dumped chain to {path} ({size:,.2f}MB)"
 
     await ctx.module_message(parsed.source, response)
