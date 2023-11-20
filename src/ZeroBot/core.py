@@ -22,6 +22,7 @@ import time
 from argparse import ArgumentError, ArgumentTypeError, _SubParsersAction
 from collections import ChainMap, namedtuple
 from dataclasses import dataclass
+from importlib import metadata
 from pathlib import Path
 from types import ModuleType
 from typing import Iterator, Type, Union
@@ -233,7 +234,7 @@ class Core:
         self._all_modules = ChainMap(self._protocols, self._features)
         self._db_connections = {}
         self._configs = {}  # maps config file names to their Config
-        self._dummy_module = CoreModule(self, ZeroBot.__version__)
+        self._dummy_module = CoreModule(self, metadata.version("ZeroBot"))
         self._commands = CommandRegistry()
         self._delayed_commands = {}
         self._delayed_command_count = 0
@@ -1555,9 +1556,9 @@ class Core:
     async def module_command_version(self, ctx, parsed):
         """Implementation for Core `version` command."""
         info = VersionInfo(
-            ZeroBot.__version__,
+            metadata.version("ZeroBot"),
             "N/A",
-            ZeroBot.__author__,
+            metadata.metadata("ZeroBot")["Author-email"],
             "https://github.com/ZeroKnight/ZeroBot",
         )
         await ctx.core_command_version(parsed, info)

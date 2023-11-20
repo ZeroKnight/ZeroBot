@@ -5,6 +5,7 @@ Interface for ZeroBot's configuration and config files.
 
 from collections import ChainMap, UserDict
 from copy import deepcopy
+from importlib import metadata
 from pathlib import Path
 from string import Template
 from typing import Any, Mapping, Union
@@ -19,7 +20,7 @@ from ZeroBot.exceptions import (
     ConfigWriteError,
 )
 
-_configvars = {"botversion": ZeroBot.__version__}
+_configvars = {"botversion": metadata.version("ZeroBot")}
 
 
 class ConfigDict(UserDict):
