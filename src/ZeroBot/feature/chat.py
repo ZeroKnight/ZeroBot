@@ -135,7 +135,8 @@ async def module_unregister():
 
 
 async def _init_database():
-    await DB.executescript("""
+    await DB.executescript(
+        """
         CREATE TABLE IF NOT EXISTS "chat_activity" (
             "activity"   TEXT NOT NULL,
             "type"       INTEGER NOT NULL DEFAULT 1,
@@ -179,7 +180,8 @@ async def _init_database():
 
         CREATE INDEX IF NOT EXISTS "idx_chat_questioned_response_type"
         ON "chat_questioned" ("response_type" ASC);
-    """)
+    """
+    )
 
 
 def _register_commands():
@@ -441,10 +443,12 @@ async def shuffle_discord_activity(ctx):
         return
     await ctx.wait_until_ready()
     async with DB.cursor() as cur:
-        await cur.execute("""
+        await cur.execute(
+            """
             SELECT type, activity, emoji FROM chat_activity
             ORDER BY RANDOM() LIMIT cooldown() + 1
-        """)
+        """
+        )
         row = await cur.fetchone()
         while row["activity"] in recent_phrases["activity"]:
             row = await cur.fetchone()

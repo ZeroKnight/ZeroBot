@@ -54,7 +54,7 @@ class QuoteLine(DBModel):
         body: str,
         author: Participant,
         *,
-        quote: "Quote" = None,
+        quote: Quote = None,
         line_num: int = 1,
         author_num: int = 1,
         action: bool = False,
@@ -81,7 +81,7 @@ class QuoteLine(DBModel):
         return f"<{self.author}> {self.body}"
 
     @classmethod
-    async def from_row(cls, conn: Connection, row: Row) -> "QuoteLine":
+    async def from_row(cls, conn: Connection, row: Row) -> QuoteLine:
         """Construct a `QuoteLine` from a database row.
 
         Parameters
@@ -152,7 +152,7 @@ class Quote(DBModel):
         raise ValueError(f"Invalid QuoteStyle: {self.style}")
 
     @classmethod
-    async def from_row(cls, conn: Connection, row: Row) -> "Quote":
+    async def from_row(cls, conn: Connection, row: Row) -> Quote:
         """Construct a `Quote` from a database row.
 
         Also fetches the associated `QuoteLine`s.

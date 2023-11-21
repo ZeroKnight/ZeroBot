@@ -16,11 +16,11 @@ from datetime import datetime
 from enum import Enum, unique
 from functools import partial
 from string import Template, punctuation
-from typing import Optional, Union
+from typing import Optional
 
 from ZeroBot.common import CommandParser, rand_chance
 from ZeroBot.common.enums import CmdErrorType
-from ZeroBot.database import DBUser, Participant
+from ZeroBot.database import Participant
 from ZeroBot.database import find_participant as findpart
 from ZeroBot.database import get_participant as getpart
 
@@ -85,7 +85,8 @@ async def module_unregister():
 
 
 async def _init_database():
-    await DB.executescript(f"""
+    await DB.executescript(
+        f"""
         CREATE TABLE IF NOT EXISTS "obit" (
             "participant_id" INTEGER NOT NULL DEFAULT 0,
             "kills"          INTEGER NOT NULL DEFAULT 0,
@@ -137,7 +138,8 @@ async def _init_database():
         JOIN "{Participant.table_name}" AS "p" USING (participant_id)
         LEFT JOIN "{Participant.table_name}" AS "victims" ON last_victim = victims.participant_id
         LEFT JOIN "{Participant.table_name}" AS "murderers" ON last_murderer = murderers.participant_id;
-    """)
+    """
+    )
 
 
 def _register_commands():
@@ -521,7 +523,8 @@ async def module_command_obitstats(ctx, parsed):
         return
     if parsed.args["global"]:
         async with DB.cursor() as cur:
-            await cur.execute("""
+            await cur.execute(
+                """
                 WITH ranks AS (
                     SELECT name AS "User",
                            rank() OVER (ORDER BY kills DESC) AS "Kill Rank",
@@ -535,7 +538,8 @@ async def module_command_obitstats(ctx, parsed):
                 )
                 SELECT * FROM ranks
                 WHERE "Kill Rank" = 1 OR "Death Rank" = 1 OR "Suicide Rank" = 1
-            """)
+            """
+            )
             rows = await cur.fetchall()
         if not rows:
             await ctx.module_message(parsed.source, "Amazingly, not a single soul has perished yet.")

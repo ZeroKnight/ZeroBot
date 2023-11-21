@@ -24,6 +24,8 @@ usual way, but can still properly integrate with ZeroBot. For example:
         # Usual implementation of foo.Client ...
 """
 
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
 from typing import Any, Union
 

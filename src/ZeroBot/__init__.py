@@ -8,4 +8,6 @@ servers that I frequent, so he was originally and always will be a pet project.
 :license: MIT, see LICENSE for more details.
 """
 
+from __future__ import annotations
+
 from .core import Core, VersionInfo

@@ -90,11 +90,13 @@ for radix in (16, 32, 64, 85):
 encoders["ascii85"] = lambda x: base64.a85encode(x.encode()).decode()
 
 # Assorted hashlib algorithms
-encoders.update({
-    name: lambda x, name=name: hashlib.new(name, x.encode()).hexdigest()
-    for name in hashlib.algorithms_available
-    if not name.startswith("shake")  # TODO: support this
-})
+encoders.update(
+    {
+        name: lambda x, name=name: hashlib.new(name, x.encode()).hexdigest()
+        for name in hashlib.algorithms_available
+        if not name.startswith("shake")  # TODO: support this
+    }
+)
 
 # Misc
 encoders["adler32"] = adler32

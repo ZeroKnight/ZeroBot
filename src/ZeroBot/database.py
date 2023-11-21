@@ -547,7 +547,7 @@ async def find_participant(conn: Connection, pattern: str, case_sensitive: bool 
     pattern = f"(?{re_flags}:{pattern})"
     async with conn.cursor() as cur:
         await cur.execute(
-            f"""
+            """
             SELECT participant_id,
                    group_concat(name, char(10)) AS "name_list"
             FROM participants_all_names

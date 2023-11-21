@@ -30,18 +30,56 @@ Repository = 'https://github.com/ZeroKnight/ZeroBot'
 [project.scripts]
 zerobot = 'ZeroBot.__main__:main'
 
-[tool.black]
+[tool.ruff]
+src = ['src']
 line-length = 120
-preview = true
-exclude = '''
-/(
-    tests/
-)/
-'''
+ignore-init-module-imports = true # TBD: Maybe just be explicit?
 
-[tool.isort]
-profile = 'black'
-line_length = 120
+[tool.ruff.format]
+preview = true
+
+# TBD: docstring convention
+# TODO: Enable ANN when we begin doing proper typing
+[tool.ruff.lint]
+preview = true
+extend-select = [
+    'ARG',
+    'ASYNC',
+    'A',
+    'B',
+    'C',
+    'C90',
+    'DTZ',
+    'FBT',
+    'I',
+    'N',
+    'PIE',
+    'PLE',
+    'PLR1704', # redefined-argument-from-local
+    'PLR6',
+    'PLW',
+    'PTH',
+    'RET',
+    'RUF',
+    'S',
+    'SIM',
+    'T10',
+    'T20',
+    'TRY',
+    'UP',
+    'YTT',
+]
+
+ignore = [
+    'A003', # I don't think this is a big deal
+    'S311', # I'm not using random for crypto...
+]
+
+[tool.ruff.lint.per-file-ignores]
+'test_*.py' = ['ANN', 'S101']
+
+[tool.ruff.lint.isort]
+required-imports = ['from __future__ import annotations']
 
 [tool.pytest.ini_options]
 minversion = '6.0'

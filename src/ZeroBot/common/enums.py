@@ -3,6 +3,8 @@
 Various enumerations used throughout ZeroBot's codebase.
 """
 
+from __future__ import annotations
+
 from enum import Enum, unique
 
 
@@ -58,12 +60,12 @@ class ModuleCmdStatus(Enum):
     QUERY = 8
 
     @classmethod
-    def is_ok(cls, status: "ModuleCmdStatus") -> bool:
+    def is_ok(cls, status: ModuleCmdStatus) -> bool:
         """Return whether the given status is an "OK" type."""
         return status is cls.LOAD_OK or status is cls.RELOAD_OK
 
     @classmethod
-    def is_reload(cls, status: "ModuleCmdStatus") -> bool:
+    def is_reload(cls, status: ModuleCmdStatus) -> bool:
         """Return whether the given status is a "RELOAD" type."""
         return status in (cls.RELOAD_OK, cls.RELOAD_FAIL, cls.NOT_YET_LOADED)
 
@@ -83,7 +85,7 @@ class ConfigCmdStatus(Enum):
     RELOAD_FAIL = 9
 
     @classmethod
-    def is_ok(cls, status: "ConfigCmdStatus") -> bool:
+    def is_ok(cls, status: ConfigCmdStatus) -> bool:
         """Return whether the given status is an "OK" type."""
         return status in (
             cls.GET_OK,

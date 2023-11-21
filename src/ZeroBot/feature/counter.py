@@ -224,7 +224,8 @@ async def module_unregister():
 
 
 async def _init_database():
-    await DB.execute(f"""
+    await DB.execute(
+        f"""
         CREATE TABLE IF NOT EXISTS "counter" (
             "name"           TEXT NOT NULL UNIQUE,
             "count"          INTEGER NOT NULL DEFAULT 0,
@@ -238,7 +239,8 @@ async def _init_database():
                 ON DELETE SET NULL
                 ON UPDATE CASCADE
         ) WITHOUT ROWID
-    """)
+    """
+    )
 
 
 def _register_commands():

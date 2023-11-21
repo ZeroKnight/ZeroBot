@@ -12,7 +12,7 @@ from typing import Any, Optional, Union
 
 from ZeroBot.common.abc import Channel, Message, User
 from ZeroBot.common.enums import HelpType
-from ZeroBot.exceptions import CommandAlreadyRegistered, CommandParseError
+from ZeroBot.exceptions import CommandParseError
 from ZeroBot.module import Module
 from ZeroBot.util import gen_repr
 
@@ -66,12 +66,14 @@ class CommandParser(_NoExitArgumentParser):
         # NOTE: Might be able to make use of formatter_class if need be
         if not name:
             name = kwargs.get("name", kwargs.get("prog"))
-        kwargs.update({
-            "prog": name,
-            "description": description,
-            "usage": usage,
-            "add_help": False,
-        })
+        kwargs.update(
+            {
+                "prog": name,
+                "description": description,
+                "usage": usage,
+                "add_help": False,
+            }
+        )
         super().__init__(**kwargs)
         self.name = name
         self._module = None
@@ -109,7 +111,7 @@ class CommandParser(_NoExitArgumentParser):
     @staticmethod
     def add_subcommand(
         subp: _SubParsersAction, name: str, description: Optional[str] = None, **kwargs
-    ) -> "CommandParser":
+    ) -> CommandParser:
         """Helper method for adding subcommands.
 
         Wrapper around `add_parser` that simplifies adding subcommands to
@@ -274,10 +276,10 @@ class CommandHelp:
     args: dict[str, tuple[Optional[str], bool]] = field(default_factory=dict)
     opts: dict[tuple[str, ...], Optional[tuple[str, Optional[str]]]] = field(default_factory=dict)
     cmds: dict[str, dict[str, str]] = field(default_factory=dict)
-    subcmds: dict[str, "CommandHelp"] = field(default_factory=dict, repr=False)
-    parent: "CommandHelp" = None
+    subcmds: dict[str, CommandHelp] = field(default_factory=dict, repr=False)
+    parent: CommandHelp = None
 
-    def get_subcmd(self, name: str) -> "CommandHelp":
+    def get_subcmd(self, name: str) -> CommandHelp:
         """Get the `CommandHelp` object for the given subcommand.
 
         `name` may be an alias, in which case it is resolved to the appropriate

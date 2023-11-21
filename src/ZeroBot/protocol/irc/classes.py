@@ -146,7 +146,7 @@ class IRCUser(abc.User):
         """
         return f"{self.name}:"
 
-    def mentioned(self, message: "IRCMessage"):
+    def mentioned(self, message: IRCMessage):
         """Check if the user was mentioned in the given message."""
         return self.name in message.content
 

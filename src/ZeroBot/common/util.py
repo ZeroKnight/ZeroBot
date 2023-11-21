@@ -3,6 +3,8 @@
 Assorted and miscellaneous utilities for writing ZeroBot modules.
 """
 
+from __future__ import annotations
+
 import random
 
 

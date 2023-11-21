@@ -122,7 +122,6 @@ async def module_on_message(ctx, message):
 async def module_on_join(ctx, channel, user):
     """Handle `Core` join event."""
     # TODO: quote on join
-    ...
 
 
 async def module_command_quote(ctx, parsed):
@@ -180,11 +179,13 @@ async def fetch_quote(
 
 async def get_random_quote() -> Optional[Quote]:
     """Fetch a random quote from the database."""
-    return await fetch_quote(f"""
+    return await fetch_quote(
+        f"""
         SELECT * FROM {Quote.table_name}
         WHERE hidden = 0
         ORDER BY RANDOM() LIMIT cooldown() + 1
-    """)
+    """
+    )
 
 
 async def get_quote_by_id(quote_id: int) -> Optional[Quote]:
@@ -627,7 +628,7 @@ async def quote_stats_leaderboard(ctx, parsed, count):
             sort.remove("p")
         except ValueError:
             pass
-        if not all(key in criteria.keys() for key in sort):
+        if not all(key in criteria for key in sort):
             await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
             return
         chosen_sort = ", ".join(f'"{criteria[x]}" DESC' for x in sort)

@@ -3,6 +3,8 @@
 Interface for ZeroBot's configuration and config files.
 """
 
+from __future__ import annotations
+
 from collections import ChainMap, UserDict
 from copy import deepcopy
 from importlib import metadata
@@ -12,7 +14,6 @@ from typing import Any, Mapping, Union
 
 import toml
 
-import ZeroBot
 from ZeroBot.exceptions import (
     ConfigDecodeError,
     ConfigEncodeError,

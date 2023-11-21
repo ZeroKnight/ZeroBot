@@ -3,11 +3,11 @@
 Discord Implementation of ZeroBot.common.abc classes.
 """
 
+from __future__ import annotations
+
 import re
-from typing import Union
 
 import discord
-from discord.abc import GuildChannel, PrivateChannel
 
 import ZeroBot.common.abc as zabc
 from ZeroBot.util import gen_repr
@@ -43,7 +43,7 @@ class DiscordUser(zabc.User, discord.User):
     def mention(self) -> str:
         return self._original.mention
 
-    def mentioned(self, message: "DiscordMessage") -> bool:
+    def mentioned(self, message: DiscordMessage) -> bool:
         return self._original.mentioned_in(message) or re.search(self.name, message.content, re.I)
 
     def mention_pattern(self) -> str:

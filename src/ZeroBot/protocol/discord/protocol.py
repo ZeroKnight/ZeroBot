@@ -3,7 +3,8 @@
 Discord protocol implementation.
 """
 
-import asyncio
+from __future__ import annotations
+
 import logging
 import re
 import time
@@ -12,8 +13,7 @@ from typing import Union
 import discord
 from discord import ChannelType
 
-import ZeroBot.common.abc as abc
-from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus
+from ZeroBot.common import ConfigCmdStatus, ModuleCmdStatus
 from ZeroBot.protocol.context import Context
 
 from .classes import DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
@@ -119,11 +119,11 @@ class DiscordContext(Context, discord.Client):
     async def on_message(self, message: discord.Message):
         """Handle messages."""
         if message.channel.type == ChannelType.private:
-            log_msg = "[{0.author}] {0.content}".format(message)
+            log_msg = f"[{message.author}] {message.content}"
         else:
             guild = message.guild
             source = "[{0}{1}]".format(f"{guild}, " if guild else "", message.channel)
-            log_msg = "{0} <{1.author}> {1.content}".format(source, message)
+            log_msg = f"{source} <{message.author}> {message.content}"
         logger.info(log_msg)
         if message.content.startswith(CORE.cmdprefix) and message.author != self.user:
             await CORE.module_commanded(DiscordMessage(message), self)

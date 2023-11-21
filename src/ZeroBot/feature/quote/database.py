@@ -3,6 +3,8 @@
 Database DDL and functions for the Quote feature.
 """
 
+from __future__ import annotations
+
 from ZeroBot.database import Connection, Participant
 
 from .classes import Quote, QuoteLine

@@ -3,6 +3,8 @@
 Exceptions specific to ZeroBot.
 """
 
+from __future__ import annotations
+
 
 class ZeroBotException(Exception):
     """Base exception for ZeroBot.

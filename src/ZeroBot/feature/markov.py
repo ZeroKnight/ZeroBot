@@ -19,13 +19,13 @@ from functools import partial
 from io import StringIO
 from itertools import repeat
 from pathlib import Path
-from typing import AsyncGenerator, Any, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from ZeroBot.common import CommandParser
 from ZeroBot.common.enums import CmdErrorType
-from ZeroBot.database import get_participant as getpart
 from ZeroBot.database import find_participant as findpart
+from ZeroBot.database import get_participant as getpart
 from ZeroBot.database import get_source as getsrc
 
 MODULE_NAME = "Markov"
@@ -629,7 +629,8 @@ async def _init_chain():
 
 async def _init_database():
     """Initialize database tables."""
-    await DB.executescript("""
+    await DB.executescript(
+        """
         CREATE TABLE IF NOT EXISTS "markov_corpus" (
             "line_id"   INTEGER NOT NULL,
             "line"      TEXT NOT NULL,
@@ -644,7 +645,8 @@ async def _init_database():
                 ON UPDATE CASCADE
                 ON DELETE SET NULL
         );
-    """)
+    """
+    )
 
 
 async def _register_commands():

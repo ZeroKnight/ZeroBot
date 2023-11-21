@@ -6,6 +6,8 @@ Personal bot of Alex "ZeroKnight" George.
 Repository: https://github.com/ZeroKnight/ZeroBot
 """
 
+from __future__ import annotations
+
 import sys
 
 from ZeroBot import Core

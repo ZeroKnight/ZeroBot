@@ -64,7 +64,7 @@ class ResponseType(Enum):
     NotAQuestion = 7
 
     @classmethod
-    def answer(cls) -> tuple["ResponseType"]:
+    def answer(cls) -> tuple[ResponseType]:
         """Return a tuple of the three answer types."""
         return cls.Positive, cls.Negative, cls.Neutral
 
@@ -116,7 +116,8 @@ async def module_unregister():
 
 
 async def _init_database():
-    await DB.executescript("""
+    await DB.executescript(
+        """
         CREATE TABLE IF NOT EXISTS "magic8ball" (
             "response"       TEXT NOT NULL UNIQUE,
             "action"         BOOLEAN NOT NULL DEFAULT 0 CHECK(action IN (0,1)),
@@ -127,7 +128,8 @@ async def _init_database():
 
         CREATE INDEX IF NOT EXISTS "idx_magic8ball_response_type"
         ON "magic8ball" ("response_type" ASC);
-    """)
+    """
+    )
 
 
 def _register_commands():
