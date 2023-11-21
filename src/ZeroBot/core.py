@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import datetime
 import logging
 import logging.config
@@ -25,7 +26,7 @@ from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
 from types import ModuleType
-from typing import Iterator, Union
+from typing import Iterator
 
 import appdirs
 from toml import TomlDecodeError
@@ -110,8 +111,7 @@ class CommandRegistry:
 
     def pairs(self) -> Iterator[tuple[str, list[CommandParser]]]:
         """Generator that yields pairs of module identifiers their parsers."""
-        for module, cmds in self._registry["by_module"].items():
-            yield (module, cmds)
+        yield from self._registry["by_module"].items()
 
     def add(self, module_id: str, command: CommandParser):
         """Add a command to the registry.
@@ -223,9 +223,9 @@ class Core:
 
     def __init__(
         self,
-        config_dir: Union[str, Path] = None,
-        data_dir: Union[str, Path] = None,
-        eventloop: asyncio.AbstractEventLoop = None,
+        config_dir: str | Path | None = None,
+        data_dir: str | Path | None = None,
+        eventloop: asyncio.AbstractEventLoop | None = None,
     ):
         self.eventloop = eventloop if eventloop else asyncio.get_event_loop()
         self.logger = logging.getLogger("ZeroBot")
@@ -646,7 +646,7 @@ class Core:
         types.ModuleType
             The module object if the import was successful.
         """
-        if module_type not in [FeatureModule, ProtocolModule]:
+        if module_type not in {FeatureModule, ProtocolModule}:
             raise TypeError(f"Invalid type '{module_type}'")
         type_str = "feature" if module_type is FeatureModule else "protocol"
         try:
@@ -738,7 +738,7 @@ class Core:
     # TODO: reload_protocol will be more complicated to pull off, as we have
     # connections to manage.
 
-    async def reload_feature(self, feature: Union[str, FeatureModule]) -> FeatureModule:
+    async def reload_feature(self, feature: str | FeatureModule) -> FeatureModule:
         """Reload a ZeroBot feature module.
 
         Allows for changes to feature modules to be dynamically introduced at
@@ -773,10 +773,8 @@ class Core:
         except Exception:
             self.logger.warning("Ignoring exception in module_unregister", exc_info=True)
         try:
-            try:
+            with contextlib.suppress(KeyError):
                 await self._db_connections[name].close()
-            except KeyError:
-                pass
             self.command_unregister_module(name)
             module.reload()
         except Exception as ex:
@@ -1069,7 +1067,7 @@ class Core:
         except KeyError:
             raise ModuleNotLoaded(f"Module {module_id} is not loaded.", mod_id=module_id) from None
 
-    async def database_create_backup(self, target: Union[str, Path] = None):
+    async def database_create_backup(self, target: str | Path | None = None):
         """Create a full backup of ZeroBot's active database.
 
         The `target` parameter and configuration settings for database backups
@@ -1141,7 +1139,7 @@ class Core:
             if callable(method):
                 await method(ctx, *args, **kwargs)
 
-    async def module_delay_event(self, delay: Union[int, float], event: str, ctx: Context, *args, **kwargs):
+    async def module_delay_event(self, delay: int | float, event: str, ctx: Context, *args, **kwargs):
         """|coro|
 
         Push an arbitrary event to all feature modules after a delay.
@@ -1162,7 +1160,7 @@ class Core:
         await asyncio.sleep(delay)
         await self.module_send_event(event, ctx, *args, **kwargs)
 
-    async def module_commanded(self, cmd_msg: abc.Message, ctx: Context, delay: float = None):
+    async def module_commanded(self, cmd_msg: abc.Message, ctx: Context, delay: float | None = None):
         """|coro|
 
         Parse a raw command string using a registered command parser.
@@ -1260,7 +1258,7 @@ class Core:
             else:
                 await method(ctx, parsed)
 
-    def quit(self, reason: str = None):
+    def quit(self, reason: str | None = None):
         """Shut down ZeroBot.
 
         Automatically handles unregistering all protocol and feature modules.
@@ -1383,7 +1381,7 @@ class Core:
                 cmd_help = CommandHelp(HelpType.NO_SUCH_MOD, mod_id)
             else:
                 try:
-                    parsers = [parser for parser in self._commands.iter_by_module(mod_id)]
+                    parsers = list(self._commands.iter_by_module(mod_id))
                 except KeyError:
                     parsers = []
                 desc = parsers[0].module.description
@@ -1442,10 +1440,7 @@ class Core:
                 try:
                     module = getattr(self, f"_{mtype}s")[mod_id]
                 except KeyError:
-                    if getattr(self, f"{mtype}_available")(mod_id):
-                        status = mcs.NOT_YET_LOADED
-                    else:
-                        status = mcs.NO_SUCH_MOD
+                    status = mcs.NOT_YET_LOADED if getattr(self, f"{mtype}_available")(mod_id) else mcs.NO_SUCH_MOD
                 else:
                     for attr in ("name", "description", "author", "version", "license"):
                         info[attr] = getattr(module, attr)

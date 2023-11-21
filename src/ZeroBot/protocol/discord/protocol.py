@@ -8,7 +8,6 @@ from __future__ import annotations
 import logging
 import re
 import time
-from typing import Union
 
 import discord
 from discord import ChannelType
@@ -52,10 +51,10 @@ async def module_register(core, cfg):
         max_messages=settings.get("MaxMessages", None),
     )
     coro = ctx.start(CFG["BotToken"])
-    return set([(ctx, coro)])
+    return {(ctx, coro)}
 
 
-async def module_unregister(contexts, reason: str = None):
+async def module_unregister(contexts, reason: str | None = None):
     """Prepare for shutdown."""
     for ctx in contexts:
         await ctx.close()
@@ -64,7 +63,7 @@ async def module_unregister(contexts, reason: str = None):
 class DiscordContext(Context, discord.Client):
     """Discord implementation of a ZeroBot `Context`."""
 
-    def get_target(self, target: str) -> Union[DiscordUser, DiscordChannel]:
+    def get_target(self, target: str) -> DiscordUser | DiscordChannel:
         """Extract the user or channel object representing the given target."""
         if match := USER_MENTION.match(target):
             args = {"iterable": self.get_all_members(), "id": int(match.group(1))}
@@ -122,7 +121,7 @@ class DiscordContext(Context, discord.Client):
             log_msg = f"[{message.author}] {message.content}"
         else:
             guild = message.guild
-            source = "[{0}{1}]".format(f"{guild}, " if guild else "", message.channel)
+            source = "[{}{}]".format(f"{guild}, " if guild else "", message.channel)
             log_msg = f"{source} <{message.author}> {message.content}"
         logger.info(log_msg)
         if message.content.startswith(CORE.cmdprefix) and message.author != self.user:
@@ -292,7 +291,7 @@ def _format_help_ALL(embed, help_cmd, result):
             for cmd, desc in cmds.items():
                 section += f"\n> **{cmd}**" + f" - {desc}" if desc else ""
         else:
-            section += "\n> " + ", ".join(cmd for cmd in cmds.keys())
+            section += "\n> " + ", ".join(cmd for cmd in cmds)
         embed.description += section
 
 
@@ -309,7 +308,7 @@ def _format_help_NO_SUCH_MOD(embed, help_cmd, result):
 def _format_help_NO_SUCH_SUBCMD(embed, help_cmd, result):
     embed.color = discord.Color.red()
     subcmds = result.parent.subcmds
-    subcmd_list = [f"**{sub}** ({', '.join(subcmds[sub].aliases)})" for sub in subcmds.keys()]
+    subcmd_list = [f"**{sub}** ({', '.join(subcmds[sub].aliases)})" for sub in subcmds]
     if subcmds:
         embed.description = (
             f"`{result.parent.name}` has no subcommand `{result.name}`. Valid subcommands:\n> {', '.join(subcmd_list)}"
@@ -331,7 +330,7 @@ async def _handle_module_load(embed, command, results):
             lines.append(f"\u2705 Successfully {subcmd}ed {mtype} module **{mod_id}**.")
         else:
             had_fail = True
-            if res.status in (mcs.LOAD_FAIL, mcs.RELOAD_FAIL):
+            if res.status in {mcs.LOAD_FAIL, mcs.RELOAD_FAIL}:
                 lines.append(f"Failed to {subcmd} {mtype} module **{mod_id}**.")
             elif res.status is mcs.NO_SUCH_MOD:
                 lines.append(f"No such {mtype} module: **{mod_id}**")
@@ -433,14 +432,8 @@ def _handle_config_set_reset(embed, command, result):
         elif result.status is ccs.SET_OK:
             embed.description = f"Setting `{result.key}` to `{result.value}`"
         elif result.status is ccs.RESET_OK:
-            if result.key:
-                what = f"value of `{result.key}`"
-            else:
-                what = f"config **{result.config.path.name}**"
-            if command.args["default"]:
-                state = "default"
-            else:
-                state = "previously loaded"
+            what = f"value of `{result.key}`" if result.key else f"config **{result.config.path.name}**"
+            state = "default" if command.args["default"] else "previously loaded"
             embed.description = f"Resetting {what} to its previously {state} state"
         elif result.status is ccs.NO_SUCH_KEY:
             verb = "get" if command.args["value"] is None else "set"

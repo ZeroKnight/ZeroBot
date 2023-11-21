@@ -27,7 +27,7 @@ usual way, but can still properly integrate with ZeroBot. For example:
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Union
+from typing import Any
 
 from ZeroBot.common import ParsedCommand
 from ZeroBot.common.abc import Channel, Message, User
@@ -108,15 +108,15 @@ class Context(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    async def module_join(self, where: Channel, password: str = None):
+    async def module_join(self, where: Channel, password: str | None = None):
         """Join the given channel, with optional password."""
 
     @abstractmethod
-    async def module_leave(self, where: Channel, reason: str = None):
+    async def module_leave(self, where: Channel, reason: str | None = None):
         """Leave the given channel, with optional reason."""
 
     @abstractmethod
-    async def reply_command_result(self, command: ParsedCommand, result: Union[str, Message]):
+    async def reply_command_result(self, command: ParsedCommand, result: str | Message):
         """Called by feature modules to display command output.
 
         This method should handle formatting the result best suited for the

@@ -9,7 +9,7 @@ from __future__ import annotations
 import operator
 from functools import reduce
 from io import StringIO
-from typing import Any, Iterable, Mapping, Union
+from typing import Any, Iterable, Mapping
 
 
 def gen_repr(obj: Any, attrs: Iterable, **kwargs) -> str:
@@ -41,7 +41,7 @@ def gen_repr(obj: Any, attrs: Iterable, **kwargs) -> str:
     return f"<{name} {body}>"
 
 
-def map_reduce(key_path: Union[str, list[str]], mapping: Mapping[str, Any]) -> Any:
+def map_reduce(key_path: str | list[str], mapping: Mapping[str, Any]) -> Any:
     """Reduce a mapping, returning a value from an arbitrarily deep hierarcy.
 
     The result of calling this function is the same as successively

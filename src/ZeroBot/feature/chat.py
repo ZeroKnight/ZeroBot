@@ -222,7 +222,7 @@ def _register_commands():
     CORE.command_register(MOD_ID, *cmds)
 
 
-async def fetch_phrase(table: str, columns: Iterable[str], query: str = None, parameters: tuple = None) -> tuple:
+async def fetch_phrase(table: str, columns: Iterable[str], query: str | None = None, parameters: tuple | None = None) -> tuple:
     """Convenient wrapper for fetching phrases.
 
     Wraps a query intended to return a phrase from one of the Chat tables.

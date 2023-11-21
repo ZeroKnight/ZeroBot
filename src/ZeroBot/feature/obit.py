@@ -16,7 +16,6 @@ from datetime import datetime
 from enum import Enum, unique
 from functools import partial
 from string import Template, punctuation
-from typing import Optional
 
 from ZeroBot.common import CommandParser, rand_chance
 from ZeroBot.common.enums import CmdErrorType
@@ -254,14 +253,14 @@ async def module_on_config_changed(ctx, name, key, old, new):
 
 
 def _resize_part_deques():
-    for name in ObitPart.__members__.keys():
+    for name in ObitPart.__members__:
         new_len = CFG.get("PartCooldown", DEFAULT_COOLDOWN)
         if new_len == recent_parts[name].maxlen:
             break
         recent_parts[name] = deque(recent_parts[name].copy(), maxlen=new_len)
 
 
-async def fetch_part(otype: ObitPart) -> Optional[sqlite3.Row]:
+async def fetch_part(otype: ObitPart) -> sqlite3.Row | None:
     """Fetch an obit string of a particular type."""
     async with DB.cursor() as cur:
         await cur.execute(
@@ -384,7 +383,7 @@ async def module_command_obitdb(ctx, parsed):
         await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
         return
     otype = getattr(ObitPart, parsed.args["type"].title())
-    if parsed.subcmd in ("add", "del"):
+    if parsed.subcmd in {"add", "del"}:
         await globals()[f"obit_{parsed.subcmd}"](ctx, parsed, otype, content)
     elif parsed.subcmd == "edit":
         sub = parsed.args["substitution"].lstrip()
@@ -432,7 +431,7 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
             content = content[:-5]
         if not victim_placeholder_pat.search(content):
             content += " $victim"
-    elif otype in (ObitPart.Closer, ObitPart.Suicide):
+    elif otype in {ObitPart.Closer, ObitPart.Suicide}:
         if content[0] in punctuation and not content.startswith("..."):
             await ctx.reply_command_result(parsed, "Don't start closers with punctuation (ellipses are fine).")
             return
@@ -473,7 +472,7 @@ async def obit_edit(
     content: str,
     pattern: str,
     repl: str,
-    flags: set[str] = None,
+    flags: set[str] | None = None,
 ):
     """Edit an obituary part in the database."""
     if not await obit_exists(otype, content):

@@ -10,7 +10,7 @@ from copy import deepcopy
 from importlib import metadata
 from pathlib import Path
 from string import Template
-from typing import Any, Mapping, Union
+from typing import Any, Mapping
 
 import toml
 
@@ -45,10 +45,7 @@ class ConfigDict(UserDict):
 
     def __setitem__(self, key, value):
         tail, *subkeys = key.rsplit(".", 1)[::-1]
-        if subkeys:
-            target = self.__getitem__(subkeys[0])
-        else:
-            target = self.data
+        target = self.__getitem__(subkeys[0]) if subkeys else self.data
         if isinstance(value, dict):
             value = ConfigDict(value)
         target[tail] = value
@@ -95,7 +92,7 @@ class ConfigDict(UserDict):
             raise TypeError(f"fallback type expects 'ConfigDict', not '{type(fallback)}")
         return ChainMap(section, fallback)
 
-    def get(self, key: str, default: Any = None, *, template_vars: Mapping = None) -> Any:
+    def get(self, key: str, default: Any = None, *, template_vars: Mapping | None = None) -> Any:
         """Extends `dict.get` with substitution and dotted-subkey access.
 
         The retrieved value can undergo template substitution, i.e.
@@ -167,12 +164,12 @@ class Config(ConfigDict):
         and saved to.
     """
 
-    def __init__(self, path: Union[str, Path], *args, **kwargs):
+    def __init__(self, path: str | Path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.path = path
         self._last_state = None
 
-    def reset(self, key: str = None):
+    def reset(self, key: str | None = None):
         """Reset this config or a single key to its last loaded/saved state.
 
         See `Config` for details on dotted-subkey access.
@@ -188,7 +185,7 @@ class Config(ConfigDict):
         else:
             self.data = self._last_state
 
-    def unset(self, key: str = None):
+    def unset(self, key: str | None = None):
         """Unset a single key, or the entire config.
 
         Effectively reverts keys to their default values.
@@ -237,7 +234,7 @@ class Config(ConfigDict):
         self._last_state = ConfigDict(deepcopy(self.data))
 
     # TODO: testing
-    def save(self, new_path: Union[str, Path] = None):
+    def save(self, new_path: str | Path | None = None):
         """Write the current config to disk.
 
         Parameters

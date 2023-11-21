@@ -8,7 +8,7 @@ from __future__ import annotations
 from argparse import ArgumentParser, _SubParsersAction
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Optional, Union
+from typing import Any
 
 from ZeroBot.common.abc import Channel, Message, User
 from ZeroBot.common.enums import HelpType
@@ -61,7 +61,7 @@ class CommandParser(_NoExitArgumentParser):
     """
 
     def __init__(
-        self, name: Optional[str] = None, description: Optional[str] = None, usage: Optional[str] = None, **kwargs
+        self, name: str | None = None, description: str | None = None, usage: str | None = None, **kwargs
     ):
         # NOTE: Might be able to make use of formatter_class if need be
         if not name:
@@ -110,7 +110,7 @@ class CommandParser(_NoExitArgumentParser):
 
     @staticmethod
     def add_subcommand(
-        subp: _SubParsersAction, name: str, description: Optional[str] = None, **kwargs
+        subp: _SubParsersAction, name: str, description: str | None = None, **kwargs
     ) -> CommandParser:
         """Helper method for adding subcommands.
 
@@ -134,7 +134,7 @@ class CommandParser(_NoExitArgumentParser):
         return subp.add_parser(name, **desc_help, **kwargs)
 
     @property
-    def module(self) -> Optional[Module]:
+    def module(self) -> Module | None:
         """The module that this command is registered to.
 
         Will return `None` if this command has not yet been registered.
@@ -188,7 +188,7 @@ class ParsedCommand:
         return self.msg.source
 
     @property
-    def source(self) -> Union[User, Channel]:
+    def source(self) -> User | Channel:
         """Where the command was sent from.
 
         Can be either directly from a user, or from a user within a channel.
@@ -196,7 +196,7 @@ class ParsedCommand:
         return self.msg.destination
 
     @property
-    def subcmd(self) -> Optional[str]:
+    def subcmd(self) -> str | None:
         """The invoked subcommand name, if one was invoked.
 
         For subcommands with aliases, the name returned is always the canonical
@@ -206,7 +206,7 @@ class ParsedCommand:
         """
         return self._subcmd
 
-    def nested_subcmd(self, depth: int = 2) -> Optional[str]:
+    def nested_subcmd(self, depth: int = 2) -> str | None:
         """Get the name of a nested subcommand.
 
         Like the `subcmd` property, the name returned is always the canonical
@@ -273,8 +273,8 @@ class CommandHelp:
     description: str = None
     usage: str = None
     aliases: list[str] = field(default_factory=list)
-    args: dict[str, tuple[Optional[str], bool]] = field(default_factory=dict)
-    opts: dict[tuple[str, ...], Optional[tuple[str, Optional[str]]]] = field(default_factory=dict)
+    args: dict[str, tuple[str | None, bool]] = field(default_factory=dict)
+    opts: dict[tuple[str, ...], tuple[str, str | None] | None] = field(default_factory=dict)
     cmds: dict[str, dict[str, str]] = field(default_factory=dict)
     subcmds: dict[str, CommandHelp] = field(default_factory=dict, repr=False)
     parent: CommandHelp = None

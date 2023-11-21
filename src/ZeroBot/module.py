@@ -52,7 +52,7 @@ class ZeroBotModuleFinder(MetaPathFinder):
     def find_spec(self, fullname, path, target=None):
         spec = None
         parts = fullname.split(".")
-        if parts[0] != "ZeroBot" or parts[1] not in ("feature", "protocol") or len(parts) < 3:
+        if parts[0] != "ZeroBot" or parts[1] not in {"feature", "protocol"} or len(parts) < 3:
             return None
         for loc in self.search_dirs:
             filename = Path(loc, *parts[1:]).with_suffix(".py")

@@ -11,7 +11,7 @@ import logging
 import re
 from datetime import datetime
 from string import Template
-from typing import Iterable, Union
+from typing import Iterable
 
 from ZeroBot.common import CommandParser
 from ZeroBot.common.enums import CmdErrorType
@@ -53,18 +53,18 @@ class Counter:
         self,
         name: str,
         description: str,
-        announcement: str = None,
+        announcement: str | None = None,
         count: int = 0,
         *,
         enabled: bool = True,
         muted: bool = False,
-        triggers: list[str] = None,
-        restrictions: list[str] = None,
-        blacklist: list[str] = None,
-        created_at: datetime = None,
-        last_triggered: datetime = None,
+        triggers: list[str] | None = None,
+        restrictions: list[str] | None = None,
+        blacklist: list[str] | None = None,
+        created_at: datetime | None = None,
+        last_triggered: datetime | None = None,
         last_user: Participant = None,
-        last_channel: str = None,
+        last_channel: str | None = None,
     ):
         now = datetime.utcnow()
         self.name = name
@@ -131,10 +131,7 @@ class Counter:
 
     def check(self, string: str) -> bool:
         """Check if `string` matches one of this counter's triggers."""
-        for trigger in self.triggers:
-            if trigger.search(string):
-                return True
-        return False
+        return any(trigger.search(string) for trigger in self.triggers)
 
     def get_announcement(self, **kwargs) -> str:
         """Return the expanded announcement string for this counter.
@@ -154,8 +151,8 @@ class Counter:
     async def increment(
         self,
         n: int = 1,
-        participant: Union[Participant, str] = None,
-        channel: str = None,
+        participant: Participant | str = None,
+        channel: str | None = None,
     ):
         """Increment the counter and update its metadata and the database.
 
@@ -471,14 +468,8 @@ async def module_command_counter(ctx, parsed):
         except KeyError:
             await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NoResults)
             return
-        if counter.last_user is not None:
-            last_user = counter.last_user.name
-        else:
-            last_user = "N/A"
-        if counter.last_triggered is not None:
-            last_triggered = str(counter.last_triggered)
-        else:
-            last_triggered = "Never"
+        last_user = counter.last_user.name if counter.last_user is not None else "N/A"
+        last_triggered = str(counter.last_triggered) if counter.last_triggered is not None else "Never"
         response = (
             f"Information for Counter [**{counter.name}**]\n"
             f"**Current Count**: {counter.count}\n"

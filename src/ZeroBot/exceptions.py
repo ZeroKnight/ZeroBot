@@ -36,7 +36,7 @@ class ModuleLoadError(ZeroBotModuleError, ImportError):
     Extension of `ImportError`.
     """
 
-    def __init__(self, *args, mod_id: str, name: str = None, path: str = None, exc: ImportError = None):
+    def __init__(self, *args, mod_id: str, name: str | None = None, path: str | None = None, exc: ImportError | None = None):
         if exc:
             name, path = exc.name, exc.path
         super().__init__(*args, mod_id=mod_id)
@@ -49,7 +49,7 @@ class NoSuchModule(ModuleLoadError, ModuleNotFoundError):
     Subclass of `ModuleLoadError`. Extension of `ModuleNotFoundError`.
     """
 
-    def __init__(self, *args, mod_id: str, name: str = None, path: str = None, exc: ModuleNotFoundError = None):
+    def __init__(self, *args, mod_id: str, name: str | None = None, path: str | None = None, exc: ModuleNotFoundError | None = None):
         if exc:
             name, path = exc.name, exc.path
         super().__init__(*args, mod_id=mod_id, name=name, path=path)

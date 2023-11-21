@@ -19,7 +19,7 @@ from functools import partial
 from io import StringIO
 from itertools import repeat
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Union
 from urllib.parse import urlparse
 
 from ZeroBot.common import CommandParser
@@ -308,11 +308,11 @@ class MarkovSentenceGenerator:
         start: ChainState = None,
         *,
         min_words: int = 1,
-        max_words: int = None,
-        starts_with: Union[str, list[str]] = None,
+        max_words: int | None = None,
+        starts_with: str | list[str] | None = None,
         strict_quotes: bool = True,
         similarity_threshold: float = 0.6,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Attempt to generate a sentence with variable quality control.
 
         This method will repeated generate sentences until one is generated
@@ -426,9 +426,9 @@ class Tokenizer:
     def __init__(
         self,
         *,
-        reject_patterns: list[str] = None,
-        accept_patterns: list[str] = None,
-        filter_patterns: list[str] = None,
+        reject_patterns: list[str] | None = None,
+        accept_patterns: list[str] | None = None,
+        filter_patterns: list[str] | None = None,
         word_split_pat: str = r"\s+",
     ):
         def init_patterns(patterns):
@@ -479,7 +479,7 @@ class Tokenizer:
         return False
 
 
-def update_chain_dump(chain: MarkovSentenceGenerator = None) -> Optional[Path]:
+def update_chain_dump(chain: MarkovSentenceGenerator = None) -> Path | None:
     """Serialize the current state of the Markov chain to disk, if enabled."""
     if chain is None:
         chain = CHAIN
@@ -504,7 +504,7 @@ async def database_corpus_count() -> int:
         return (await cur.fetchone())[0]
 
 
-async def database_get_corpus(criteria: tuple[str, Any] = None) -> AsyncGenerator[list[str]]:
+async def database_get_corpus(criteria: tuple[str, Any] | None = None) -> AsyncGenerator[list[str]]:
     """Yield lines from the database corpus.
 
     Each yielded line consists of a list of words, conveniently assignable to
@@ -566,16 +566,15 @@ async def module_on_config_changed(ctx, name, key, old, new):
         root, subkey = key, None
     if name == "ZeroBot" and key == "Core.CmdPrefix":
         _init_tokenizers()
-    elif name == "modules" and root == "Markov":
-        if subkey == "Order":
-            CHAIN.order = new
-            await CORE.run_async(update_chain_dump)
+    elif name == "modules" and root == "Markov" and subkey == "Order":
+        CHAIN.order = new
+        await CORE.run_async(update_chain_dump)
 
 
 # TODO: also add patterns from config
 def _init_tokenizers():
     """Set up protocol tokenizers."""
-    tokenizers = {
+    return {
         "_default_": Tokenizer(reject_patterns=[f"^{CORE.cmdprefix}\\w+"]),
         "discord": Tokenizer(
             reject_patterns=[
@@ -586,7 +585,6 @@ def _init_tokenizers():
             filter_patterns=[r"<a?:\w+:\d+>", r"<(@[!&]?|#)\d+>"],
         ),
     }
-    return tokenizers
 
 
 async def _init_chain():
@@ -664,9 +662,9 @@ async def _register_commands():
         help="Toggle learning on or off, or show the current state.",
     )
 
-    subcmd_info = add_subcmd("info", "Show information about the Markov chain")
-    subcmd_rebuild = add_subcmd("rebuild", "Force a rebuild of the Markov chain from the database corpus")
-    subcmd_dump = add_subcmd("dump", "Save the state of the Markov chain to disk.")
+    add_subcmd("info", "Show information about the Markov chain")
+    add_subcmd("rebuild", "Force a rebuild of the Markov chain from the database corpus")
+    add_subcmd("dump", "Save the state of the Markov chain to disk.")
     cmds.append(cmd_markov)
 
     cmd_talk = CommandParser(
@@ -739,10 +737,7 @@ async def module_command_markov(ctx, parsed):
                 return
             state = parsed.args["state"] == "on"
             CFG["Learning.Enabled"] = state
-            if state:
-                response = "Okay, now learning how to speak!"
-            else:
-                response = "Gotcha, no longer paying attention."
+            response = "Okay, now learning how to speak!" if state else "Gotcha, no longer paying attention."
         else:
             if CFG["Learning.Enabled"]:
                 response = "I am currently learning."

@@ -8,7 +8,6 @@ from __future__ import annotations
 import datetime
 import re
 from itertools import chain, islice, repeat
-from typing import Optional, Union
 
 from dateutil.parser import isoparse
 
@@ -52,11 +51,11 @@ class IRCUser(abc.User):
     def __init__(
         self,
         name: str,
-        username: str = None,
-        realname: str = None,
+        username: str | None = None,
+        realname: str | None = None,
         *,
-        hostname: Optional[str] = None,
-        modes: dict = None,
+        hostname: str | None = None,
+        modes: dict | None = None,
         bot: bool = False,
     ):
         self._auth_id = None
@@ -126,7 +125,7 @@ class IRCUser(abc.User):
         return self._away_msg is not None
 
     @property
-    def away_msg(self) -> Optional[str]:
+    def away_msg(self) -> str | None:
         """The user's away message, if they're marked as away.
 
         If the user is not currently marked as away, returns `None` instead.
@@ -158,7 +157,7 @@ class IRCUser(abc.User):
         """
         return not self.username.startswith("~")
 
-    def set_auth(self, account: Optional[str]):
+    def set_auth(self, account: str | None):
         """Set this user as authenticated with the given account name."""
         self._auth_id = account
 
@@ -206,13 +205,13 @@ class IRCServer(abc.Server):
     def __init__(
         self,
         hostname: str,
-        port: int = None,
+        port: int | None = None,
         *,
-        name: str = None,
+        name: str | None = None,
         ipv6: bool = False,
         tls: bool = False,
-        password: str = None,
-        network: str = None,
+        password: str | None = None,
+        network: str | None = None,
     ):
         self._connected = False
         self.hostname = hostname
@@ -272,7 +271,7 @@ class IRCChannel(abc.Channel):
     # Match valid channel prefixes
     _chanprefix = re.compile(r"^[#&!+]#?")
 
-    def __init__(self, name: str, *, password: str = None, modes=None):
+    def __init__(self, name: str, *, password: str | None = None, modes=None):
         self.name = name
         self.password = password
         self.modes = modes or {}
@@ -320,12 +319,12 @@ class IRCMessage(abc.Message):
 
     def __init__(
         self,
-        source: Union[IRCUser, IRCServer],
-        destination: Union[IRCUser, IRCChannel],
+        source: IRCUser | IRCServer,
+        destination: IRCUser | IRCChannel,
         content: str,
         *,
-        time: datetime.datetime = None,
-        tags: dict[str, Optional[str]] = None,
+        time: datetime.datetime | None = None,
+        tags: dict[str, str | None] | None = None,
     ):
         self.source = source
         self.destination = destination

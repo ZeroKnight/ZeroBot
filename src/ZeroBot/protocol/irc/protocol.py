@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional, Union
 
 import pydle
 from pydle.features.ircv3.tags import TaggedMessage
@@ -50,7 +49,7 @@ async def module_register(core, cfg):
     return connections
 
 
-async def module_unregister(contexts, reason: str = None):
+async def module_unregister(contexts, reason: str | None = None):
     """Prepare for shutdown."""
     for ctx in contexts:
         await ctx.quit(reason)
@@ -124,8 +123,8 @@ class IRCContext(Context, pydle.Client):
         servers: list[IRCServer],
         *,
         eventloop: asyncio.AbstractEventLoop,
-        request_umode: str = None,
-        fallback_nicknames: list = None,
+        request_umode: str | None = None,
+        fallback_nicknames: list | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -240,10 +239,10 @@ class IRCContext(Context, pydle.Client):
 
     async def connect(
         self,
-        hostname: Optional[str] = None,
-        port: Optional[int] = None,
+        hostname: str | None = None,
+        port: int | None = None,
         tls: bool = False,
-        timeout: Union[int, float] = 30,
+        timeout: int | float = 30,
         **kwargs,
     ) -> bool:
         """Connect to an IRC server.
@@ -427,10 +426,7 @@ class IRCContext(Context, pydle.Client):
                 self.logger.info(f"{nick} ({user}@{host}) is offline.")
             else:
                 self.logger.info(f"{nick} is offline.")
-            if nick in self.users_zb:
-                zb_user = self.users_zb[nick]
-            else:
-                zb_user = IRCUser(nick, user, hostname=host)
+            zb_user = self.users_zb[nick] if nick in self.users_zb else IRCUser(nick, user, hostname=host)
             await CORE.module_send_event("user_offline", self, zb_user)
 
     # ZeroBot Interface

@@ -12,7 +12,7 @@ import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import AnyStr, Iterator, Optional, Union
+from typing import AnyStr, Iterator
 
 import aiosqlite
 
@@ -133,10 +133,10 @@ class DBUserInfo(DBModel):
         user_id: int,
         name: str,
         *,
-        created_at: datetime = None,
+        created_at: datetime | None = None,
         creation_flags: int = 0,
-        creation_metadata: dict = None,
-        comment: str = None,
+        creation_metadata: dict | None = None,
+        comment: str | None = None,
         **kwargs,
     ):
         super().__init__(conn)
@@ -193,14 +193,11 @@ class DBUser(DBUserInfo):
             A row returned from the database.
         """
         attrs = {name: row[name] for name in ("user_id", "name", "created_at", "creation_flags", "comment")}
-        if row["creation_metadata"] is not None:
-            metadata = json.loads(row["creation_metadata"])
-        else:
-            metadata = None
+        metadata = json.loads(row["creation_metadata"]) if row["creation_metadata"] is not None else None
         return cls(conn, creation_metadata=metadata, **attrs)
 
     @classmethod
-    async def from_id(cls, conn: Connection, user_id: int) -> Optional[DBUser]:
+    async def from_id(cls, conn: Connection, user_id: int) -> DBUser | None:
         """Construct a specific `DBUser` from the database.
 
         Returns `None` if the given ID was not found.
@@ -287,13 +284,10 @@ class DBUserAlias(DBUserInfo):
                 "case_sensitive",
             )
         }
-        if row["creation_metadata"] is not None:
-            metadata = json.loads(row["creation_metadata"])
-        else:
-            metadata = None
+        metadata = json.loads(row["creation_metadata"]) if row["creation_metadata"] is not None else None
         return cls(connection=conn, user=user, creation_metadata=metadata, **attrs)
 
-    async def fetch_user(self) -> Optional[DBUser]:
+    async def fetch_user(self) -> DBUser | None:
         """Fetch the `DBUser` associated with this alias.
 
         Sets `self.user` to the fetched `DBUser` and returns it.
@@ -332,7 +326,7 @@ class Participant(DBModel):
         participant_id: int,
         name: str,
         *,
-        user_id: int = None,
+        user_id: int | None = None,
         user: DBUser = None,
     ):
         super().__init__(conn)
@@ -371,7 +365,7 @@ class Participant(DBModel):
         return cls(conn, user=user, **attrs)
 
     @classmethod
-    async def from_id(cls, conn: Connection, participant_id: int) -> Optional[Participant]:
+    async def from_id(cls, conn: Connection, participant_id: int) -> Participant | None:
         """Construct a `Participant` by ID from the database.
 
         Returns `None` if there was no `Participant` with the given ID.
@@ -395,7 +389,7 @@ class Participant(DBModel):
         return cls.from_row(conn, row, user)
 
     @classmethod
-    async def from_name(cls, conn: Connection, name: str) -> Optional[Participant]:
+    async def from_name(cls, conn: Connection, name: str) -> Participant | None:
         """Construct a `Participant` by name from the database.
 
         Parameters
@@ -414,7 +408,7 @@ class Participant(DBModel):
         return cls.from_row(conn, row, user)
 
     @classmethod
-    async def from_user(cls, conn: Connection, user: Union[DBUser, int]) -> Optional[Participant]:
+    async def from_user(cls, conn: Connection, user: DBUser | int) -> Participant | None:
         """Construct a `Participant` linked to the given user.
 
         Parameters
@@ -526,7 +520,7 @@ async def get_participant(conn: Connection, name: str, ignore_case: bool = True)
     return participant
 
 
-async def find_participant(conn: Connection, pattern: str, case_sensitive: bool = False) -> Optional[Participant]:
+async def find_participant(conn: Connection, pattern: str, case_sensitive: bool = False) -> Participant | None:
     """Return the first Participant that matches `pattern`.
 
     Parameters
@@ -562,7 +556,7 @@ async def find_participant(conn: Connection, pattern: str, case_sensitive: bool 
     return await Participant.from_id(conn, row[0])
 
 
-async def get_user(conn: Connection, name: str, ignore_case: bool = True) -> Optional[DBUser]:
+async def get_user(conn: Connection, name: str, ignore_case: bool = True) -> DBUser | None:
     """Get an existing user by their name or an alias.
 
     This is a convenient and generalized function for ZeroBot modules that
@@ -637,8 +631,8 @@ class Source(DBModel):
         conn: Connection,
         source_id: int,
         protocol: str,
-        server: str = None,
-        channel: str = None,
+        server: str | None = None,
+        channel: str | None = None,
     ):
         super().__init__(conn)
         self.id = source_id
@@ -674,7 +668,7 @@ class Source(DBModel):
         return cls(conn, *row)
 
     @classmethod
-    async def from_id(cls, conn: Connection, source_id: int) -> Optional[Source]:
+    async def from_id(cls, conn: Connection, source_id: int) -> Source | None:
         """Construct a `Source` by ID from the database.
 
         Returns `None` if there was no `Source` with the given ID.
@@ -710,7 +704,7 @@ class Source(DBModel):
             await self._connection.commit()
 
 
-async def get_source(conn: Connection, protocol: str, server: str = None, channel: str = None) -> int:
+async def get_source(conn: Connection, protocol: str, server: str | None = None, channel: str | None = None) -> int:
     """Get an existing source or create a new one.
 
     This is a convenient and generalized function for Zerobot modules that
@@ -756,9 +750,9 @@ async def get_source(conn: Connection, protocol: str, server: str = None, channe
 
 
 async def create_connection(
-    database: Union[str, Path],
+    database: str | Path,
     module: Module,
-    loop: asyncio.AbstractEventLoop = None,
+    loop: asyncio.AbstractEventLoop | None = None,
     readonly: bool = False,
     **kwargs,
 ) -> Connection:
@@ -816,8 +810,8 @@ async def create_connection(
 
 async def create_backup(
     database: Connection,
-    target: Union[str, Path],
-    loop: asyncio.AbstractEventLoop = None,
+    target: str | Path,
+    loop: asyncio.AbstractEventLoop | None = None,
 ):
     """Create a full backup of a ZeroBot database.
 

@@ -11,7 +11,6 @@ from collections import deque
 from dataclasses import dataclass
 from enum import Enum, unique
 from string import Template
-from typing import Optional, Union
 
 from ZeroBot.common import CommandParser
 
@@ -76,7 +75,7 @@ class ResponsePart:
     text: str
     action: bool
     type: ResponseType
-    expects_action: Optional[bool] = None
+    expects_action: bool | None = None
 
     def __str__(self):
         return self.format()
@@ -143,8 +142,8 @@ def _register_commands():
 
 
 async def fetch_part(
-    rtype: Union[ResponseType, tuple[ResponseType]],
-    expects_action: Optional[bool] = None,
+    rtype: ResponseType | tuple[ResponseType],
+    expects_action: bool | None = None,
 ) -> tuple:
     """Fetch a phrase of a particular response type."""
     if isinstance(rtype, tuple):
@@ -163,7 +162,7 @@ async def fetch_part(
             END
         ORDER BY RANDOM() LIMIT cooldown() + 1;
     """,
-        tuple(x.value for x in rtype) + (expects_action,),
+        (*tuple(x.value for x in rtype), expects_action),
     )
     part = None
     rows = await results.fetchall()
@@ -183,7 +182,7 @@ async def fetch_part(
 
 
 def _resize_phrase_deques():
-    for name in ResponseType.__members__.keys():
+    for name in ResponseType.__members__:
         new_len = CFG.get("PhraseCooldown", DEFAULT_COOLDOWN)
         if new_len == recent_phrases[name].maxlen:
             break

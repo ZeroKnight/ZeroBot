@@ -14,7 +14,7 @@ import textwrap
 from collections import deque
 from datetime import datetime
 from functools import partial
-from typing import Any, Optional, Union
+from typing import Any
 
 from ZeroBot.common.abc import Message
 from ZeroBot.common.enums import CmdErrorType
@@ -137,7 +137,7 @@ async def module_command_quote(ctx, parsed):
         await ctx.module_message(parsed.msg.destination, quote)
 
 
-async def execute_opt_case(cursor, sql: str, params: tuple = None, case_sensitive: bool = False):
+async def execute_opt_case(cursor, sql: str, params: tuple | None = None, case_sensitive: bool = False):
     """Execute a query with optional case-sensitive ``LIKE`` operator."""
     if case_sensitive:
         await cursor.execute("PRAGMA case_sensitive_like = 1")
@@ -148,11 +148,11 @@ async def execute_opt_case(cursor, sql: str, params: tuple = None, case_sensitiv
 
 async def fetch_quote(
     sql: str,
-    params: tuple = None,
+    params: tuple | None = None,
     *,
     cooldown: bool = True,
     case_sensitive: bool = False,
-) -> Optional[Quote]:
+) -> Quote | None:
     """Fetch a quote from the database, respecting cooldowns.
 
     The parameters are the same as in an `aiosqlite.Cursor.execute` call, which
@@ -177,7 +177,7 @@ async def fetch_quote(
     return quote
 
 
-async def get_random_quote() -> Optional[Quote]:
+async def get_random_quote() -> Quote | None:
     """Fetch a random quote from the database."""
     return await fetch_quote(
         f"""
@@ -188,7 +188,7 @@ async def get_random_quote() -> Optional[Quote]:
     )
 
 
-async def get_quote_by_id(quote_id: int) -> Optional[Quote]:
+async def get_quote_by_id(quote_id: int) -> Quote | None:
     """Fetch the quote with the given ID from the database.
 
     If `quote_id` is negative, the *nth* most recent quote is returned.
@@ -210,7 +210,7 @@ async def get_quote_by_id(quote_id: int) -> Optional[Quote]:
     return quote
 
 
-def read_datestamp(datestamp: str) -> Optional[datetime]:
+def read_datestamp(datestamp: str) -> datetime | None:
     """Try to create a `datetime` object from `datestamp`.
 
     Expects an ISO 8601 formatted date/time string or a UNIX timestamp. Returns
@@ -254,7 +254,7 @@ def prepare_pattern(pattern: str, case_sensitive: bool = False, basic: bool = Fa
     return pattern
 
 
-def generate_table(rows: list[sqlite3.Row], target: tuple[int, Any] = None) -> list[str]:
+def generate_table(rows: list[sqlite3.Row], target: tuple[int, Any] | None = None) -> list[str]:
     """Generate a Markdown-like table out of the given rows.
 
     The optional `target` parameter expects a tuple of the form
@@ -290,7 +290,7 @@ def generate_table(rows: list[sqlite3.Row], target: tuple[int, Any] = None) -> l
     return lines
 
 
-async def quote_exists(content: Union[str, list[str]]) -> bool:
+async def quote_exists(content: str | list[str]) -> bool:
     """Check if the given quote exists."""
     if isinstance(content, list):
         content = "\n".join(content)
@@ -466,10 +466,7 @@ async def quote_search(ctx, parsed):
     if parsed.args["id"]:
         result = await get_quote_by_id(parsed.args["id"])
     else:
-        if parsed.args["count"]:
-            selection = "COUNT(*)"
-        else:
-            selection = "quote_id, submitter, submission_date, style"
+        selection = "COUNT(*)" if parsed.args["count"] else "quote_id, submitter, submission_date, style"
         sql = f"""
             WITH participant_names AS (
                 SELECT participant_id,

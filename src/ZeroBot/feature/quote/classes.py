@@ -8,7 +8,6 @@ from __future__ import annotations
 from datetime import datetime
 from enum import IntEnum, unique
 from sqlite3 import Row
-from typing import Optional
 
 from ZeroBot.database import Connection, DBModel, Participant
 
@@ -122,7 +121,7 @@ class Quote(DBModel):
     def __init__(
         self,
         conn: Connection,
-        quote_id: Optional[int],
+        quote_id: int | None,
         submitter: Participant,
         *,
         date: datetime = datetime.utcnow(),

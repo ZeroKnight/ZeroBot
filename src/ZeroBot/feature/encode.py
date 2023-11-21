@@ -14,7 +14,6 @@ import logging
 import string
 from binascii import crc32
 from io import StringIO
-from typing import Optional
 from zlib import adler32
 
 from ZeroBot.common import CommandParser
@@ -33,7 +32,7 @@ MOD_ID = __name__.rsplit(".", 1)[-1]
 logger = logging.getLogger("ZeroBot.Feature.Encode")
 
 
-def algo_parts(name: str) -> tuple[str, Optional[int]]:
+def algo_parts(name: str) -> tuple[str, int | None]:
     """Return a tuple of an algorithm's name and optional number suffix.
 
     Example::

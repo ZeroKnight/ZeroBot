@@ -75,6 +75,8 @@ ignore = [
     'S311', # I'm not using random for crypto...
 ]
 
+extend-safe-fixes = ['F401', 'I', 'RET', 'RUF005', 'RUF013', 'SIM', 'UP']
+
 [tool.ruff.lint.per-file-ignores]
 'test_*.py' = ['ANN', 'S101']
 

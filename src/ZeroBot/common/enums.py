@@ -67,7 +67,7 @@ class ModuleCmdStatus(Enum):
     @classmethod
     def is_reload(cls, status: ModuleCmdStatus) -> bool:
         """Return whether the given status is a "RELOAD" type."""
-        return status in (cls.RELOAD_OK, cls.RELOAD_FAIL, cls.NOT_YET_LOADED)
+        return status in {cls.RELOAD_OK, cls.RELOAD_FAIL, cls.NOT_YET_LOADED}
 
 
 @unique
@@ -87,10 +87,10 @@ class ConfigCmdStatus(Enum):
     @classmethod
     def is_ok(cls, status: ConfigCmdStatus) -> bool:
         """Return whether the given status is an "OK" type."""
-        return status in (
+        return status in {
             cls.GET_OK,
             cls.SET_OK,
             cls.RESET_OK,
             cls.SAVE_OK,
             cls.RELOAD_OK,
-        )
+        }
