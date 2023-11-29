@@ -10,6 +10,7 @@ import asyncio
 import logging
 import re
 from datetime import datetime
+from importlib import resources
 from string import Template
 from typing import Iterable
 
@@ -230,7 +231,7 @@ async def module_register(core):
     CFG = core.load_config("modules")[MODULE_NAME]
 
     DB = await core.database_connect(MOD_ID)
-    await _init_database()
+    await DB.executescript(resources.files("ZeroBot").joinpath("sql/schema/counter.sql").read_text())
     loaded = await load_counters()
     if loaded:
         logger.info(f"Loaded {loaded} Counters")
@@ -243,26 +244,6 @@ async def module_register(core):
 async def module_unregister():
     """Prepare for shutdown."""
     await CORE.database_disconnect(MOD_ID)
-
-
-async def _init_database():
-    await DB.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS "counter" (
-            "name"           TEXT NOT NULL UNIQUE,
-            "count"          INTEGER NOT NULL DEFAULT 0,
-            "created_at"     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            "last_triggered" DATETIME,
-            "last_user"      INTEGER,
-            "last_channel"   TEXT,
-            PRIMARY KEY ("name"),
-            FOREIGN KEY ("last_user")
-                REFERENCES "{Participant.table_name}" ("participant_id")
-                ON DELETE SET NULL
-                ON UPDATE CASCADE
-        ) WITHOUT ROWID
-    """
-    )
 
 
 def _register_commands():

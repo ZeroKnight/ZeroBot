@@ -11,6 +11,7 @@ import logging
 import re
 import sqlite3
 from datetime import datetime
+from importlib import resources
 from pathlib import Path
 from typing import AnyStr, Iterator
 
@@ -806,6 +807,28 @@ async def create_connection(
     conn._connection._module = module
     conn._connection._dbpath = database
     return conn
+
+
+async def create_database(database: str | Path, loop: asyncio.AbstractEventLoop | None = None) -> None:
+    """Create a new ZeroBot database.
+
+    This method creates a fresh database at the given path and initializes the core tables, indices, views, etc.
+
+    Parameters
+    ----------
+    database : str or Path
+        Where to create the new database.
+
+    loop : asyncio.AbstractEventLoop, optional
+        The `asyncio` event loop to use. This is typically `Core.eventloop`.
+    """
+    if loop is None:
+        loop = asyncio.get_event_loop()
+    logger.info(f"Creating new database at '{database}'")
+    async with aiosqlite.connect(database, loop=loop) as db:
+        sql_file = resources.files("ZeroBot").joinpath("sql/schema/core.sql")
+        logger.debug(f"Applying core schema from {sql_file}")
+        await db.executescript(sql_file.read_text())
 
 
 async def create_backup(

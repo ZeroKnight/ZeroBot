@@ -37,7 +37,6 @@ from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus, abc
 from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
 from ZeroBot.common.enums import CmdErrorType
 from ZeroBot.config import Config
-from ZeroBot.database import DBUser, DBUserAlias, Participant, Source
 from ZeroBot.exceptions import (
     CommandAlreadyRegistered,
     CommandNotRegistered,
@@ -278,10 +277,13 @@ class Core:
             self.config["Database"] = {}
         self.config["Database"].setdefault("Backup", {})
         self._db_path = self._config_dir.joinpath(self.config["Database"].get("Filename", "zerobot.sqlite"))
-        self.database = self.eventloop.run_until_complete(
-            zbdb.create_connection(self._db_path, self._dummy_module, self.eventloop)
-        )
-        self.eventloop.run_until_complete(self._init_database())
+
+        async def init_db() -> None:
+            if not self._db_path.exists():
+                await zbdb.create_database(self._db_path)
+            return await zbdb.create_connection(self._db_path, self._dummy_module, self.eventloop)
+
+        self.database = self.eventloop.run_until_complete(init_db())
 
         # Register core commands
         self._register_commands()
@@ -367,107 +369,6 @@ class Core:
                 "formatters": log_sec["Formatters"],
                 "handlers": log_sec["Handlers"],
             }
-        )
-
-    async def _init_database(self):
-        """Create core database objects."""
-        await self.database.executescript(
-            f"""
-            CREATE TABLE IF NOT EXISTS "{DBUser.table_name}" (
-                "user_id"           INTEGER PRIMARY KEY AUTOINCREMENT,
-                "name"              TEXT NOT NULL UNIQUE,
-                "created_at"        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                "creation_flags"    INTEGER NOT NULL DEFAULT 0,
-                "creation_metadata" TEXT,
-                "comment"           TEXT
-            );
-            CREATE TABLE IF NOT EXISTS "{DBUserAlias.table_name}" (
-                "user_id"           INTEGER NOT NULL,
-                "alias"             TEXT NOT NULL,
-                "case_sensitive"    BOOLEAN NOT NULL DEFAULT 0 CHECK(case_sensitive IN (0,1)),
-                "created_at"        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                "creation_flags"    INTEGER NOT NULL DEFAULT 0,
-                "creation_metadata" TEXT,
-                "comment"           TEXT,
-                PRIMARY KEY ("user_id", "alias"),
-                FOREIGN KEY ("user_id") REFERENCES "{DBUser.table_name}" ("user_id")
-                    ON DELETE CASCADE
-            );
-            CREATE TABLE IF NOT EXISTS "{Participant.table_name}" (
-                "participant_id" INTEGER NOT NULL,
-                "name"           TEXT NOT NULL UNIQUE,
-                "user_id"        INTEGER,
-                PRIMARY KEY ("participant_id"),
-                FOREIGN KEY ("user_id") REFERENCES "{DBUser.table_name}" ("user_id")
-                    ON DELETE SET NULL
-            );
-            CREATE TABLE IF NOT EXISTS "protocols" (
-                "identifier" TEXT NOT NULL,
-                "name"       TEXT NOT NULL,
-                PRIMARY KEY ("identifier")
-            ) WITHOUT ROWID;
-            CREATE TABLE IF NOT EXISTS "{Source.table_name}" (
-                "source_id" INTEGER NOT NULL,
-                "protocol"  TEXT NOT NULL,
-                "server"    TEXT,
-                "channel"   TEXT,
-                PRIMARY KEY ("source_id"),
-                FOREIGN KEY ("protocol") REFERENCES "protocols" ("identifier")
-                    ON UPDATE CASCADE
-            );
-
-            CREATE VIEW IF NOT EXISTS users_all_names (
-                user_id, name, case_sensitive
-            ) AS
-                SELECT user_id, name, 1 FROM "{DBUser.table_name}"
-                UNION
-                SELECT user_id, alias, case_sensitive FROM "{DBUserAlias.table_name}";
-
-            CREATE VIEW IF NOT EXISTS participants_all_names (
-                participant_id, user_id, name, case_sensitive
-            ) AS
-                SELECT participant_id, user_id, name, 1 FROM "{Participant.table_name}"
-                UNION
-                SELECT participant_id, user_id, alias, case_sensitive FROM "{DBUserAlias.table_name}"
-                JOIN "{Participant.table_name}" USING(user_id);
-
-            CREATE UNIQUE INDEX IF NOT EXISTS "idx_participants_user_id"
-            ON "{Participant.table_name}" ("user_id");
-
-            CREATE TRIGGER IF NOT EXISTS tg_update_participant_name_from_user
-            AFTER UPDATE OF name ON "{DBUser.table_name}"
-            BEGIN
-                UPDATE "{Participant.table_name}"
-                SET name = new.name
-                WHERE user_id = new.user_id;
-            END;
-
-            CREATE TRIGGER IF NOT EXISTS tg_update_user_name_from_participant
-            AFTER UPDATE OF name ON "{Participant.table_name}"
-            BEGIN
-                UPDATE "{DBUser.table_name}"
-                SET name = new.name
-                WHERE user_id = new.user_id;
-            END;
-
-            CREATE TRIGGER IF NOT EXISTS tg_new_user_upsert_participants
-            AFTER INSERT ON "{DBUser.table_name}"
-            BEGIN
-                INSERT INTO "{Participant.table_name}" (name, user_id)
-                VALUES (new.name, new.user_id)
-                ON CONFLICT (name) DO UPDATE
-                    SET user_id = new.user_id;
-            END;
-
-            CREATE TRIGGER IF NOT EXISTS tg_prevent_linked_participant_delete
-            BEFORE DELETE ON "{Participant.table_name}"
-            BEGIN
-                SELECT RAISE(FAIL, 'Can''t delete participant that is linked to a user')
-                FROM "{Participant.table_name}"
-                WHERE participant_id = old.participant_id
-                    AND user_id IS NOT NULL;
-            END;
-        """
         )
 
     def _register_commands(self):

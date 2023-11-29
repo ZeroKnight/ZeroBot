@@ -14,6 +14,7 @@ import textwrap
 from collections import deque
 from datetime import datetime
 from functools import partial
+from importlib import resources
 from typing import Any
 
 from ZeroBot.common.abc import Message
@@ -25,7 +26,6 @@ from ZeroBot.util import flatten
 
 from .classes import Quote, QuoteLine, QuoteStyle
 from .commands import define_commands
-from .database import init_database
 
 MODULE_NAME = "Quote"
 MODULE_AUTHOR = "ZeroKnight"
@@ -71,7 +71,7 @@ async def module_register(core):
 
     DB = await core.database_connect(MOD_ID)
     await DB.create_function("cooldown", 0, cooldown)
-    await init_database(DB)
+    await DB.executescript(resources.files("ZeroBot").joinpath("sql/schema/quote.sql").read_text())
     get_participant = partial(getpart, DB)
 
     CORE.command_register(MOD_ID, *define_commands())

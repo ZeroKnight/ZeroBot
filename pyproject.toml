@@ -30,6 +30,9 @@ Repository = 'https://github.com/ZeroKnight/ZeroBot'
 [project.scripts]
 zerobot = 'ZeroBot.__main__:main'
 
+[tool.setuptools.package-data]
+ZeroBot = ['sql/**/*.sql']
+
 [tool.ruff]
 src = ['src']
 line-length = 120

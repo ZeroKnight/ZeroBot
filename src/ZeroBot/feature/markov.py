@@ -16,6 +16,7 @@ import re
 import zlib
 from collections import deque
 from functools import partial
+from importlib import resources
 from io import StringIO
 from itertools import repeat
 from pathlib import Path
@@ -532,7 +533,7 @@ async def module_register(core):
     DEFAULT_DUMP_PATH = CORE.data_dir / "markov.pickle"
 
     DB = await core.database_connect(MOD_ID)
-    await _init_database()
+    await DB.executescript(resources.files("ZeroBot").joinpath("sql/schema/markov.sql").read_text())
     get_participant = partial(getpart, DB)
     find_participant = partial(findpart, DB)
     get_source = partial(getsrc, DB)
@@ -623,28 +624,6 @@ async def _init_chain():
         chain = MarkovSentenceGenerator(corpus, CFG.get("Order", DEFAULT_ORDER))
         await CORE.run_async(update_chain_dump, chain)
     return chain
-
-
-async def _init_database():
-    """Initialize database tables."""
-    await DB.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS "markov_corpus" (
-            "line_id"   INTEGER NOT NULL,
-            "line"      TEXT NOT NULL,
-            "source"    INTEGER,
-            "author"    INTEGER,
-            "timestamp" DATETIME DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY ("line_id"),
-            FOREIGN KEY ("source") REFERENCES "sources" ("source_id")
-                ON UPDATE CASCADE
-                ON DELETE SET NULL,
-            FOREIGN KEY ("author") REFERENCES "participants" ("participant_id")
-                ON UPDATE CASCADE
-                ON DELETE SET NULL
-        );
-    """
-    )
 
 
 async def _register_commands():
