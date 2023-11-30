@@ -75,6 +75,7 @@ class Counter:
         *,
         enabled: bool = True,
         muted: bool = False,
+        match_case: bool = False,
         triggers: list[str] | None = None,
         restrictions: list[str] | None = None,
         blacklist: list[str] | None = None,
