@@ -12,6 +12,7 @@ import time
 import discord
 from discord import ChannelType
 
+from ZeroBot import util
 from ZeroBot.common import ConfigCmdStatus, ModuleCmdStatus
 from ZeroBot.protocol.context import Context
 
@@ -31,7 +32,6 @@ logger = logging.getLogger("ZeroBot.Discord")
 USER_MENTION = re.compile(r"<@!?(\d+)>")
 CHANNEL_MENTION = re.compile(r"<#(\d+)>")
 ROLE_MENTION = re.compile(r"<@&(\d+)>")
-HAS_DISCRIMINATOR = re.compile(r"#\d{4}$")
 
 
 async def module_register(core, cfg):
@@ -87,20 +87,16 @@ class DiscordContext(Context, discord.Client):
 
         # Find and set owner
         owner_str = CFG["Owner"]
-        if HAS_DISCRIMINATOR.search(owner_str):
-            for guild in self.guilds:
-                if (member := guild.get_member_named(owner_str)) is not None:
-                    self._owner = member
-                    break
-            if member is None:
-                logger.warning(f"Could not set owner: user '{owner_str}' not found in any connected server.")
-        elif re.match(r"^\d+$", owner_str):
-            if user := self.get_user(owner_str) is not None:
-                self._owner = user
-            else:
-                logger.warning(f"Could not set owner: no user found with ID '{owner_str}'")
+        if re.match(r"^\d+$", owner_str):
+            self._owner = self.get_user(owner_str)
+            warnmsg = f"Could not set owner: no user found with ID '{owner_str}'"
         else:
-            logger.error("Could not set owner: string must be a username+discriminator (Foo#1234) or a unique ID.")
+            self._owner = util.first(guild.get_member_named(owner_str) for guild in self.guilds)
+            warnmsg = f"Could not set owner: user '{owner_str}' not found in any connected server."
+        if self._owner:
+            logger.info(f"Found owner: {self._owner}")
+        else:
+            logger.warning(warnmsg)
         await CORE.module_send_event("context_ready", self)
 
     async def on_disconnect(self):

@@ -80,6 +80,15 @@ def flatten(iterable):
             yield elem
 
 
+def first(iterable, func=None, default=None):
+    """Return the first value from ``iterable`` from the filter ``func``.
+
+    If no elements in the iterable match, ``default`` is returned instead,
+    which is ``None`` if left unspecified.
+    """
+    return next(filter(func, iterable), default)
+
+
 def shellish_split(string: str) -> list[str]:
     """Perform shell-like word splitting on the given string.
 
