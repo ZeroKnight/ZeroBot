@@ -137,7 +137,7 @@ async def module_command_quote(ctx, parsed):
         await ctx.module_message(parsed.msg.destination, quote)
 
 
-async def execute_opt_case(cursor, sql: str, params: tuple | None = None, case_sensitive: bool = False):
+async def execute_opt_case(cursor, sql: str, params: tuple | None = None, *, case_sensitive: bool = False):
     """Execute a query with optional case-sensitive ``LIKE`` operator."""
     if case_sensitive:
         await cursor.execute("PRAGMA case_sensitive_like = 1")
@@ -163,7 +163,7 @@ async def fetch_quote(
         raise ValueError("Query must include a LIMIT with 'cooldown()'")
     # TODO: per-author cooldowns
     async with DB.cursor() as cur:
-        await execute_opt_case(cur, sql, params, case_sensitive)
+        await execute_opt_case(cur, sql, params, case_sensitive=case_sensitive)
         row = await cur.fetchone()
         if cooldown:
             while row and row["quote_id"] in recent_quotes["global"]:
@@ -241,7 +241,7 @@ def handle_action_line(line: str, msg: Message) -> tuple[bool, str]:
     return action, line
 
 
-def prepare_pattern(pattern: str, case_sensitive: bool = False, basic: bool = False) -> str:
+def prepare_pattern(pattern: str, *, case_sensitive: bool = False, basic: bool = False) -> str:
     """Prepare a pattern from a command for use in a query."""
     if basic:
         pattern = (pattern or "*").translate(WILDCARD_MAP)
@@ -435,24 +435,18 @@ async def quote_recent(ctx, parsed):
         ORDER BY submission_date DESC LIMIT ?
     """
     if pattern:
-        pattern = prepare_pattern(pattern, case_sensitive, basic)
+        pattern = prepare_pattern(pattern, basic=basic, case_sensitive=case_sensitive)
         query = (sql, (pattern, count))
     else:
         query = (sql, (count,))
     async with DB.cursor() as cur:
-        if case_sensitive:
-            await cur.execute("PRAGMA case_sensitive_like = 1")
-        await cur.execute(*query)
-        if case_sensitive:
-            await cur.execute("PRAGMA case_sensitive_like = 0")
+        await execute_opt_case(cur, *query, case_sensitive=case_sensitive)
         quotes = [await Quote.from_row(DB, row) for row in await cur.fetchall()]
-    results = []
     if count > 1:
         wrapper = textwrap.TextWrapper(width=160, max_lines=1, placeholder=" **[...]**")
-        for n, quote in enumerate(quotes, 1):
-            results.append(f"**[{n}]** {wrapper.fill(str(quote))}")
+        results = [f"**[{n}]** {wrapper.fill(str(quote))}" for n, quote in enumerate(quotes, 1)]
     else:
-        results.append(str(quotes[0]))
+        results = [str(quotes[0])]
     await ctx.reply_command_result(parsed, results)
 
 
@@ -462,6 +456,7 @@ async def quote_search(ctx, parsed):
         # Technically equivalent to `!quote` but less efficient
         await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
         return
+    basic = parsed.args["basic"]
     case_sensitive = parsed.args["case_sensitive"]
     if parsed.args["id"]:
         result = await get_quote_by_id(parsed.args["id"])
@@ -483,16 +478,10 @@ async def quote_search(ctx, parsed):
                 JOIN participant_names AS "submitters"
                     ON submitter = submitters.participant_id
         """
-        if parsed.args["basic"]:
-            pattern = prepare_pattern(" ".join(parsed.args["pattern"] or []), basic=True)
-            author_pat = prepare_pattern(parsed.args["author"], basic=True)
-            submitter_pat = prepare_pattern(parsed.args["submitter"], basic=True)
-            search_method = "LIKE"
-        else:
-            pattern = prepare_pattern(" ".join(parsed.args["pattern"] or []), case_sensitive)
-            author_pat = prepare_pattern(parsed.args["author"], case_sensitive)
-            submitter_pat = prepare_pattern(parsed.args["submitter"], case_sensitive)
-            search_method = "REGEXP"
+        pattern = prepare_pattern(" ".join(parsed.args["pattern"] or []), basic=basic, case_sensitive=case_sensitive)
+        author_pat = prepare_pattern(parsed.args["author"], basic=basic, case_sensitive=case_sensitive)
+        submitter_pat = prepare_pattern(parsed.args["submitter"], basic=basic, case_sensitive=case_sensitive)
+        search_method = "LIKE" if basic else "REGEXP"
         sql += f"""
                 WHERE hidden = 0 AND
                       line {search_method} ? AND
@@ -505,7 +494,7 @@ async def quote_search(ctx, parsed):
         query = (sql, (pattern, author_pat, submitter_pat))
         if parsed.args["count"]:
             async with DB.cursor() as cur:
-                await execute_opt_case(cur, *query, case_sensitive)
+                await execute_opt_case(cur, *query, case_sensitive=case_sensitive)
                 result = (await cur.fetchone())[0]
         else:
             result = await fetch_quote(*query, case_sensitive=case_sensitive)
