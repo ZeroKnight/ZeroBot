@@ -6,6 +6,7 @@ Interface to ZeroBot's SQLite 3 database backend.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import re
@@ -467,7 +468,7 @@ class Participant(DBModel):
             await self._connection.commit()
 
 
-async def get_participant(conn: Connection, name: str) -> Participant | None:
+async def get_participant(conn: Connection, name: str, *, auto_create: bool = True) -> Participant | None:
     """Get a `Participant` from the database.
 
     This is a convenient and generalized function for Zerobot modules that
@@ -475,18 +476,24 @@ async def get_participant(conn: Connection, name: str) -> Participant | None:
     existing participants and the creation of new ones. The lookup name may
     match any alias associated with the participant.
 
+    **NOTE**: Non-existing participants are auto-created by default.
+
     Parameters
     ----------
     conn : Connection
         The database connection to use.
     name : str
         The name to look up; usually from a message source or command argument.
+    auto_create : bool, optional
+        Automatically create a new participant with `name` if not found.
+        ``True`` by default.
 
     Returns
     -------
     Participant or None
-        An existing participant matching `name` or a totally new one if there
-        were no matches for `name`.
+        A `Participant` object matching `name` if found in the database.
+        Otherwise, a new participant will be created and returned if
+        `auto_create` is true, or ``None`` if it is false.
 
     Notes
     -----
@@ -508,16 +515,16 @@ async def get_participant(conn: Connection, name: str) -> Participant | None:
             (name,),
         )
         row = await cur.fetchone()
-    if row is None:
-        # Create a new Participant
-        participant = Participant(conn, None, name)
-        await participant.save()
+    if not row:
+        if auto_create:
+            participant = Participant(conn, None, name)
+            await participant.save()
+        else:
+            participant = None
     else:
         participant = Participant.from_row(conn, row)
-        try:
+        with contextlib.suppress(ValueError):
             await participant.fetch_user()
-        except ValueError:  # user_id was NULL
-            pass
     return participant
 
 
