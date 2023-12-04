@@ -22,7 +22,7 @@ CREATE TABLE aliases (
 
 CREATE TABLE participants (
     participant_id INTEGER NOT NULL,
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL UNIQUE COLLATE FOLD,
     user_id INTEGER,
     PRIMARY KEY (participant_id),
     FOREIGN KEY (user_id) REFERENCES users (user_id)

@@ -40,6 +40,14 @@ def regexp(pattern: AnyStr, string: AnyStr) -> bool:
         return False
 
 
+def collate_casefold(a: str, b: str) -> bool:
+    """SQLite casefold collation."""
+    a, b = a.casefold(), b.casefold()
+    if a == b:
+        return 0
+    return 1 if a < b else -1
+
+
 class Connection(sqlite3.Connection):
     """Extension of `sqlite3.Connection` tied to ZeroBot.
 
@@ -459,12 +467,13 @@ class Participant(DBModel):
             await self._connection.commit()
 
 
-async def get_participant(conn: Connection, name: str, ignore_case: bool = True) -> Participant:
-    """Get an existing `Participant` or create a new one.
+async def get_participant(conn: Connection, name: str) -> Participant | None:
+    """Get a `Participant` from the database.
 
     This is a convenient and generalized function for Zerobot modules that
     enables the most common actions related to database participants: lookup of
-    existing participants and the creation of new ones.
+    existing participants and the creation of new ones. The lookup name may
+    match any alias associated with the participant.
 
     Parameters
     ----------
@@ -472,13 +481,10 @@ async def get_participant(conn: Connection, name: str, ignore_case: bool = True)
         The database connection to use.
     name : str
         The name to look up; usually from a message source or command argument.
-    ignore_case : bool, optional
-        Ignore case even for aliases marked as case-sensitive. ``True`` by
-        default.
 
     Returns
     -------
-    Participant
+    Participant or None
         An existing participant matching `name` or a totally new one if there
         were no matches for `name`.
 
@@ -487,23 +493,17 @@ async def get_participant(conn: Connection, name: str, ignore_case: bool = True)
     ZeroBot's Core defines triggers that, along with foreign key constraints,
     prevents Users and Participants from becoming inconsistent. As long as
     these measures are not circumvented, you shouldn't need to worry about any
-    user/participant discrepencies, getting a `Participant` without its
+    user/participant discrepancies, getting a `Participant` without its
     associated `DBUser`, having a user with no associated participant, etc.
     """
-    if name is None:
-        return None
-    if name.strip() == "":
+    if not (name := name.strip()):
         raise ValueError("Name is empty or whitespace")
-    if ignore_case:
-        criteria = "lower(pan.name) = lower(?1)"
-    else:
-        criteria = "pan.name = ?1 OR case_sensitive = 0 AND lower(pan.name) = lower(?1)"
     async with conn.cursor() as cur:
         await cur.execute(
-            f"""
+            """
             SELECT participant_id, name, user_id
             FROM participants_all_names AS "pan"
-            WHERE {criteria}
+            WHERE pan.name = ? COLLATE FOLD
         """,
             (name,),
         )
@@ -521,7 +521,7 @@ async def get_participant(conn: Connection, name: str, ignore_case: bool = True)
     return participant
 
 
-async def find_participant(conn: Connection, pattern: str, case_sensitive: bool = False) -> Participant | None:
+async def find_participant(conn: Connection, pattern: str) -> Participant | None:
     """Return the first Participant that matches `pattern`.
 
     Parameters
@@ -530,34 +530,20 @@ async def find_participant(conn: Connection, pattern: str, case_sensitive: bool 
         The database connection to use.
     pattern : str
         A regular expression to match participants.
-    case_sensitive : bool, optional
-        Whether or not the pattern should be case sensitive. Defaults to
-        `False`.
     """
-    if pattern is None:
-        return None
-    # The `m` flag is included because of the use of
-    # `group_concat(name, char(10))` in queries needing to match aliases.
-    re_flags = "m" if case_sensitive else "mi"
-    pattern = f"(?{re_flags}:{pattern})"
     async with conn.cursor() as cur:
         await cur.execute(
             """
-            SELECT participant_id,
-                   group_concat(name, char(10)) AS "name_list"
-            FROM participants_all_names
-            GROUP BY participant_id
-            HAVING name_list REGEXP ?
+            SELECT participant_id FROM participants_all_names
+            WHERE name REGEXP ?
         """,
-            (pattern,),
+            (f"(?i:{pattern})",),
         )
         row = await cur.fetchone()
-    if row is None:
-        return None
-    return await Participant.from_id(conn, row[0])
+    return await Participant.from_id(conn, row[0]) if row else None
 
 
-async def get_user(conn: Connection, name: str, ignore_case: bool = True) -> DBUser | None:
+async def get_user(conn: Connection, name: str, *, ignore_case: bool = False) -> DBUser | None:
     """Get an existing user by their name or an alias.
 
     This is a convenient and generalized function for ZeroBot modules that
@@ -572,7 +558,7 @@ async def get_user(conn: Connection, name: str, ignore_case: bool = True) -> DBU
     name : str
         The name to look up; usually from a message source or command argument.
     ignore_case : bool, optional
-        Ignore case even for aliases marked as case-sensitive. ``True`` by
+        Ignore case even for aliases marked as case-sensitive. ``False`` by
         default.
 
     Returns
@@ -580,24 +566,19 @@ async def get_user(conn: Connection, name: str, ignore_case: bool = True) -> DBU
     Optional[DBUser]
         The matched user or ``None`` if there were no matches for `name`.
     """
-    if name.strip() == "":
+    if (name := name.strip()) == "":
         raise ValueError("Name is empty or whitespace")
-    if ignore_case:
-        criteria = "lower(name) = lower(?1)"
-    else:
-        criteria = "name = ?1 OR case_sensitive = 0 AND lower(name) = lower(?1)"
-    user = None
+    placeholder = "? COLLATE FOLD" if ignore_case else "?"
     async with conn.cursor() as cur:
         await cur.execute(
             f"""
-            SELECT user_id FROM users_all_names WHERE {criteria}
+            SELECT user_id FROM users_all_names
+            WHERE name = {placeholder}
         """,
             (name,),
         )
         row = await cur.fetchone()
-    if row is not None:
-        user = await DBUser.from_id(conn, row[0])
-    return user
+    return await DBUser.from_id(conn, row[0]) if row else None
 
 
 class Source(DBModel):
@@ -804,6 +785,8 @@ async def create_connection(
     conn.row_factory = sqlite3.Row
     await conn.execute("PRAGMA foreign_keys = ON")
     await conn.create_function("REGEXP", 2, regexp)
+    # HACK: As of aiosqlite v0.19, this method is not exposed by the library
+    await conn._execute(conn._conn.create_collation, "FOLD", collate_casefold)
     conn._connection._module = module
     conn._connection._dbpath = database
     return conn
