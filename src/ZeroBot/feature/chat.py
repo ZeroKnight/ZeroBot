@@ -117,12 +117,12 @@ async def module_register(core):
             logger.debug(f"Adding Activity Shuffler task for context {ctx}")
             task = discord.ext.tasks.Loop(
                 shuffle_discord_activity,
+                time=discord.ext.tasks.MISSING,  # XXX: This interface got a bit silly in 2.0
                 seconds=interval,
                 minutes=0,
                 hours=0,
                 count=None,
                 reconnect=True,
-                loop=CORE.eventloop,
             )
             shuffler_tasks.append(task)
             task.start(ctx)
