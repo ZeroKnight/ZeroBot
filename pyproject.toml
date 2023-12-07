@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ['black>=22.1.0', 'flake8', 'isort>=5.0.0', 'pytest>=6.0']
+dev = ['ruff', 'pytest>=6.0']
 
 [project.urls]
 Repository = 'https://github.com/ZeroKnight/ZeroBot'
