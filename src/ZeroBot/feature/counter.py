@@ -75,7 +75,7 @@ class Counter:
         count: int = 0,
         *,
         enabled: bool = True,
-        muted: bool = False,
+        announce: bool = False,
         match_case: bool = False,
         triggers: list[str] | None = None,
         restrictions: list[str] | None = None,
@@ -94,7 +94,7 @@ class Counter:
             self.announcement = None
         self.count = count
         self.enabled = enabled
-        self.muted = muted
+        self.announce = announce
         self.match_case = match_case
         self.triggers = [re.compile(trigger, (re.I if not match_case else 0)) for trigger in (triggers or [])]
         self.restrictions = restrictions or []
@@ -170,7 +170,7 @@ class Counter:
 
         Counter announcements can be disabled globally or per-counter.
         """
-        return CFG["Announce"] or self.muted
+        return CFG["Announce"] and self.announce
 
     async def increment(
         self,
@@ -320,7 +320,7 @@ async def load_counters() -> int:
             "description": instance.get("Description", "No description"),
             "announcement": instance.get("AnnounceString"),
             "enabled": instance.get("Enabled", True),
-            "muted": instance.get("Announce", True),
+            "announce": instance.get("Announce", True),
             "match_case": instance.get("MatchCase", False),
             "triggers": instance.get("Triggers", []),
             "restrictions": instance.get("RestrictedTo", []),
