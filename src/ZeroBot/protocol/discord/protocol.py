@@ -41,13 +41,9 @@ async def module_register(core, cfg):
     CFG = cfg
 
     settings = CFG.get("Settings", {})
-
-    intents = discord.Intents.default()
-    intents.members = True
-    intents.presences = True
     ctx = DiscordContext(
         loop=core.eventloop,
-        intents=intents,
+        intents=discord.Intents.all(),
         max_messages=settings.get("MaxMessages", None),
     )
     coro = ctx.start(CFG["BotToken"])
