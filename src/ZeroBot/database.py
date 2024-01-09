@@ -799,6 +799,43 @@ async def create_connection(
     return conn
 
 
+def create_interactive_connection(database: str, **kwargs) -> sqlite3.Connection:
+    """Start a Python interpreter and create a database connection.
+
+    Sets up a connection to a ZeroBot database and drops into an interactive
+    Python interpreter to facilitate manual querying and editing. Performs all
+    necessary connection setup needed to work with the database, e.g. custom
+    functions, collations, etc.
+
+    Parameters
+    ----------
+    databse : str or Path
+        The path to the SQLite3 datbase.
+    kwargs
+        Remaining keyword arguments are passed to `sqlite3.connect`.
+
+    Returns
+    -------
+    sqlite3.Connection
+        A connection object for the requested database.
+    """
+    if not isinstance(database, Path):
+        database = Path(database)
+    database = database.absolute()
+
+    logger.info("Creating interactive connection to database at '{database}'")
+    conn = sqlite3.connect(
+        database,
+        detect_types=sqlite3.PARSE_DECLTYPES,
+        **kwargs,
+    )
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.create_function("REGEXP", 2, regexp)
+    conn.create_collation("FOLD", collate_casefold)
+    return conn
+
+
 async def create_database(database: str | Path, loop: asyncio.AbstractEventLoop | None = None) -> None:
     """Create a new ZeroBot database.
 

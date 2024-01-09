@@ -29,6 +29,7 @@ Repository = 'https://github.com/ZeroKnight/ZeroBot'
 
 [project.scripts]
 zerobot = 'ZeroBot.__main__:main'
+zerobotdb = 'ZeroBot.__main__:edit_db'
 
 [tool.setuptools.package-data]
 ZeroBot = ['sql/**/*.sql']
