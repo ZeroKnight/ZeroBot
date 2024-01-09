@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS quote (
+CREATE TABLE IF NOT EXISTS quotes (
     quote_id INTEGER NOT NULL,
     submitter INTEGER NOT NULL DEFAULT 0,
     submission_date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS quote_lines (
     author_num INTEGER NOT NULL DEFAULT 1,
     action BOOLEAN NOT NULL DEFAULT 0 CHECK (action IN (0,1)),
     PRIMARY KEY (quote_id, line_num),
-    FOREIGN KEY (quote_id) REFERENCES quote (quote_id)
+    FOREIGN KEY (quote_id) REFERENCES quotes (quote_id)
         ON DELETE CASCADE,
     FOREIGN KEY (participant_id) REFERENCES participants (participant_id)
         ON DELETE SET DEFAULT
@@ -32,13 +32,13 @@ SELECT
     authors.name AS Name,
     COUNT(DISTINCT quote_id) AS "Number of Quotes",
     ifnull(numsubs, 0) AS "Number of Submissions",
-    ROUND(100.0 * COUNT(DISTINCT quote_id) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Quote %",
-    ROUND(100.0 * ifnull(numsubs, 0) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Submission %"
+    ROUND(100.0 * COUNT(DISTINCT quote_id) / (SELECT COUNT(*) FROM quotes), 1) || '%' AS "Quote %",
+    ROUND(100.0 * ifnull(numsubs, 0) / (SELECT COUNT(*) FROM quotes), 1) || '%' AS "Submission %"
 FROM quote_lines
 JOIN participants AS authors USING (participant_id)
 LEFT JOIN (
     SELECT name, COUNT(quote_id) AS numsubs
-    FROM quote
+    FROM quotes
     JOIN participants ON participant_id = submitter
     GROUP BY submitter
 ) AS submissions ON authors.name = submissions.name
@@ -55,7 +55,7 @@ SELECT
     action AS "Action?",
     style AS Style,
     hidden AS "Hidden?"
-FROM quote
+FROM quotes
 JOIN quote_lines USING (quote_id)
 JOIN participants AS submitters ON submitter = submitters.participant_id
 JOIN participants AS authors USING (participant_id);
@@ -63,7 +63,7 @@ JOIN participants AS authors USING (participant_id);
 CREATE VIEW IF NOT EXISTS quote_stats_global AS
 WITH self AS (
     SELECT quote_id, 1 AS selfsub
-    FROM quote
+    FROM quotes
     JOIN quote_lines USING (quote_id)
     GROUP BY quote_id
     HAVING submitter = participant_id AND COUNT(line_num) = 1
@@ -75,7 +75,7 @@ SELECT
     ROUND(100.0 * COUNT(selfsub) / COUNT(DISTINCT top.quote_id), 1) || '%' AS "Self-Sub %",
     "Quotes in Year" AS "Quotes this Year",
     "Avg. Yearly Quotes"
-FROM quote AS top
+FROM quotes AS top
 LEFT JOIN self ON top.quote_id = self.quote_id
 JOIN quote_yearly_quotes ON Year = strftime('%Y', 'now')
 JOIN (
@@ -86,13 +86,13 @@ JOIN (
 CREATE VIEW IF NOT EXISTS quote_stats_user AS
 WITH submissions AS (
     SELECT name, COUNT(quote_id) AS numsubs
-    FROM quote
+    FROM quotes
     JOIN participants ON participant_id = submitter
     GROUP BY submitter
 ),
 self AS (
     SELECT quote_id, 1 AS selfsub
-    FROM quote
+    FROM quotes
     JOIN quote_lines USING (quote_id)
     GROUP BY quote_id
     HAVING submitter = participant_id AND COUNT(line_num) = 1
@@ -102,7 +102,7 @@ year_quotes AS (
         name,
         COUNT(DISTINCT quote_id) AS "Quotes in Year",
         strftime('%Y', submission_date) AS Year
-    FROM quote
+    FROM quotes
     JOIN quote_lines USING (quote_id)
     JOIN participants USING (participant_id)
     GROUP BY name, Year
@@ -112,7 +112,7 @@ year_subs AS (
         name,
         COUNT(DISTINCT quote_id) AS "Submissions in Year",
         strftime('%Y', submission_date) AS Year
-    FROM quote
+    FROM quotes
     JOIN participants ON submitter = participant_id
     GROUP BY name, Year
 ),
@@ -129,16 +129,16 @@ avg_year_subs AS (
 SELECT
     authors.name AS Name,
     "Number of Quotes",
-    ROUND(100.0 * COUNT(DISTINCT top.quote_id) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Quote %",
+    ROUND(100.0 * COUNT(DISTINCT top.quote_id) / (SELECT COUNT(*) FROM quotes), 1) || '%' AS "Quote %",
     "Number of Submissions",
-    ROUND(100.0 * ifnull(numsubs, 0) / (SELECT COUNT(*) FROM quote), 1) || '%' AS "Submission %",
+    ROUND(100.0 * ifnull(numsubs, 0) / (SELECT COUNT(*) FROM quotes), 1) || '%' AS "Submission %",
     COUNT(selfsub) AS "Self-Submissions",
     ROUND(100.0 * COUNT(selfsub) / COUNT(DISTINCT top.quote_id), 1) || '%' AS "Self-Sub %",
     ifnull("Quotes in Year", 0) AS "Quotes this Year",
     ifnull("Submissions in Year", 0) AS "Submissions this Year",
     ROUND(ifnull("Avg. Yearly Quotes", 0), 2) AS "Avg. Yearly Quotes",
     ROUND(ifnull("Avg. Yearly Subs", 0), 2) AS "Avg. Yearly Subs"
-FROM quote AS top
+FROM quotes AS top
 JOIN quote_lines USING (quote_id)
 JOIN participants AS authors USING (participant_id)
 JOIN quote_leaderboard AS lb ON authors.name = lb.name
@@ -154,5 +154,5 @@ CREATE VIEW IF NOT EXISTS quote_yearly_quotes AS
 SELECT
     COUNT(quote_id) AS "Quotes in Year",
     strftime('%Y', submission_date) AS Year
-FROM quote
+FROM quotes
 GROUP BY Year;

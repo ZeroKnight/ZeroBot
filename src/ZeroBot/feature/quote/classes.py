@@ -116,7 +116,7 @@ class Quote(DBModel):
     id
     """
 
-    table_name = "quote"
+    table_name = "quotes"
 
     def __init__(
         self,
