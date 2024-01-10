@@ -8,6 +8,7 @@ reporting quote database statistics.
 from __future__ import annotations
 
 import itertools
+import logging
 import re
 import sqlite3
 import textwrap
@@ -38,6 +39,8 @@ CFG = None
 DB = None
 MOD_ID = __name__.rsplit(".", 2)[-2]
 get_participant = None
+
+logger = logging.getLogger("ZeroBot.Feature.Quote")
 
 MULTILINE_SEP = re.compile(r"(?:\n|\\n)\s*")
 MULTILINE_AUTHOR = re.compile(r"(?:<(.+)>|(.+):)")
@@ -113,7 +116,11 @@ async def module_on_message(ctx, message):
         server = message.server.name
     except AttributeError:
         server = "__DM__"
-        channel = message.destination.recipient.name
+        if message.destination.recipient is None:
+            # XXX: Stupid Discord intents. Is there a way to force this into cache?
+            channel = (await ctx.fetch_channel(message.destination.id)).recipient.name
+        else:
+            channel = message.destination.recipient.name
     else:
         channel = message.destination.name
     last_messages.setdefault(ctx.protocol, {}).setdefault(server, {})[channel] = message

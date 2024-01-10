@@ -292,7 +292,10 @@ async def module_command_obit(ctx, parsed):
             import discord
 
             if isinstance(parsed.source, discord.DMChannel):
-                chosen = random.choice((ctx.user, parsed.source.recipient))
+                # XXX: Stupid Discord intents.
+                if dm_user := parsed.source.recipient is None:
+                    dm_user = (await ctx.fetch_channel(parsed.source.id)).recipient
+                chosen = random.choice((ctx.user, dm_user))
             else:
                 chosen = random.choice(parsed.source.members)
             victim = killer
@@ -347,7 +350,8 @@ async def module_command_obitdb(ctx, parsed):
             await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
         else:
             await obit_edit(ctx, parsed, otype, content, pattern, repl, flags)
-    else: ...  # TODO
+    else:
+        ...  # TODO
 
 
 async def obit_exists(otype: ObitPart, content: str) -> bool:
