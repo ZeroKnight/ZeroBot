@@ -292,10 +292,14 @@ async def module_command_obit(ctx, parsed):
             import discord
 
             if isinstance(parsed.source, discord.DMChannel):
-                # XXX: Stupid Discord intents.
-                if dm_user := parsed.source.recipient is None:
-                    dm_user = (await ctx.fetch_channel(parsed.source.id)).recipient
-                chosen = random.choice((ctx.user, dm_user))
+                if (channel := ctx.get_channel(parsed.source.id)) is None:
+                    # XXX: Discord intents shenanigans
+                    # Fetch and cache the DMChannel and associated User
+                    logger.debug(f"Fetching DMChannel for {parsed.invoker}")
+                    channel = await parsed.invoker.create_dm()
+                else:
+                    logger.debug(f"Using cached DMChannel for {parsed.invoker}")
+                chosen = random.choice((ctx.user, channel.recipient))
             else:
                 chosen = random.choice(parsed.source.members)
             victim = killer

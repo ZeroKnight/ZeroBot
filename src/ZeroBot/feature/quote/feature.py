@@ -116,14 +116,17 @@ async def module_on_message(ctx, message):
         server = message.server.name
     except AttributeError:
         server = "__DM__"
-        if message.destination.recipient is None:
-            # XXX: Stupid Discord intents. Is there a way to force this into cache?
-            channel = (await ctx.fetch_channel(message.destination.id)).recipient.name
+        if (channel := ctx.get_channel(message.destination.id)) is None:
+            # XXX: Discord intents shenanigans
+            # Fetch and cache the DMChannel and associated User
+            logger.debug(f"Fetching DMChannel for {message.source}")
+            channel = await message.source.create_dm()
         else:
-            channel = message.destination.recipient.name
+            logger.debug(f"Using cached DMChannel for {message.source}")
+        channel = channel.recipient
     else:
-        channel = message.destination.name
-    last_messages.setdefault(ctx.protocol, {}).setdefault(server, {})[channel] = message
+        channel = message.destination
+    last_messages.setdefault(ctx.protocol, {}).setdefault(server, {})[channel.name] = message
 
 
 async def module_on_join(ctx, channel, user):
