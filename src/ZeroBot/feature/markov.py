@@ -746,7 +746,7 @@ async def module_command_markov(ctx, parsed):
         size = path.stat().st_size / 1024**2
         response = f"Dumped chain to {path} ({size:,.2f}MB)"
 
-    await ctx.module_message(parsed.source, response)
+    await ctx.module_message(response, parsed.source)
 
 
 async def make_focused_chain(target: str) -> MarkovSentenceGenerator:
@@ -805,6 +805,6 @@ async def module_command_talk(ctx, parsed):
                 "I hurt my head trying to think of something for that...",
             )
         )
-        await ctx.module_message(parsed.source, f"{parsed.invoker.mention} {idk_response}")
+        await ctx.module_message(f"{parsed.invoker.mention} {idk_response}", parsed.source)
     else:
-        await ctx.module_message(parsed.source, sentence)
+        await ctx.module_message(sentence, parsed.source)

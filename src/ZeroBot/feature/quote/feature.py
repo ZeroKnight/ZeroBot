@@ -144,7 +144,7 @@ async def module_command_quote(ctx, parsed):
         if quote is None:
             await ctx.reply_command_result(parsed, "Uh, there are no quotes...")
             return
-        await ctx.module_message(parsed.msg.destination, quote)
+        await ctx.module_message(quote, parsed.msg.destination)
 
 
 async def execute_opt_case(cursor, sql: str, params: tuple | None = None, *, case_sensitive: bool = False):
@@ -366,7 +366,7 @@ async def quote_add(ctx, parsed):
         await quote.add_line(body, author, action)
 
     await quote.save()
-    await ctx.module_message(parsed.msg.destination, f"Okay, adding: {quote}")
+    await ctx.module_message(f"Okay, adding: {quote}", parsed.msg.destination)
 
 
 async def quote_del(ctx, parsed):
@@ -406,7 +406,7 @@ async def quote_del(ctx, parsed):
         await ctx.reply_command_result(parsed, f"Couldn't find a quote with that {criteria}.")
         return
     await quote.delete()
-    await ctx.module_message(parsed.source, f"Okay, removed quote: {quote}")
+    await ctx.module_message(f"Okay, removed quote: {quote}", parsed.source)
 
 
 async def quote_recent(ctx, parsed):
@@ -514,7 +514,7 @@ async def quote_search(ctx, parsed):
     elif isinstance(result, int):
         await ctx.reply_command_result(parsed, f"I found {result} quotes matching that {criteria}")
     else:
-        await ctx.module_message(parsed.msg.destination, result)
+        await ctx.module_message(result, parsed.msg.destination)
 
 
 async def quote_stats(ctx, parsed):
@@ -598,7 +598,7 @@ async def quote_stats(ctx, parsed):
         )
         result.append(line)
     result.append("```")
-    await ctx.module_message(parsed.msg.destination, "\n".join(result))
+    await ctx.module_message("\n".join(result), parsed.msg.destination)
 
 
 async def quote_stats_leaderboard(ctx, parsed, count):
@@ -690,7 +690,7 @@ async def quote_stats_leaderboard(ctx, parsed, count):
                 name = row["Name"]
                 break
         table = "\n".join(generate_table(rows, (1, name)))
-    await ctx.module_message(parsed.msg.destination, f"```\n{table}\n```")
+    await ctx.module_message(f"```\n{table}\n```", parsed.msg.destination)
 
 
 async def quote_quick(ctx, parsed):
@@ -776,4 +776,4 @@ async def quote_quick(ctx, parsed):
     for line in reversed(lines):
         await quote.add_line(*line)
     await quote.save()
-    await ctx.module_message(parsed.msg.destination, f"Okay, adding: {quote}")
+    await ctx.module_message(f"Okay, adding: {quote}", parsed.msg.destination)

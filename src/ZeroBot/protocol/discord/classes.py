@@ -1,29 +1,26 @@
 """protocol/discord/classes.py
 
-Discord Implementation of ZeroBot.common.abc classes.
+Discord Implementation of ZeroBot.context classes
 """
 
 from __future__ import annotations
 
+import datetime
 import re
 
 import discord
 
-import ZeroBot.common.abc as zabc
+import ZeroBot.context as zctx
 from ZeroBot.util import gen_repr
 
 ACTION_PATTERN = re.compile(r"^\*(?:[^*]|(?<=\\)\*)*\*$")
 
 
-class DiscordUser(zabc.User, discord.User):
+class DiscordUser(zctx.User, discord.User):
     """Represents a Discord User."""
 
     def __init__(self, user: discord.User):
         self._original = user
-
-        # ZeroBot interface overrides
-        self.name = user.display_name
-        self.username = user.name + user.discriminator
 
     def __getattr__(self, name):
         return getattr(self._original, name)
@@ -33,12 +30,21 @@ class DiscordUser(zabc.User, discord.User):
         extras = {"id": self._original.id}
         return gen_repr(self, attrs, **extras)
 
-    def __str__(self):
-        return self.name
-
     @property
     def original(self):
         return self._original
+
+    @property
+    def name(self) -> str:
+        return self._original.display_name
+
+    @property
+    def username(self) -> str:
+        return self._original.name
+
+    @property
+    def bot(self) -> bool:
+        return self._original.bot
 
     def mention(self) -> str:
         return self._original.mention
@@ -47,20 +53,15 @@ class DiscordUser(zabc.User, discord.User):
         return self._original.mentioned_in(message) or re.search(self.name, message.content, re.I)
 
     def mention_pattern(self) -> str:
-        """Return a pattern that matches the bare name or a mention."""
-        # The mention string differs by a '!' if it mentions
-        # a nickname or not.
+        # The mention string differs by a '!' if it mentions a nickname or not.
         return f"({self.name}|<@!?{self.id}>)"
 
 
-class DiscordServer(zabc.Server, discord.Guild):
-    """Represents a Discord Server (or Guild)."""
+class DiscordServer(zctx.Server, discord.Guild):
+    """Represents a Discord Server (Guild)."""
 
     def __init__(self, server: discord.Guild):
         self._original = server
-        self.name = server.name
-        self.port = None  # Not applicable to Discord servers
-        self.ipv6 = None  # Not applicable to Discord servers
 
     def __getattr__(self, name):
         return getattr(self._original, name)
@@ -70,37 +71,24 @@ class DiscordServer(zabc.Server, discord.Guild):
         extras = {"id": self._original.id, "region": self._original.region}
         return gen_repr(self, attrs, **extras)
 
-    def __str__(self):
-        return self.name
-
     @property
     def original(self):
         return self._original
 
     @property
-    def hostname(self) -> str:
-        """Alias for `self.name`.
-
-        Discord servers don't have hostnames in the traditional sense.
-        """
-        return self.name
+    def name(self) -> str:
+        return self._original.name
 
     @property
     def connected(self) -> bool:
         return not self._original.unavailable
 
 
-class DiscordChannel(zabc.Channel, discord.TextChannel):
+class DiscordChannel(zctx.Channel, discord.TextChannel):
     """Represents a Discord channel of any type, private or otherwise."""
 
     def __init__(self, channel: discord.TextChannel):
         self._original = channel
-        self.password = None  # Not applicable to Discord channels
-        if channel.type == discord.ChannelType.private:
-            self.name = channel.recipient.display_name
-        else:
-            self.name = channel.name
-        self.type = channel.type
 
     def __getattr__(self, name):
         return getattr(self._original, name)
@@ -114,9 +102,6 @@ class DiscordChannel(zabc.Channel, discord.TextChannel):
         }
         return gen_repr(self, attrs, **extras)
 
-    def __str__(self):
-        return self.name
-
     def __eq__(self, other):
         return self._original == other._original
 
@@ -124,16 +109,21 @@ class DiscordChannel(zabc.Channel, discord.TextChannel):
     def original(self):
         return self._original
 
+    @property
+    def name(self) -> str:
+        if self._original.type == discord.ChannelType.private:
+            return self._original.recipient.display_name
+        return self._original.name
 
-class DiscordMessage(discord.Message, zabc.Message):
+    @property
+    def server(self) -> DiscordServer:
+        return self._original.guild
+
+
+class DiscordMessage(discord.Message, zctx.Message):
     """Represents a Discord message of any type."""
 
     def __init__(self, message: discord.Message):
-        self.source = message.author
-        self.destination = message.channel
-        self.server = message.guild
-        self.content = message.content
-        self.time = message.created_at
         self._original = message
 
     def __getattr__(self, name):
@@ -149,11 +139,32 @@ class DiscordMessage(discord.Message, zabc.Message):
         }
         return gen_repr(self, attrs, **extras)
 
-    def __str__(self):
-        return self.content
-
     def __eq__(self, other):
         return self._original == other._original
+
+    @property
+    def original(self):
+        return self._original
+
+    @property
+    def content(self) -> str:
+        return self._original.content
+
+    @property
+    def source(self) -> DiscordUser:
+        return self._original.author
+
+    @property
+    def destination(self) -> DiscordChannel:
+        return self._original.channel
+
+    @property
+    def time(self) -> datetime.datetime:
+        return self._original.created_at
+
+    @property
+    def server(self) -> DiscordServer:
+        return self._original.guild
 
     @staticmethod
     def is_action_str(string: str) -> bool:
@@ -169,7 +180,3 @@ class DiscordMessage(discord.Message, zabc.Message):
     def strip_action_str(string: str) -> str:
         """Strip the action formatting from the given string."""
         return string[1:-1]
-
-    @property
-    def original(self):
-        return self._original

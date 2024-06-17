@@ -14,14 +14,13 @@ from discord import ChannelType
 
 from ZeroBot import util
 from ZeroBot.common import ConfigCmdStatus, ModuleCmdStatus
-from ZeroBot.common.abc import ProtocolSupport
-from ZeroBot.protocol.context import Context
+from ZeroBot.context import Context, ProtocolSupport
 
 from .classes import DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
 
 MODULE_NAME = "Discord"
 MODULE_AUTHOR = "ZeroKnight"
-MODULE_VERSION = "0.1"
+MODULE_VERSION = "0.2"
 MODULE_LICENSE = "MIT"
 MODULE_DESC = "Discord protocol implementation"
 
@@ -140,6 +139,10 @@ class DiscordContext(Context, discord.Client):
             raise TypeError(f"expected a DiscordUser object, not {type(user)}")
 
     @property
+    def user(self) -> DiscordUser:
+        return DiscordUser(super().user)
+
+    @property
     def support() -> ProtocolSupport:
         return (
             ProtocolSupport.MessageMultiLine
@@ -153,14 +156,24 @@ class DiscordContext(Context, discord.Client):
             | ProtocolSupport.Embeds
         )
 
-    @property
-    def user(self) -> DiscordUser:
-        return DiscordUser(super().user)
-
-    async def module_message(self, destination: DiscordServer, message: str, action: bool = False):
+    async def module_message(
+        self,
+        content: str,
+        destination: DiscordChannel,
+        *,
+        action: bool = False,
+        mention_user: DiscordUser | None = None,
+    ):
         if action:
-            message = f"*{message}*"
-        await destination.send(message)
+            content = DiscordMessage.as_action_str(content)
+        if mention_user:
+            content = f"{mention_user.mention()} {content}"
+        await destination.send(content)
+
+    async def module_reply(self, content: str, referent: DiscordMessage, *, action: bool = False):
+        if action:
+            content = DiscordMessage.as_action_str(content)
+        await referent.channel.send(content, reference=referent)
 
     async def module_join(self, where, password=None):
         """Not applicable to Discord bots."""

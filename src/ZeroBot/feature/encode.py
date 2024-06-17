@@ -204,4 +204,4 @@ async def module_command_algorithms(ctx, parsed):
     lines.append(", ".join(encoder for encoder in sorted(encoders)))
     lines.append("\n**Available Decoders**")
     lines.append(", ".join(decoder for decoder in sorted(decoders)))
-    await ctx.module_message(parsed.source, "\n".join(lines))
+    await ctx.module_message("\n".join(lines), parsed.source)

@@ -323,7 +323,7 @@ async def module_command_obit(ctx, parsed):
     obituary = obit_template.safe_substitute(placeholders).replace("themself's", "their")
 
     await update_death_toll(killer, victim)
-    await ctx.module_message(parsed.source, obituary)
+    await ctx.module_message(obituary, parsed.source)
 
 
 async def module_command_obitdb(ctx, parsed):
@@ -400,7 +400,7 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
             (content, otype.value, submitter.id, date),
         )
     await DB.commit()
-    await ctx.module_message(parsed.source, f"Okay, adding {otype.name}: `{content}`")
+    await ctx.module_message(f"Okay, adding {otype.name}: `{content}`", parsed.source)
 
 
 async def obit_del(ctx, parsed, otype: ObitPart, content: str):
@@ -414,7 +414,7 @@ async def obit_del(ctx, parsed, otype: ObitPart, content: str):
             (otype.value, content),
         )
     await DB.commit()
-    await ctx.module_message(parsed.source, f"Okay, removed {otype.name}: `{content}`")
+    await ctx.module_message(f"Okay, removed {otype.name}: `{content}`", parsed.source)
 
 
 async def obit_edit(
@@ -449,7 +449,7 @@ async def obit_edit(
             (edited, otype.value, content),
         )
     await DB.commit()
-    await ctx.module_message(parsed.source, f"Okay, content is now: `{edited}`")
+    await ctx.module_message(f"Okay, content is now: `{edited}`", parsed.source)
 
 
 async def module_command_obitstats(ctx, parsed):
@@ -493,7 +493,7 @@ async def module_command_obitstats(ctx, parsed):
             )
             rows = await cur.fetchall()
         if not rows:
-            await ctx.module_message(parsed.source, "Amazingly, not a single soul has perished yet.")
+            await ctx.module_message("Amazingly, not a single soul has perished yet.", parsed.source)
             return
         kills, deaths, suicides = [], [], []
         for row in rows:
@@ -508,7 +508,7 @@ async def module_command_obitstats(ctx, parsed):
             if top_ranks:
                 users = ", ".join(f"{user[0]} ({user[1]})" for user in top_ranks)
                 msg.append(f"**Most {category}**: {users}")
-        await ctx.module_message(parsed.source, "\n".join(msg))
+        await ctx.module_message("\n".join(msg), parsed.source)
     else:
         try:
             user = await find_participant(parsed.args["user"].lstrip("@"))
@@ -527,4 +527,4 @@ async def module_command_obitstats(ctx, parsed):
         murderer = await Participant.from_id(DB, row["last_murderer"])
         msg = [f"{user.name} has {row['kills']} kills, {row['deaths']} deaths, and {row['suicides']} suicides."]
         msg.append(_format_last_kd(user, (victim, row["last_kill"]), (murderer, row["last_death"])))
-        await ctx.module_message(parsed.source, " ".join(msg))
+        await ctx.module_message(" ".join(msg), parsed.source)

@@ -385,11 +385,11 @@ def or_join(iterable: Iterable, separator: str = ", ") -> str:
 async def announce(ctx, destination, counter: Counter, /, **kwargs):
     """Announce the current count of a `Counter` somewhere."""
     announcement = counter.get_announcement(**kwargs)
-    await ctx.module_message(destination, announcement)
+    await ctx.module_message(announcement, destination)
     if (msg := SPECIAL_NUMBERS.get(counter.count)) is not None:
         await asyncio.sleep(1)
         action = msg.startswith("*") and msg.endswith("*")
-        await ctx.module_message(destination, msg, action)
+        await ctx.module_message(msg, destination, action)
 
 
 async def module_on_message(ctx, message):
@@ -427,7 +427,7 @@ async def module_command_count(ctx, parsed):
         channel = parsed.invoker.name
     await counter.increment(parsed.args["count"], participant=sender.name, channel=channel)
     if parsed.args["quiet"]:
-        await ctx.module_message(parsed.source, "Okay, done.")
+        await ctx.module_message("Okay, done.", parsed.source)
     else:
         await announce(ctx, parsed.source, counter, user=sender.name)
 
@@ -478,4 +478,4 @@ async def module_command_counter(ctx, parsed):
             f"**Created**: {counter.created_at}\n"
             f"**Last Triggered**: {last_triggered} by {last_user}\n"
         )
-    await ctx.module_message(parsed.source, response)
+    await ctx.module_message(response, parsed.source)

@@ -192,7 +192,7 @@ async def module_command_8ball(ctx, parsed):
 
     if not re.search(r"\?[!?]*$", question):
         phrase, action, *_ = await fetch_part(ResponseType.NotAQuestion)
-        await ctx.module_message(parsed.msg.destination, phrase, action)
+        await ctx.module_message(phrase, parsed.msg.destination, action)
         return
 
     intro = ResponsePart(*(await fetch_part(ResponseType.Intro)))
@@ -239,4 +239,4 @@ async def module_command_8ball(ctx, parsed):
     output += f"\n{outro}"
     output = Template(output).safe_substitute({"zerobot": ctx.user.name, "asker": parsed.invoker.name})
 
-    await ctx.module_message(parsed.msg.destination, output)
+    await ctx.module_message(output, parsed.msg.destination)

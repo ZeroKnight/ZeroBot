@@ -269,12 +269,12 @@ async def module_on_message(ctx, message):
         if rand_chance(CFG.get("Berate.Chance", DEFAULT_BERATE_CHANCE)):
             phrase, action = await fetch_phrase("berate", ["action"])
             phrase.replace("%0", sender.name)
-            await ctx.module_message(message.destination, phrase, action)
+            await ctx.module_message(phrase, message.destination, action)
             return
 
     # wat
     if PATTERN_WAT.search(message.content):
-        await ctx.module_message(message.destination, random.choice(("wat", "wut", "wot", "what", "whut")))
+        await ctx.module_message(random.choice(("wat", "wut", "wot", "what", "whut")), message.destination)
         return
 
     # Answer Questions
@@ -298,19 +298,19 @@ async def module_on_message(ctx, message):
                         action = True
                 else:
                     phrase, action = await fetch_phrase("questioned", ["action"])
-                await ctx.module_message(message.destination, phrase, action)
+                await ctx.module_message(phrase, message.destination, action)
                 return
 
     # Respond to being mentioned... oddly
     if CFG.get("Mentioned.Enabled") and ctx.user.mentioned(message):
         phrase, action = await fetch_phrase("mentioned", ["action"])
-        await ctx.module_message(message.destination, phrase, action)
+        await ctx.module_message(phrase, message.destination, action)
         return
 
     # Dots...!
     if match := PATTERN_DOTS.search(message.content):
         dots = "".join(random.choices(EXCLAMATION_CHARS + QUESTION_CHARS, k=random.randint(1, 3)))
-        await ctx.module_message(message.destination, f"{match[1] or match[2]}{dots}")
+        await ctx.module_message(f"{match[1] or match[2]}{dots}", message.destination)
         return
 
 
@@ -324,7 +324,7 @@ async def module_on_join(ctx, channel, user):
             kicked_from.remove(channel)
     else:
         phrase, action = await fetch_phrase("greetings", ["action"])
-        await ctx.module_message(channel, phrase, action)
+        await ctx.module_message(phrase, channel, action)
 
 
 async def module_on_invalid_command(ctx, cmd_msg, err=CmdErrorType.Unspecified):
@@ -337,7 +337,7 @@ async def module_on_invalid_command(ctx, cmd_msg, err=CmdErrorType.Unspecified):
         # ZeroBot might still be vague regardless
         err = CmdErrorType.Unspecified
     phrase, action = await fetch_phrase("badcmd", ["action"], "WHERE error_type = ?", (err.value,))
-    await ctx.module_message(cmd_msg.destination, phrase, action)
+    await ctx.module_message(phrase, cmd_msg.destination, action)
 
 
 async def module_on_kick(ctx, channel, user):
@@ -358,7 +358,7 @@ async def module_command_say(ctx, parsed):
     else:
         targets.append(parsed.msg.destination)
     for target in targets:
-        await ctx.module_message(target, " ".join(parsed.args["msg"]), parsed.args["action"])
+        await ctx.module_message(" ".join(parsed.args["msg"]), target, parsed.args["action"])
 
 
 async def module_command_fortune(ctx, parsed):
