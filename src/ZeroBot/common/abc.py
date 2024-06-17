@@ -6,7 +6,29 @@ Provides protocol-agnostic abstract base classes used throughout ZeroBot.
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from enum import Flag, auto
 from typing import Any
+
+
+class ProtocolSupport(Flag):
+    """Enum of functionality that varies between protocols.
+
+    Protocols can be quite different from one another in terms of what can be
+    done within them; this enumeration allows them to specify support of
+    generally known features among chat protocols.
+    """
+
+    MessageMultiLine = auto()
+    MessageColor = auto()
+    StatusMessage = auto()
+    AwayMessage = auto()
+    Visibility = auto()  # Online, Away/Idle, Invisible, Offline, etc.
+    Roles = auto()
+    VoiceChat = auto()
+    VideoChat = auto()
+    ScreenShare = auto()
+    Attachments = auto()
+    Embeds = auto()
 
 
 class ProtocolDetails(metaclass=ABCMeta):

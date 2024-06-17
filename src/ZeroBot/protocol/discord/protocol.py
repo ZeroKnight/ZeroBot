@@ -14,6 +14,7 @@ from discord import ChannelType
 
 from ZeroBot import util
 from ZeroBot.common import ConfigCmdStatus, ModuleCmdStatus
+from ZeroBot.common.abc import ProtocolSupport
 from ZeroBot.protocol.context import Context
 
 from .classes import DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
@@ -137,6 +138,20 @@ class DiscordContext(Context, discord.Client):
             self._owner = user
         else:
             raise TypeError(f"expected a DiscordUser object, not {type(user)}")
+
+    @property
+    def support() -> ProtocolSupport:
+        return (
+            ProtocolSupport.MessageMultiLine
+            | ProtocolSupport.StatusMessage
+            | ProtocolSupport.Visibility
+            | ProtocolSupport.Roles
+            | ProtocolSupport.VoiceChat
+            | ProtocolSupport.VideoChat
+            | ProtocolSupport.ScreenShare
+            | ProtocolSupport.Attachments
+            | ProtocolSupport.Embeds
+        )
 
     @property
     def user(self) -> DiscordUser:

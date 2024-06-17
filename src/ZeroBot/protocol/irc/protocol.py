@@ -11,6 +11,7 @@ import logging
 import pydle
 from pydle.features.ircv3.tags import TaggedMessage
 
+from ZeroBot.common.abc import ProtocolSupport
 from ZeroBot.config import Config
 
 from ..context import Context
@@ -430,6 +431,15 @@ class IRCContext(Context, pydle.Client):
             await CORE.module_send_event("user_offline", self, zb_user)
 
     # ZeroBot Interface
+
+    @property
+    def support() -> ProtocolSupport:
+        return (
+            ProtocolSupport.MessageColor
+            | ProtocolSupport.AwayMessage
+            | ProtocolSupport.Visibility
+            | ProtocolSupport.Roles
+        )
 
     async def module_join(self, where, password=None):
         logger.info(f"Joining channel {where}")

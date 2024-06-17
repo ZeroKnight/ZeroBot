@@ -30,7 +30,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Any
 
 from ZeroBot.common import ParsedCommand
-from ZeroBot.common.abc import Channel, Message, User
+from ZeroBot.common.abc import Channel, Message, ProtocolSupport, User
 
 
 class Context(metaclass=ABCMeta):
@@ -98,6 +98,16 @@ class Context(metaclass=ABCMeta):
     @owner.setter
     @abstractmethod
     def owner(self, user: User): ...
+
+    @property
+    @abstractmethod
+    def support(self) -> ProtocolSupport:
+        """A set of `ProtocolSupport` flags that this protocol supports.
+
+        While each protocol implementation can offer flexibility in what it
+        accepts versus what it explicitly supports, feature modules may check
+        these flags to alter their behavior accordingly.
+        """
 
     @abstractmethod
     async def module_message(self, destination: Any, message: str):
