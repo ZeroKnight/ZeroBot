@@ -187,11 +187,11 @@ class DiscordContext(Context, discord.Client):
         """
         CORE.logger.error("'module_leave' is not applicable to Discord bots.")
 
-    async def reply_command_result(self, command, result):
-        mention_str = command.invoker.mention
-        if isinstance(result, list):
-            result = "\n".join(result)
-        await command.source.send(f"{mention_str}\n{result}")
+    # TODO: Result-based styling
+    async def reply_command_result(self, message, command, result):
+        if isinstance(message, list):
+            message = "\n".join(message)
+        await command.source.send(f"{command.invoker.mention}\n{message}")
 
     async def core_command_help(self, help_cmd, result):
         embed = discord.Embed(title="Help", color=discord.Color.teal())

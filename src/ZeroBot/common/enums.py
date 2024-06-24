@@ -9,20 +9,29 @@ from enum import Enum, unique
 
 
 @unique
-class CmdErrorType(Enum):
-    """Enum of different error categories for invalid or failed commands.
+class CmdResult(Enum):
+    """Enum of command result types.
 
-    Primarily passed to `invalid_command` events to give a general idea of
-    why a command was invalid or why it failed.
+    Indicates how a command ultimately completed, successfully or otherwise.
+    Commonly used with `invalid_command` events and `reply_command_result`
+    callbacks in protocol modules.
     """
 
-    Unspecified = 1
-    NotFound = 2
-    BadSyntax = 3
-    AmbiguousArgument = 4
-    NoResults = 5
-    OutputTooLong = 6
-    BadTarget = 7
+    Success = 0  # Command completed successfully
+    Unspecified = 1  # Generic or unspecified failure
+    NotFound = 2  # Command yielded no results or something requested wasn't found
+    BadSyntax = 3  # A command was ill-formed in some way
+    AmbiguousArgument = 4  # A command argument was ambiguous
+    TooLong = 6  # A command either returned or received too much information
+    BadTarget = 7  # A command was well-formed, but its target was invalid
+    NotImplemented = 8  # Something is not implemented, so the command cannot be executed
+    Unavailable = 9  # Something is unavailable, missing, etc.
+    NoPermission = 10  # Insufficient permission to use or perform a specific action with a command
+    Exists = 11  # Something already exists
+
+    def failed(self) -> bool:
+        """Whether the command result is any of the failure results."""
+        return self is not self.Success
 
 
 @unique

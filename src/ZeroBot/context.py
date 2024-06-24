@@ -33,6 +33,7 @@ from enum import Flag, auto
 from typing import Any
 
 from ZeroBot.common import ParsedCommand
+from ZeroBot.common.enums import CmdResult
 
 
 class ProtocolSupport(Flag):
@@ -370,7 +371,7 @@ class Context(metaclass=ABCMeta):
     @abstractmethod
     async def module_message(
         self,
-        message: str,
+        content: str,
         destination: str | User | Channel | Server,
         *,
         action: bool = False,
@@ -401,8 +402,12 @@ class Context(metaclass=ABCMeta):
         """Leave the given channel, with optional reason."""
 
     @abstractmethod
-    async def reply_command_result(self, command: ParsedCommand, result: str | Message):
+    async def reply_command_result(
+        self, message: str | list[str], command: ParsedCommand, result: CmdResult = CmdResult.Success
+    ):
         """Called by feature modules to display command output.
+
+        Sends a reply to the command invoker about the result of the command.
 
         This method should handle formatting the result best suited for the
         protocol, i.e. some protocols support various markup and formatting

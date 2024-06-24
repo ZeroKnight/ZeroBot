@@ -24,7 +24,7 @@ from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Union
 from urllib.parse import urlparse
 
 from ZeroBot.common import CommandParser
-from ZeroBot.common.enums import CmdErrorType
+from ZeroBot.common.enums import CmdResult
 from ZeroBot.database import find_participant as findpart
 from ZeroBot.database import get_participant as getpart
 from ZeroBot.database import get_source as getsrc
@@ -712,7 +712,9 @@ async def module_command_markov(ctx, parsed):
     if subcmd == "learn":
         if parsed.args["state"] is not None:
             if parsed.invoker != ctx.owner:
-                await ctx.reply_command_result(parsed, f"Sorry, currently only {ctx.owner.name} can do that.")
+                await ctx.reply_command_result(
+                    f"Sorry, currently only {ctx.owner.name} can do that.", parsed, CmdResult.NoPermission
+                )
                 return
             state = parsed.args["state"] == "on"
             CFG["Learning.Enabled"] = state
@@ -732,7 +734,9 @@ async def module_command_markov(ctx, parsed):
         )
     elif subcmd == "rebuild":
         if parsed.invoker != ctx.owner:
-            await ctx.reply_command_result(parsed, f"Sorry, currently only {ctx.owner.name} can do that.")
+            await ctx.reply_command_result(
+                f"Sorry, currently only {ctx.owner.name} can do that.", parsed, CmdResult.NoPermission
+            )
             return
         before = await CORE.run_async(CHAIN.corpus_counts)
         await CORE.run_async(CHAIN.rebuild)
@@ -740,7 +744,9 @@ async def module_command_markov(ctx, parsed):
         response = f"Chain rebuilt with a line delta of {after[0] - before[0]:+,}"
     elif subcmd == "dump":
         if parsed.invoker != ctx.owner:
-            await ctx.reply_command_result(parsed, f"Sorry, currently only {ctx.owner.name} can do that.")
+            await ctx.reply_command_result(
+                f"Sorry, currently only {ctx.owner.name} can do that.", parsed, CmdResult.NoPermission
+            )
             return
         path = await CORE.run_async(update_chain_dump)
         size = path.stat().st_size / 1024**2
@@ -775,10 +781,10 @@ async def module_command_talk(ctx, parsed):
                 chain = await make_focused_chain(focus)
                 FOCUSED_CHAINS[focus] = chain
             except ValueError:
-                await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NotFound)
+                await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.NotFound)
                 return
             except NotImplementedError as ex:
-                await ctx.reply_command_result(parsed, ex.msg)
+                await ctx.reply_command_result(ex.msg, parsed, CmdResult.NotImplemented)
                 return
     else:
         chain = CHAIN

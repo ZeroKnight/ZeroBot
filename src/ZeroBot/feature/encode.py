@@ -17,7 +17,7 @@ from io import StringIO
 from zlib import adler32
 
 from ZeroBot.common import CommandParser
-from ZeroBot.common.enums import CmdErrorType
+from ZeroBot.common.enums import CmdResult
 
 MODULE_NAME = "Encode"
 MODULE_AUTHOR = "ZeroKnight"
@@ -185,7 +185,7 @@ async def handle_transform(ctx, parsed, method):
             xcoder = method[base_algo]
             args = (data, suffix)
         except KeyError:
-            await ctx.reply_command_result(parsed, "I don't know that algorithm...")
+            await ctx.reply_command_result("I don't know that algorithm...", parsed, CmdResult.NotImplemented)
     else:
         args = (data,)
     try:
@@ -193,9 +193,9 @@ async def handle_transform(ctx, parsed, method):
         if case is not None:
             digest = case(digest)
     except Exception:
-        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
         return
-    await ctx.reply_command_result(parsed, digest)
+    await ctx.reply_command_result(digest, parsed)
 
 
 async def module_command_algorithms(ctx, parsed):

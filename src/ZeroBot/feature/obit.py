@@ -19,7 +19,7 @@ from importlib import resources
 from string import Template, punctuation
 
 from ZeroBot.common import CommandParser, rand_chance
-from ZeroBot.common.enums import CmdErrorType
+from ZeroBot.common.enums import CmdResult
 from ZeroBot.database import Participant
 from ZeroBot.database import find_participant as findpart
 from ZeroBot.database import get_participant as getpart
@@ -331,7 +331,7 @@ async def module_command_obitdb(ctx, parsed):
     content = " ".join(parsed.args["content"]).strip()
     content = re.sub(r"\B@(\S+)", r"\1", content)
     if not content:
-        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
         return
     otype = getattr(ObitPart, parsed.args["type"].title())
     if parsed.subcmd in {"add", "del"}:
@@ -351,7 +351,7 @@ async def module_command_obitdb(ctx, parsed):
             else:
                 raise ValueError("Bad sed pattern")
         except ValueError:
-            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
         else:
             await obit_edit(ctx, parsed, otype, content, pattern, repl, flags)
     else:
@@ -377,7 +377,7 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
     """Add an obituary part to the database."""
     # Quality heuristics
     if len(content) > 200:
-        await ctx.reply_command_result(parsed, "That's too long, cut it down some.")
+        await ctx.reply_command_result("That's too long, cut it down some.", parsed, CmdResult.TooLong)
     if otype is ObitPart.Kill:
         if content.endswith(" with"):
             content = content[:-5]
@@ -385,11 +385,13 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
             content += " $victim"
     elif otype in {ObitPart.Closer, ObitPart.Suicide}:
         if content[0] in punctuation and not content.startswith("..."):
-            await ctx.reply_command_result(parsed, "Don't start closers with punctuation (ellipses are fine).")
+            await ctx.reply_command_result(
+                "Don't start closers with punctuation (ellipses are fine).", parsed, CmdResult.BadSyntax
+            )
             return
 
     if await obit_exists(otype, content):
-        await ctx.reply_command_result(parsed, f"There is already a {otype.name}: `{content}`")
+        await ctx.reply_command_result(f"There is already a {otype.name}: `{content}`", parsed, CmdResult.Exists)
         return
     date = datetime.utcnow()
     submitter = await get_participant(parsed.invoker.name)
@@ -406,7 +408,7 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
 async def obit_del(ctx, parsed, otype: ObitPart, content: str):
     """Remove an obituary part from the database."""
     if not await obit_exists(otype, content):
-        await ctx.reply_command_result(parsed, f"Couldn't find {otype.name}: `{content}`")
+        await ctx.reply_command_result(f"Couldn't find {otype.name}: `{content}`", parsed, CmdResult.NotFound)
         return
     async with DB.cursor() as cur:
         await cur.execute(
@@ -428,7 +430,7 @@ async def obit_edit(
 ):
     """Edit an obituary part in the database."""
     if not await obit_exists(otype, content):
-        await ctx.reply_command_result(parsed, f"Couldn't find {otype.name}: `{content}`")
+        await ctx.reply_command_result(f"Couldn't find {otype.name}: `{content}`", parsed, CmdResult.NotFound)
         return
     count, re_flags = 1, 0
     if flags is not None:
@@ -470,7 +472,7 @@ async def module_command_obitstats(ctx, parsed):
 
     if parsed.args["global"] and parsed.args["user"]:
         # These are mutually exclusive arguments
-        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
         return
     if parsed.args["global"]:
         async with DB.cursor() as cur:
@@ -515,13 +517,13 @@ async def module_command_obitstats(ctx, parsed):
         except AttributeError:
             user = await find_participant(parsed.invoker.name)
         except ValueError:
-            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
             return
         async with DB.cursor() as cur:
             await cur.execute("SELECT * FROM obit WHERE participant_id = ?", (user.id,))
             row = await cur.fetchone()
         if row is None:
-            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NoResults)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadTarget)
             return
         victim = await Participant.from_id(DB, row["last_victim"])
         murderer = await Participant.from_id(DB, row["last_murderer"])

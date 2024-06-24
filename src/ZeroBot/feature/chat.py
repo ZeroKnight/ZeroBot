@@ -18,7 +18,7 @@ from importlib import resources
 from typing import Iterable
 
 from ZeroBot.common import CommandParser, rand_chance
-from ZeroBot.common.enums import CmdErrorType
+from ZeroBot.common.enums import CmdResult
 
 try:
     import discord
@@ -327,15 +327,15 @@ async def module_on_join(ctx, channel, user):
         await ctx.module_message(phrase, channel, action)
 
 
-async def module_on_invalid_command(ctx, cmd_msg, err=CmdErrorType.Unspecified):
+async def module_on_invalid_command(ctx, cmd_msg, err=CmdResult.Unspecified):
     """Handle `Core` invalid_command event."""
     # Insult a user when they enter a malformed or invalid command.
     if not (CFG.get("Enabled") and CFG.get("BadCmd.Enabled")):
         return
     vague_chance = CFG.get("BadCmd.VagueChance", DEFAULT_VAGUE_CHANCE)
-    if err != CmdErrorType.Unspecified and rand_chance(vague_chance):
+    if err != CmdResult.Unspecified and rand_chance(vague_chance):
         # ZeroBot might still be vague regardless
-        err = CmdErrorType.Unspecified
+        err = CmdResult.Unspecified
     phrase, action = await fetch_phrase("badcmd", ["action"], "WHERE error_type = ?", (err.value,))
     await ctx.module_message(phrase, cmd_msg.destination, action)
 
@@ -365,7 +365,7 @@ async def module_command_fortune(ctx, parsed):
     """Handle `fortune` command."""
     fortune_path = shutil.which("fortune")
     if not fortune_path:
-        await ctx.reply_command_result(parsed, "fortune is not available. No cookie for you :(")
+        await ctx.reply_command_result("fortune is not available. No cookie for you :(", parsed, CmdResult.Unavailable)
         return
     try:
         lines = []
@@ -380,11 +380,11 @@ async def module_command_fortune(ctx, parsed):
             lines.append(data.decode().rstrip())
         await proc.wait()
         if proc.returncode != 0:
-            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
             return
-        await ctx.reply_command_result(parsed, lines)
+        await ctx.reply_command_result(lines, parsed)
     except OSError:
-        await ctx.reply_command_result(parsed, "Your fortune cookie seems to have crumbled...")
+        await ctx.reply_command_result("Your fortune cookie seems to have crumbled...", parsed, CmdResult.Unspecified)
 
 
 async def shuffle_discord_activity(ctx):

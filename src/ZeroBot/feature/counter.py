@@ -15,7 +15,7 @@ from string import Template
 from typing import Iterable
 
 from ZeroBot.common import CommandParser
-from ZeroBot.common.enums import CmdErrorType
+from ZeroBot.common.enums import CmdResult
 from ZeroBot.database import Participant
 
 MODULE_NAME = "Counter"
@@ -418,7 +418,7 @@ async def module_command_count(ctx, parsed):
     try:
         counter = counters[parsed.args["counter"]]
     except KeyError:
-        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NoResults)
+        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadTarget)
         return
     # TODO: Proper 'DirectMessage' class
     try:
@@ -439,7 +439,7 @@ async def module_command_counter(ctx, parsed):
         try:
             counter = counters[parsed.args["counter"]]
         except KeyError:
-            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NoResults)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadTarget)
             return
         response = counter.get_announcement(user=counter.last_user.name)
     elif subcmd == "list":
@@ -467,7 +467,7 @@ async def module_command_counter(ctx, parsed):
         try:
             counter = counters[parsed.args["counter"]]
         except KeyError:
-            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NoResults)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadTarget)
             return
         last_user = counter.last_user.name if counter.last_user is not None else "N/A"
         last_triggered = str(counter.last_triggered) if counter.last_triggered is not None else "Never"

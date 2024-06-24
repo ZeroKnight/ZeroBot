@@ -19,7 +19,7 @@ from importlib import resources
 from typing import Any
 
 from ZeroBot.common.abc import Message
-from ZeroBot.common.enums import CmdErrorType
+from ZeroBot.common.enums import CmdResult
 from ZeroBot.database import Participant
 from ZeroBot.database import get_participant as getpart
 from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP
@@ -142,7 +142,7 @@ async def module_command_quote(ctx, parsed):
         # Recite a random quote
         quote = await get_random_quote()
         if quote is None:
-            await ctx.reply_command_result(parsed, "Uh, there are no quotes...")
+            await ctx.reply_command_result("Uh, there are no quotes...", parsed, CmdResult.NotFound)
             return
         await ctx.module_message(quote, parsed.msg.destination)
 
@@ -327,7 +327,7 @@ async def quote_add(ctx, parsed):
     if parsed.args["date"]:
         date = read_datestamp(parsed.args["date"])
         if date is None:
-            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
             return
     else:
         date = datetime.utcnow()
@@ -380,7 +380,9 @@ async def quote_del(ctx, parsed):
     # a preview of what would be added/removed
 
     if parsed.invoker != ctx.owner:
-        await ctx.reply_command_result(parsed, f"Sorry, currently only {ctx.owner.name} can do that.")
+        await ctx.reply_command_result(
+            f"Sorry, currently only {ctx.owner.name} can do that.", parsed, CmdResult.NoPermission
+        )
         return
     body = " ".join(parsed.args["quote"])
     if parsed.args["id"]:
@@ -403,7 +405,7 @@ async def quote_del(ctx, parsed):
         )
     if quote is None:
         criteria = "ID" if parsed.args["id"] else "content"
-        await ctx.reply_command_result(parsed, f"Couldn't find a quote with that {criteria}.")
+        await ctx.reply_command_result(f"Couldn't find a quote with that {criteria}.", parsed, CmdResult.NotFound)
         return
     await quote.delete()
     await ctx.module_message(f"Okay, removed quote: {quote}", parsed.source)
@@ -416,7 +418,7 @@ async def quote_recent(ctx, parsed):
     basic = parsed.args["basic"]
     count = min(parsed.args["count"], CFG["MaxCount"])
     if count < 1:
-        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
         return
     if pattern:
         target = "submitters" if parsed.args["submitter"] else "authors"
@@ -457,14 +459,14 @@ async def quote_recent(ctx, parsed):
         results = [f"**[{n}]** {wrapper.fill(str(quote))}" for n, quote in enumerate(quotes, 1)]
     else:
         results = [str(quotes[0])]
-    await ctx.reply_command_result(parsed, results)
+    await ctx.reply_command_result(results, parsed)
 
 
 async def quote_search(ctx, parsed):
     """Fetch a quote from the database matching search criteria."""
     if not any(parsed.args[a] for a in ("pattern", "id", "author", "submitter")):
         # Technically equivalent to `!quote` but less efficient
-        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
         return
     basic = parsed.args["basic"]
     case_sensitive = parsed.args["case_sensitive"]
@@ -510,9 +512,9 @@ async def quote_search(ctx, parsed):
             result = await fetch_quote(*query, case_sensitive=case_sensitive)
     criteria = "ID" if parsed.args["id"] else "pattern"
     if not result:
-        await ctx.reply_command_result(parsed, f"Couldn't find any quotes matching that {criteria}")
+        await ctx.reply_command_result(f"Couldn't find any quotes matching that {criteria}", parsed, CmdResult.NotFound)
     elif isinstance(result, int):
-        await ctx.reply_command_result(parsed, f"I found {result} quotes matching that {criteria}")
+        await ctx.reply_command_result(f"I found {result} quotes matching that {criteria}", parsed)
     else:
         await ctx.module_message(result, parsed.msg.destination)
 
@@ -521,14 +523,14 @@ async def quote_stats(ctx, parsed):
     """Query various statistics about the quote database."""
     count = min(parsed.args["count"], CFG["MaxCount"])
     if count < 1:
-        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
         return
     if parsed.args["leaderboard"]:
         await quote_stats_leaderboard(ctx, parsed, count)
         return
     if parsed.args["global"] and parsed.args["user"]:
         # These are mutually exclusive arguments
-        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
         return
 
     selection = [parsed.args[x] for x in ("quotes", "submissions", "self_submissions", "per_year", "percent")]
@@ -625,7 +627,7 @@ async def quote_stats_leaderboard(ctx, parsed, count):
         except ValueError:
             pass
         if not all(key in criteria for key in sort):
-            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
             return
         chosen_sort = ", ".join(f'"{criteria[x]}" DESC' for x in sort)
     else:
@@ -703,7 +705,7 @@ async def quote_quick(ctx, parsed):
     style = getattr(QuoteStyle, parsed.args["style"].title())
     if parsed.args["date"]:
         if (date := read_datestamp(parsed.args["date"])) is None:
-            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadSyntax)
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
             return
     else:
         date = datetime.utcnow()
@@ -738,21 +740,20 @@ async def quote_quick(ctx, parsed):
                     continue
             else:
                 # No message found
-                await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.NoResults)
+                await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadTarget)
                 return
         elif user:
             # Last message in channel by user
             user = parsed.msg.server.get_member_named(user)
             if user is None:
                 # Don't bother checking history if given a bad username
-                await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdErrorType.BadTarget)
+                await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadTarget)
                 return
             limit = 100
             msg = await channels[0].history(limit=limit).get(author=user)
             if not msg:
                 await ctx.reply_command_result(
-                    parsed,
-                    "Couldn't find a message from that user in the last {limit} messages.",
+                    f"Couldn't find a message from that user in the last {limit} messages.", parsed, CmdResult.NotFound
                 )
                 return
         else:

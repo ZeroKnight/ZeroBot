@@ -35,7 +35,7 @@ import ZeroBot
 import ZeroBot.database as zbdb
 from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus, abc
 from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
-from ZeroBot.common.enums import CmdErrorType
+from ZeroBot.common.enums import CmdResult
 from ZeroBot.config import Config
 from ZeroBot.exceptions import (
     CommandAlreadyRegistered,
@@ -1123,7 +1123,7 @@ class Core:
         try:
             name, *args = shellish_split(cmd_str)
         except ValueError:
-            await self.module_send_event("invalid_command", ctx, cmd_msg, CmdErrorType.BadSyntax)
+            await self.module_send_event("invalid_command", ctx, cmd_msg, CmdResult.BadSyntax)
             return
         name = name.lstrip(self.cmdprefix)
         if delay:
@@ -1137,10 +1137,10 @@ class Core:
             cmd = self._commands[name]
             namespace = cmd.parse_args(args)
         except KeyError:
-            await self.module_send_event("invalid_command", ctx, cmd_msg, CmdErrorType.NotFound)
+            await self.module_send_event("invalid_command", ctx, cmd_msg, CmdResult.NotFound)
             return
         except (ArgumentError, ArgumentTypeError, CommandParseError):
-            await self.module_send_event("invalid_command", ctx, cmd_msg, CmdErrorType.BadSyntax)
+            await self.module_send_event("invalid_command", ctx, cmd_msg, CmdResult.BadSyntax)
             return
         method = getattr(cmd.module.handle, f"module_command_{name}", None)
         if callable(method):
@@ -1257,7 +1257,7 @@ class Core:
         if parsed.args["command"]:
             help_args = parsed.args["command"]
             if len(help_args) > 1 and help_args[0:2] == ["help"] * 2:
-                await ctx.reply_command_result(parsed, "I'm afraid that you're far beyond any help...")
+                await ctx.reply_command_result("I'm afraid that you're far beyond any help...", parsed)
                 return
             try:
                 request = self._commands[help_args[0]]
@@ -1308,7 +1308,9 @@ class Core:
         if subcmd.endswith("load"):  # load, reload
             mtype = parsed.args["mtype"]
             if parsed.args["mtype"] == "protocol" and subcmd == "reload":
-                await ctx.reply_command_result(parsed, "Reloading protocol modules is not yet implemented.")
+                await ctx.reply_command_result(
+                    "Reloading protocol modules is not yet implemented.", parsed, CmdResult.NotImplemented
+                )
                 return
             for mod_id in parsed.args["module"]:
                 try:
@@ -1488,8 +1490,7 @@ class Core:
             suffix = "".join(filter(str.isalpha, delay[-2:]))
             if suffix not in factor:
                 await ctx.reply_command_result(
-                    parsed,
-                    f"Invalid delay suffix. Valid suffixes: {', '.join(factor.keys())}",
+                    f"Invalid delay suffix. Valid suffixes: {', '.join(factor.keys())}", parsed, CmdResult.BadSyntax
                 )
             delay = float(delay.replace(suffix, "")) * factor[suffix]
         cmd = parsed.args["command"]
