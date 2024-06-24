@@ -391,7 +391,7 @@ class MarkovSentenceGenerator:
                 logger.debug(f"Hit bad chain state: {ex}")
                 continue
             word_count = len(tokens)
-            if word_count < min_words or max_words is not None and word_count > max_words:
+            if word_count < min_words or (max_words is not None and word_count > max_words):
                 continue
             if starts_with is not None and not all(a == b for a, b in zip(tokens, starts_with)):
                 continue
@@ -474,8 +474,7 @@ class Tokenizer:
                 self.COMMON_URI_SCHEMES.match(maybe_uri.scheme)
                 or maybe_uri.netloc
                 # 2-char schemes are rare or otherwise obscure
-                or len(maybe_uri.scheme) > 2
-                and maybe_uri.path
+                or (len(maybe_uri.scheme) > 2 and maybe_uri.path)
             )
         return False
 
@@ -758,8 +757,7 @@ async def module_command_markov(ctx, parsed):
 async def make_focused_chain(target: str) -> MarkovSentenceGenerator:
     if target[0] == "#":
         raise NotImplementedError("Not yet implemented")
-    else:
-        corpus_src = await find_participant(target)
+    corpus_src = await find_participant(target)
     if corpus_src is None:
         raise ValueError("Bad target")
     corpus = [line async for line in database_get_corpus(("author", corpus_src.id))]
@@ -803,14 +801,12 @@ async def module_command_talk(ctx, parsed):
         similarity_threshold=CFG.get("Sentences.SimilarityThreshold", DEFAULT_SIMILARITY_THRESHOLD),
     )
     if sentence is None:
-        idk_response = random.choice(
-            (
-                "Yeah, I've got nothing for that one...",
-                "I no can word that good yet...",
-                "I literally can't even",
-                "I hurt my head trying to think of something for that...",
-            )
-        )
+        idk_response = random.choice((
+            "Yeah, I've got nothing for that one...",
+            "I no can word that good yet...",
+            "I literally can't even",
+            "I hurt my head trying to think of something for that...",
+        ))
         await ctx.module_message(f"{parsed.invoker.mention} {idk_response}", parsed.source)
     else:
         await ctx.module_message(sentence, parsed.source)

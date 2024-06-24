@@ -210,7 +210,7 @@ async def fetch_phrase(
     columns = ("phrase", *columns)
     async with DB.cursor() as cur:
         await cur.execute(
-            f"""SELECT {', '.join(columns)} FROM chat_{table}
+            f"""SELECT {", ".join(columns)} FROM chat_{table}
             {query}
             ORDER BY RANDOM() LIMIT cooldown() + 1""",
             parameters,

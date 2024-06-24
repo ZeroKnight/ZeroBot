@@ -60,20 +60,16 @@ class CommandParser(_NoExitArgumentParser):
     `argparse.ArgumentParser` with some ZeroBot-related members.
     """
 
-    def __init__(
-        self, name: str | None = None, description: str | None = None, usage: str | None = None, **kwargs
-    ):
+    def __init__(self, name: str | None = None, description: str | None = None, usage: str | None = None, **kwargs):
         # NOTE: Might be able to make use of formatter_class if need be
         if not name:
             name = kwargs.get("name", kwargs.get("prog"))
-        kwargs.update(
-            {
-                "prog": name,
-                "description": description,
-                "usage": usage,
-                "add_help": False,
-            }
-        )
+        kwargs.update({
+            "prog": name,
+            "description": description,
+            "usage": usage,
+            "add_help": False,
+        })
         super().__init__(**kwargs)
         self.name = name
         self._module = None
@@ -109,9 +105,7 @@ class CommandParser(_NoExitArgumentParser):
         return partial(self.add_subcommand, subp)
 
     @staticmethod
-    def add_subcommand(
-        subp: _SubParsersAction, name: str, description: str | None = None, **kwargs
-    ) -> CommandParser:
+    def add_subcommand(subp: _SubParsersAction, name: str, description: str | None = None, **kwargs) -> CommandParser:
         """Helper method for adding subcommands.
 
         Wrapper around `add_parser` that simplifies adding subcommands to

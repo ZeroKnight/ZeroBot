@@ -356,20 +356,18 @@ class Core:
                 log_file.parent.mkdir(parents=True, exist_ok=True)
                 handler["filename"] = log_file
 
-        logging.config.dictConfig(
-            {
-                "version": 1,  # dictConfig schema version (required)
-                "loggers": {
-                    "ZeroBot": {
-                        "level": log_sec["Level"],
-                        "handlers": log_sec["Enabled"],
-                        "propagate": False,
-                    }
-                },
-                "formatters": log_sec["Formatters"],
-                "handlers": log_sec["Handlers"],
-            }
-        )
+        logging.config.dictConfig({
+            "version": 1,  # dictConfig schema version (required)
+            "loggers": {
+                "ZeroBot": {
+                    "level": log_sec["Level"],
+                    "handlers": log_sec["Enabled"],
+                    "propagate": False,
+                }
+            },
+            "formatters": log_sec["Formatters"],
+            "handlers": log_sec["Handlers"],
+        })
 
     def _register_commands(self):
         """Create and register core commands."""
