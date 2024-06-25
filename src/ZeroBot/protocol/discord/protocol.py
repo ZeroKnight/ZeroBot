@@ -193,11 +193,11 @@ class DiscordContext(Context, discord.Client):
             message = "\n".join(message)
         await command.source.send(f"{command.invoker.mention}\n{message}")
 
-    async def core_command_help(self, help_cmd, result):
+    async def core_command_help(self, command, result):
         embed = discord.Embed(title="Help", color=discord.Color.teal())
         handler = globals()[f"_format_help_{result.type.name}"]
-        handler(embed, help_cmd, result)
-        await help_cmd.source.send(embed=embed)
+        handler(embed, command, result)
+        await command.source.send(embed=embed)
 
     async def core_command_module(self, command, results):
         subcmd = command.subcmd

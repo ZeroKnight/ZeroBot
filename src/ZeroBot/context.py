@@ -30,10 +30,13 @@ from __future__ import annotations
 import datetime
 from abc import ABCMeta, abstractmethod
 from enum import Flag, auto
-from typing import Any
+from pathlib import Path
+from typing import Any, TypeAlias
 
 from ZeroBot.common import ParsedCommand
+from ZeroBot.common.command import CommandHelp
 from ZeroBot.common.enums import CmdResult
+from ZeroBot.core import ConfigCmdResult, ModuleCmdResult, VersionInfo
 
 
 class ProtocolSupport(Flag):
@@ -413,4 +416,60 @@ class Context(metaclass=ABCMeta):
         protocol, i.e. some protocols support various markup and formatting
         features that others don't; this interface allows command output
         formatting on a per-protocol basis.
+        """
+
+    @abstractmethod
+    async def core_command_help(self, command: ParsedCommand, result: CommandHelp) -> None:
+        """Display results from the Core `help` command.
+
+        The Core creates a `CommandHelp` object that holds the individual
+        parts of a command that constitute its structure. Protocols can disect
+        this object to format help message output.
+
+        The parsed help command that initiated this callback is also passed.
+        """
+
+    @abstractmethod
+    async def core_command_module(self, command: ParsedCommand, results: list[ModuleCmdResult]) -> None:
+        """Display results from the Core `module` command.
+
+        The Core creates `ModuleCmdResult` objects that hold information
+        about the result of the invoked module command. Protocols can disect
+        this object to format these results.
+
+        The parsed module command that initiated this callback is also passed.
+        """
+
+    @abstractmethod
+    async def core_command_config(self, command: ParsedCommand, results: list[ConfigCmdResult]) -> None:
+        """Display results from the Core `config` command.
+
+        The Core creates `ConfigCmdResult` objects that hold information
+        about the result of the invoked config command. Protocols can disect
+        this object to format these results.
+
+        The parsed config command that initiated this callback is also passed.
+        """
+
+    @abstractmethod
+    async def core_command_version(self, command: ParsedCommand, info: VersionInfo) -> None:
+        """Display results from the Core `version` command.
+
+        The Core creates a `VersionInfo` object that holds information about
+        the running build of ZeroBot. Protocols can disect this object to
+        format these results.
+
+        The parsed version command that initiated this callback is also passed.
+        """
+
+    @abstractmethod
+    async def core_command_cancel(self, command: ParsedCommand, cancelled: bool, wait_id: int, waiting) -> None:
+        """Display results from the Core `cancel` command."""
+
+    @abstractmethod
+    async def core_command_backup(self, command: ParsedCommand, file: Path) -> None:
+        """Display results from the Core `backup` command.
+
+        The resultant backup file and the parsed backup command that initiated
+        this callback are passed.
         """
