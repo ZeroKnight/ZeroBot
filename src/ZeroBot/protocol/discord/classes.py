@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime
 import re
+from collections.abc import AsyncIterator
 
 import discord
 
@@ -117,7 +118,20 @@ class DiscordChannel(zctx.Channel, discord.TextChannel):
 
     @property
     def server(self) -> DiscordServer:
-        return self._original.guild
+        return DiscordServer(self._original.guild)
+
+    async def history(self, limit, before, after, authors) -> AsyncIterator[DiscordMessage]:
+        for i, author in enumerate(authors):
+            if isinstance(author, str):
+                authors[i] = self._original.guild.get_member_named(author)
+
+        async for msg in super().history(limit=limit, before=before, after=after):
+            if authors and msg.author not in authors:
+                continue
+            yield DiscordMessage(msg)
+
+    async def users(self) -> list[DiscordUser]:
+        return [DiscordUser(x) for x in self._original.members]
 
 
 class DiscordMessage(discord.Message, zctx.Message):
@@ -152,11 +166,11 @@ class DiscordMessage(discord.Message, zctx.Message):
 
     @property
     def source(self) -> DiscordUser:
-        return self._original.author
+        return DiscordUser(self.context, self._original.author)
 
     @property
     def destination(self) -> DiscordChannel:
-        return self._original.channel
+        return DiscordChannel(self.context, self._original.channel)
 
     @property
     def time(self) -> datetime.datetime:

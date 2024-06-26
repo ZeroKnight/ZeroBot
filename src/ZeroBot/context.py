@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import datetime
 from abc import ABCMeta, abstractmethod
+from collections.abc import AsyncIterator
 from enum import Flag, auto
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -204,6 +205,29 @@ class Channel(ProtocolDetails, metaclass=ABCMeta):
         Can be `None` if no password is required, or is not applicable.
         """
         return None
+
+    @abstractmethod
+    async def history(
+        self,
+        limit: int | None = 100,
+        before: Message | datetime.datetime | None = None,
+        after: Message | datetime.datetime | None = None,
+        authors: list[User | str] | None = None,
+    ) -> AsyncIterator[Message]:
+        """Iterate over messages in the channel history.
+
+        Returns an AsyncIterator that can be looped over with `async for`.
+        A maximum of `limit` messages will be yielded before iteration stops,
+        or infinitely if `limit` is None.
+
+        History search can be narrowed down by specifying date ranges with
+        `before` and `after` or by specifying one or more users that must have
+        authored the messages.
+        """
+
+    @abstractmethod
+    async def users(self) -> list[User]:
+        """Returns all Users in the channel."""
 
 
 class Message(ProtocolDetails, metaclass=ABCMeta):
