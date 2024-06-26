@@ -9,10 +9,8 @@ import datetime
 import re
 from itertools import chain, islice, repeat
 
-from dateutil.parser import isoparse
-
 import ZeroBot.common.abc as abc
-from ZeroBot.util import gen_repr
+from ZeroBot.util import gen_repr, parse_iso_format
 
 from .util import UserTuple, irc_time_format
 
@@ -333,7 +331,7 @@ class IRCMessage(abc.Message):
         if time:
             self.time = time
         elif "time" in self.tags:
-            self.time = isoparse(self.tags["time"])
+            self.time = parse_iso_format(self.tags["time"])
         else:
             self.time = datetime.datetime.now(datetime.timezone.utc)
         if "time" not in self.tags:

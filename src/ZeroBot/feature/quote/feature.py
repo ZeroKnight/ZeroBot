@@ -20,6 +20,7 @@ from typing import Any
 
 from ZeroBot.common.abc import Message
 from ZeroBot.common.enums import CmdResult
+from ZeroBot.common.util import parse_iso_format
 from ZeroBot.database import Participant
 from ZeroBot.database import get_participant as getpart
 from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP
@@ -227,7 +228,7 @@ def read_datestamp(datestamp: str) -> datetime | None:
     `None` if the string could not be converted.
     """
     try:
-        date = datetime.fromisoformat(datestamp)
+        date = parse_iso_format(datestamp)
     except ValueError:
         try:
             date = datetime.utcfromtimestamp(int(datestamp))
