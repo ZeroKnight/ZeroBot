@@ -375,7 +375,7 @@ class Context(metaclass=ABCMeta):
     async def module_message(
         self,
         content: str,
-        destination: str | User | Channel | Server,
+        destination: MessageTarget,
         *,
         action: bool = False,
         mention_user: User = None,
@@ -473,3 +473,6 @@ class Context(metaclass=ABCMeta):
         The resultant backup file and the parsed backup command that initiated
         this callback are passed.
         """
+
+
+MessageTarget: TypeAlias = str | User | Channel | Server
