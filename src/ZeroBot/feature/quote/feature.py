@@ -18,9 +18,9 @@ from functools import partial
 from importlib import resources
 from typing import Any
 
-from ZeroBot.common.abc import Message
 from ZeroBot.common.enums import CmdResult
 from ZeroBot.common.util import parse_iso_format
+from ZeroBot.context import Message
 from ZeroBot.database import Participant
 from ZeroBot.database import get_participant as getpart
 from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP

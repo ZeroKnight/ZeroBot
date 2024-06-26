@@ -31,12 +31,12 @@ import datetime
 from abc import ABCMeta, abstractmethod
 from enum import Flag, auto
 from pathlib import Path
-from typing import Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
-from ZeroBot.common import ParsedCommand
-from ZeroBot.common.command import CommandHelp
+if TYPE_CHECKING:
+    from ZeroBot.common import CommandHelp, ParsedCommand
+    from ZeroBot.core import ConfigCmdResult, ModuleCmdResult, VersionInfo
 from ZeroBot.common.enums import CmdResult
-from ZeroBot.core import ConfigCmdResult, ModuleCmdResult, VersionInfo
 
 
 class ProtocolSupport(Flag):

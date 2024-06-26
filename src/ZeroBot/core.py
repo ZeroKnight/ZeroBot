@@ -33,10 +33,11 @@ from toml import TomlDecodeError
 
 import ZeroBot
 import ZeroBot.database as zbdb
-from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus, abc
+from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus
 from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
 from ZeroBot.common.enums import CmdResult
 from ZeroBot.config import Config
+from ZeroBot.context import Context
 from ZeroBot.exceptions import (
     CommandAlreadyRegistered,
     CommandNotRegistered,
@@ -58,7 +59,6 @@ from ZeroBot.module import (
     ProtocolModule,
     ZeroBotModuleFinder,
 )
-from ZeroBot.protocol.context import Context
 from ZeroBot.util import shellish_split
 
 # Minimal initial logging format for any messages before the config is read and

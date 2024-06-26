@@ -1,6 +1,6 @@
 """protocol/irc/classes.py
 
-IRC implementation of ZeroBot.common.abc classes.
+IRC implementation of ZeroBot.context classes.
 """
 
 from __future__ import annotations
@@ -9,13 +9,13 @@ import datetime
 import re
 from itertools import chain, islice, repeat
 
-import ZeroBot.common.abc as abc
+import ZeroBot.context as zctx
 from ZeroBot.util import gen_repr, parse_iso_format
 
 from .util import UserTuple, irc_time_format
 
 
-class IRCUser(abc.User):
+class IRCUser(zctx.User):
     """Represents a user connected to an IRC server.
 
     Parameters
@@ -168,7 +168,7 @@ class IRCUser(abc.User):
         self._away_msg = None
 
 
-class IRCServer(abc.Server):
+class IRCServer(zctx.Server):
     """Represents a server on an IRC network.
 
     Attributes
@@ -252,7 +252,7 @@ class IRCServer(abc.Server):
         self._connected = state
 
 
-class IRCChannel(abc.Channel):
+class IRCChannel(zctx.Channel):
     """Represents a channel on an IRC network.
 
     Attributes
@@ -297,7 +297,7 @@ class IRCChannel(abc.Channel):
         return self._chanprefix.sub("", self.name)
 
 
-class IRCMessage(abc.Message):
+class IRCMessage(zctx.Message):
     """Represents a message on an IRC network.
 
     Attributes

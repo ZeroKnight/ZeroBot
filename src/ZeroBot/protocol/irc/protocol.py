@@ -11,10 +11,9 @@ import logging
 import pydle
 from pydle.features.ircv3.tags import TaggedMessage
 
-from ZeroBot.common.abc import ProtocolSupport
 from ZeroBot.config import Config
+from ZeroBot.context import Context, ProtocolSupport
 
-from ..context import Context
 from .classes import IRCChannel, IRCMessage, IRCServer, IRCUser
 
 MODULE_NAME = "IRC"
