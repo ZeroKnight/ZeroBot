@@ -163,17 +163,18 @@ class DiscordContext(Context, discord.Client):
         *,
         action: bool = False,
         mention_user: DiscordUser | None = None,
+        **kwargs,
     ):
         if action:
             content = DiscordMessage.as_action_str(content)
         if mention_user:
             content = f"{mention_user.mention()} {content}"
-        await destination.send(content)
+        await destination.send(content, embed=kwargs.get("embed"))
 
-    async def module_reply(self, content: str, referent: DiscordMessage, *, action: bool = False):
+    async def module_reply(self, content: str, referent: DiscordMessage, *, action: bool = False, **kwargs):
         if action:
             content = DiscordMessage.as_action_str(content)
-        await referent.channel.send(content, reference=referent)
+        await referent.channel.send(content, reference=referent, embed=kwargs.get("embed"))
 
     async def module_join(self, where, password=None):
         """Not applicable to Discord bots."""

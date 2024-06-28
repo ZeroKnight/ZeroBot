@@ -403,21 +403,27 @@ class Context(metaclass=ABCMeta):
         *,
         action: bool = False,
         mention_user: User = None,
+        **kwargs,
     ):
         """Send a message through this context.
 
         If `mention_user` is not None, the given user will be "mentioned" in the
-        message in such a way that that user will be notified.
+        message in such a way that that user will be notified. Any extra
+        keyword arguments can be used at the discretion of the protocol that is
+        implementing this method.
         """
 
     @abstractmethod
-    async def module_reply(self, content: str, referent: Message, *, action: bool = False):
+    async def module_reply(self, content: str, referent: Message, *, action: bool = False, **kwargs):
         """Send a message as a reply to another through this context.
 
         The exact behavior varies between protocols, but when possible, the
         `referent` message is linked to or backreferenced in some way alongside
         the usual message. Typically, this also notifies the sender of the
         referent message similar to a mention.
+
+        Any extra keyword arguments can be used at the discretion of the
+        protocol that is implementing this method.
         """
 
     @abstractmethod
