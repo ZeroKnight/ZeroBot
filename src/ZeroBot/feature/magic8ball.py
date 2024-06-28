@@ -8,12 +8,16 @@ from __future__ import annotations
 import random
 import re
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum, unique
 from importlib import resources
 from string import Template
 
+import discord
+
 from ZeroBot.common import CommandParser
+from ZeroBot.protocol.discord.util import ResponseProxy
 
 MODULE_NAME = "Magic 8-Ball"
 MODULE_AUTHOR = "ZeroKnight"
@@ -68,6 +72,17 @@ class ResponseType(Enum):
         """Return a tuple of the three answer types."""
         return cls.Positive, cls.Negative, cls.Neutral
 
+    def color(self) -> discord.Colour:
+        if self not in self.answer():
+            raise ValueError("ResponseType must be an answer")
+        if self is self.Positive:
+            return discord.Colour.green()
+        if self is self.Negative:
+            return discord.Colour.red()
+        if self is self.Neutral:
+            return discord.Colour.greyple()
+        return None
+
 
 @dataclass
 class ResponsePart:
@@ -78,16 +93,31 @@ class ResponsePart:
     type: ResponseType
     expects_action: bool | None = None
 
-    def __str__(self):
+    def __post_init__(self) -> None:
+        if not isinstance(self.type, ResponseType):
+            self.type = ResponseType(self.type)
+
+    @classmethod
+    def make_factory(
+        cls, template_vars: dict[str, str]
+    ) -> Callable[[str, bool, ResponseType, bool | None], ResponsePart]:
+        """A `ResponsePart` factory that applies a template to each instance."""
+
+        def factory(text: str, action: bool, type: ResponseType, expects_action: bool | None = None) -> ResponsePart:
+            return ResponsePart(Template(text).safe_substitute(template_vars), action, type, expects_action)
+
+        return factory
+
+    def __str__(self) -> str:
         return self.format()
 
     def __getitem__(self, idx) -> str:
         return self.text[idx]
 
-    def format(self):
+    def format(self) -> str:
         return f"*{self.text}*" if self.action else self.text
 
-    def capitalize(self):
+    def capitalize(self) -> str:
         return self.text[0].upper() + self.text[1:]
 
 
@@ -125,6 +155,7 @@ def _register_commands():
     CORE.command_register(MOD_ID, *cmds)
 
 
+# TODO: Create a custom row factory and instantiate a ResponsePart directly
 async def fetch_part(
     rtype: ResponseType | tuple[ResponseType],
     expects_action: bool | None = None,
@@ -192,12 +223,14 @@ async def module_command_8ball(ctx, parsed):
 
     if not re.search(r"\?[!?]*$", question):
         phrase, action, *_ = await fetch_part(ResponseType.NotAQuestion)
-        await ctx.module_message(phrase, parsed.msg.destination, action=action)
+        await ctx.module_reply(phrase, parsed.msg, action=action)
         return
 
-    intro = ResponsePart(*(await fetch_part(ResponseType.Intro)))
-    prelude = ResponsePart(*(await fetch_part(ResponseType.Prelude)))
-    outro = ResponsePart(*(await fetch_part(ResponseType.Outro)))
+    make_part = ResponsePart.make_factory({"zerobot": ctx.user.name, "asker": parsed.invoker.name})
+
+    intro = make_part(*(await fetch_part(ResponseType.Intro)))
+    prelude = make_part(*(await fetch_part(ResponseType.Prelude)))
+    outro = make_part(*(await fetch_part(ResponseType.Outro)))
 
     integrate = CFG["IntegrateChat"]
     if integrate["Enabled"] and CORE.feature_loaded("chat"):
@@ -212,9 +245,9 @@ async def module_command_8ball(ctx, parsed):
                 params = (prelude.expects_action,)
             else:
                 sql, params = None, None
-            answer = ResponsePart(*(await fetch_phrase(table, ["action", "response_type"], sql, params)))
+            answer = make_part(*(await fetch_phrase(table, ["action", "response_type"], sql, params)))
     if phrase is None:
-        answer = ResponsePart(*(await fetch_part(ResponseType.answer(), prelude.expects_action)))
+        answer = make_part(*(await fetch_part(ResponseType.answer(), prelude.expects_action)))
 
     output = f"{intro} "
     if intro.action and prelude.action and answer.action:
@@ -237,6 +270,11 @@ async def module_command_8ball(ctx, parsed):
 
     # ... but not in the outro, as it's a separate sentence.
     output += f"\n{outro}"
-    output = Template(output).safe_substitute({"zerobot": ctx.user.name, "asker": parsed.invoker.name})
 
-    await ctx.module_message(output, parsed.msg.destination)
+    response = ResponseProxy(
+        ctx, output, outro, title="Magic 8-Ball 🎱✨", description=intro, color=answer.type.color()
+    )
+    response.embed.add_field(name="", value=prelude, inline=False)
+    response.embed.add_field(name="", value=answer, inline=False)
+
+    await response.reply(parsed.msg)
