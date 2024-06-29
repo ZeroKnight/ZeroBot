@@ -28,11 +28,12 @@ usual way, but can still properly integrate with ZeroBot. For example:
 from __future__ import annotations
 
 import datetime
+import functools
 from abc import ABCMeta, abstractmethod
 from collections.abc import AsyncIterator
 from enum import Flag, auto
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 if TYPE_CHECKING:
     from ZeroBot.common import CommandHelp, ParsedCommand
@@ -61,37 +62,42 @@ class ProtocolSupport(Flag):
     Embeds = auto()
 
 
-class ProtocolDetails(metaclass=ABCMeta):
-    """An abstract mixin that ties generic classes to their protocol classes.
+def protocolobj(cls):
+    """Decorator for ZeroBot's protocol entity classes.
 
-    Used in all of ZeroBot's generic protocol entity abstract classes.
+    Adds common functionality allowing decorated classes to refererence the
+    context that created them and the original protocol object. Any unknown
+    attributes are forwarded to the original protocol object.
     """
 
-    @property
-    def protocol(self) -> str:
-        """The protocol where this protocol object originated from.
+    @functools.wraps(cls, updated=())
+    class Wrapped(cls):
+        def __init__(self, context: Context, original) -> None:
+            self._context = context
+            self._original = original
 
-        Feature modules may check against this property to implement
-        protocol-specific behavior.
-        """
-        return __name__
+        def __getattr__(self, name):
+            return getattr(self._original, name)
 
-    @property
-    @abstractmethod
-    def original(self) -> Any:
-        """A reference to the original protocol object.
+        @property
+        def context(self) -> Context:
+            """A reference to the Context that created this object."""
+            return self._context
 
-        This is the specialized, non-generic version created by the protocol
-        itself.
-        """
+        @property
+        def original(self) -> cls:
+            """A reference to the original protocol object.
 
-    @property
-    @abstractmethod
-    def context(self) -> Context:
-        """A reference to the Context that created this object."""
+            This is the specialized, non-generic version created by the protocol
+            itself.
+            """
+            return self._original
+
+    return Wrapped
 
 
-class User(ProtocolDetails, metaclass=ABCMeta):
+@protocolobj
+class User(metaclass=ABCMeta):
     """An ABC representing an individual that is connected on a protocol.
 
     This is a general interface that is protocol-agnostic and must be
@@ -148,7 +154,8 @@ class User(ProtocolDetails, metaclass=ABCMeta):
         """
 
 
-class Server(ProtocolDetails, metaclass=ABCMeta):
+@protocolobj
+class Server(metaclass=ABCMeta):
     """Represents an arbitrary host that can be connected to.
 
     The specifics of what constitutes a Server is highly dependent upon the
@@ -176,7 +183,8 @@ class Server(ProtocolDetails, metaclass=ABCMeta):
         """Whether or not the Server is currently connected."""
 
 
-class Channel(ProtocolDetails, metaclass=ABCMeta):
+@protocolobj
+class Channel(metaclass=ABCMeta):
     """Represents some kind of communication destination for Messages.
 
     The specifics of what constitutes a Channel is dependent upon the
@@ -230,7 +238,8 @@ class Channel(ProtocolDetails, metaclass=ABCMeta):
         """Returns all Users in the channel."""
 
 
-class Message(ProtocolDetails, metaclass=ABCMeta):
+@protocolobj
+class Message(metaclass=ABCMeta):
     """Represents a message sent by a network entity via a protocol.
 
     Messages consist of a source and a destination, either of which could be
@@ -341,13 +350,15 @@ class Context(metaclass=ABCMeta):
         # Usual implementation of foo.Client ...
     """
 
+    # TODO: registering a protocol should track this identifier in core to
+    # prevent loading more than one implementation of a protocol
     @property
     @abstractmethod
     def protocol(self) -> str:
         """The protocol that this context belongs to.
 
-        Feature modules may check against this property to implement
-        protocol-specific behavior.
+        Should return a string that identifies the protocol. Feature modules may
+        check against this property to implement protocol-specific behavior.
         """
 
     @property
@@ -395,6 +406,9 @@ class Context(metaclass=ABCMeta):
         """
         return None
 
+    # TODO: Refactor/rethink the `action` param. It doesn't make sense to
+    # have both action and mention_user, nor does it make sense with
+    # multi-line messages
     @abstractmethod
     async def module_message(
         self,

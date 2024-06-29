@@ -20,20 +20,10 @@ ACTION_PATTERN = re.compile(r"^\*(?:[^*]|(?<=\\)\*)*\*$")
 class DiscordUser(zctx.User, discord.User):
     """Represents a Discord User."""
 
-    def __init__(self, user: discord.User):
-        self._original = user
-
-    def __getattr__(self, name):
-        return getattr(self._original, name)
-
     def __repr__(self):
         attrs = ["name", "username", "bot"]
         extras = {"id": self._original.id}
         return gen_repr(self, attrs, **extras)
-
-    @property
-    def original(self):
-        return self._original
 
     @property
     def name(self) -> str:
@@ -61,20 +51,10 @@ class DiscordUser(zctx.User, discord.User):
 class DiscordServer(zctx.Server, discord.Guild):
     """Represents a Discord Server (Guild)."""
 
-    def __init__(self, server: discord.Guild):
-        self._original = server
-
-    def __getattr__(self, name):
-        return getattr(self._original, name)
-
     def __repr__(self):
         attrs = ["name"]
         extras = {"id": self._original.id, "region": self._original.region}
         return gen_repr(self, attrs, **extras)
-
-    @property
-    def original(self):
-        return self._original
 
     @property
     def name(self) -> str:
@@ -87,12 +67,6 @@ class DiscordServer(zctx.Server, discord.Guild):
 
 class DiscordChannel(zctx.Channel, discord.TextChannel):
     """Represents a Discord channel of any type, private or otherwise."""
-
-    def __init__(self, channel: discord.TextChannel):
-        self._original = channel
-
-    def __getattr__(self, name):
-        return getattr(self._original, name)
 
     def __repr__(self):
         attrs = ["name"]
@@ -107,10 +81,6 @@ class DiscordChannel(zctx.Channel, discord.TextChannel):
         return self._original == other._original
 
     @property
-    def original(self):
-        return self._original
-
-    @property
     def name(self) -> str:
         if self._original.type == discord.ChannelType.private:
             return self._original.recipient.display_name
@@ -118,7 +88,7 @@ class DiscordChannel(zctx.Channel, discord.TextChannel):
 
     @property
     def server(self) -> DiscordServer:
-        return DiscordServer(self._original.guild)
+        return DiscordServer(self.context, self._original.guild)
 
     async def history(self, limit, before, after, authors) -> AsyncIterator[DiscordMessage]:
         for i, author in enumerate(authors):
@@ -128,20 +98,14 @@ class DiscordChannel(zctx.Channel, discord.TextChannel):
         async for msg in super().history(limit=limit, before=before, after=after):
             if authors and msg.author not in authors:
                 continue
-            yield DiscordMessage(msg)
+            yield DiscordMessage(self.context, msg)
 
     async def users(self) -> list[DiscordUser]:
-        return [DiscordUser(x) for x in self._original.members]
+        return [DiscordUser(self.context, x) for x in self._original.members]
 
 
-class DiscordMessage(discord.Message, zctx.Message):
+class DiscordMessage(zctx.Message, discord.Message):
     """Represents a Discord message of any type."""
-
-    def __init__(self, message: discord.Message):
-        self._original = message
-
-    def __getattr__(self, name):
-        return getattr(self._original, name)
 
     def __repr__(self):
         attrs = ["source", "destination", "content", "time"]
@@ -155,10 +119,6 @@ class DiscordMessage(discord.Message, zctx.Message):
 
     def __eq__(self, other):
         return self._original == other._original
-
-    @property
-    def original(self):
-        return self._original
 
     @property
     def content(self) -> str:
@@ -194,3 +154,7 @@ class DiscordMessage(discord.Message, zctx.Message):
     def strip_action_str(string: str) -> str:
         """Strip the action formatting from the given string."""
         return string[1:-1]
+
+    # XXX: Appease ABC subclass check. Could not get __subclasshook__ to work
+    # at all; it wasn't ever called for some reason.
+    clean_content = discord.Message.clean_content

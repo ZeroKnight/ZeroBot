@@ -87,7 +87,9 @@ class DiscordContext(Context, discord.Client):
             self._owner = self.get_user(owner_str)
             warnmsg = f"Could not set owner: no user found with ID '{owner_str}'"
         else:
-            self._owner = util.first(guild.get_member_named(owner_str) for guild in self.guilds)
+            self._owner = DiscordUser(
+                self.context, util.first(guild.get_member_named(owner_str) for guild in self.guilds)
+            )
             warnmsg = f"Could not set owner: user '{owner_str}' not found in any connected server."
         if self._owner:
             logger.info(f"Found owner: {self._owner}")
@@ -105,7 +107,7 @@ class DiscordContext(Context, discord.Client):
 
     async def on_guild_join(self, guild):
         """We joined a guild."""
-        CORE.module_send_event("join", self, DiscordServer(guild), self.user)
+        CORE.module_send_event("join", self, DiscordServer(self.context, guild), self.user)
 
     async def on_message(self, message: discord.Message):
         """Handle messages."""
@@ -116,10 +118,12 @@ class DiscordContext(Context, discord.Client):
             source = "[{}{}]".format(f"{guild}, " if guild else "", message.channel)
             log_msg = f"{source} <{message.author}> {message.content}"
         logger.info(log_msg)
+
+        msg = DiscordMessage(self.context, message)
         if message.content.startswith(CORE.cmdprefix) and message.author != self.user:
-            await CORE.module_commanded(DiscordMessage(message), self)
+            await CORE.module_commanded(msg, self)
         else:
-            await CORE.module_send_event("message", self, DiscordMessage(message))
+            await CORE.module_send_event("message", self, msg)
 
     # ZeroBot Interface
 
@@ -140,7 +144,7 @@ class DiscordContext(Context, discord.Client):
 
     @property
     def user(self) -> DiscordUser:
-        return DiscordUser(super().user)
+        return DiscordUser(self.context, super(Context, self).user)
 
     @property
     def support() -> ProtocolSupport:
