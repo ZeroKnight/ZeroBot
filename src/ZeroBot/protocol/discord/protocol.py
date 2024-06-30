@@ -87,9 +87,7 @@ class DiscordContext(Context, discord.Client):
             self._owner = self.get_user(owner_str)
             warnmsg = f"Could not set owner: no user found with ID '{owner_str}'"
         else:
-            self._owner = DiscordUser(
-                self.context, util.first(guild.get_member_named(owner_str) for guild in self.guilds)
-            )
+            self._owner = DiscordUser(self, util.first(guild.get_member_named(owner_str) for guild in self.guilds))
             warnmsg = f"Could not set owner: user '{owner_str}' not found in any connected server."
         if self._owner:
             logger.info(f"Found owner: {self._owner}")
@@ -107,7 +105,7 @@ class DiscordContext(Context, discord.Client):
 
     async def on_guild_join(self, guild):
         """We joined a guild."""
-        CORE.module_send_event("join", self, DiscordServer(self.context, guild), self.user)
+        CORE.module_send_event("join", self, DiscordServer(self, guild), self.user)
 
     async def on_message(self, message: discord.Message):
         """Handle messages."""
@@ -119,7 +117,7 @@ class DiscordContext(Context, discord.Client):
             log_msg = f"{source} <{message.author}> {message.content}"
         logger.info(log_msg)
 
-        msg = DiscordMessage(self.context, message)
+        msg = DiscordMessage(self, message)
         if message.content.startswith(CORE.cmdprefix) and message.author != self.user:
             await CORE.module_commanded(msg, self)
         else:
@@ -144,7 +142,7 @@ class DiscordContext(Context, discord.Client):
 
     @property
     def user(self) -> DiscordUser:
-        return DiscordUser(self.context, super(Context, self).user)
+        return DiscordUser(self, super(Context, self).user)
 
     @property
     def support() -> ProtocolSupport:
