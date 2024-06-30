@@ -32,12 +32,12 @@ import appdirs
 from toml import TomlDecodeError
 
 import ZeroBot
+import ZeroBot.context as zctx
 import ZeroBot.database as zbdb
 from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus
 from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
 from ZeroBot.common.enums import CmdResult
 from ZeroBot.config import Config
-from ZeroBot.context import Context
 from ZeroBot.exceptions import (
     CommandAlreadyRegistered,
     CommandNotRegistered,
@@ -802,7 +802,7 @@ class Core:
             modules += [child.stem for child in mdir.glob("feature/*.py")]
         return modules
 
-    def get_contexts(self) -> list[Context]:
+    def get_contexts(self) -> list[zctx.Context]:
         """Get a list of all active protocol `Context`s."""
         return [ctx for proto in self._protocols.values() for ctx in proto.contexts]
 
@@ -1038,7 +1038,7 @@ class Core:
             if callable(method):
                 await method(ctx, *args, **kwargs)
 
-    async def module_delay_event(self, delay: int | float, event: str, ctx: Context, *args, **kwargs):
+    async def module_delay_event(self, delay: int | float, event: str, ctx: zctx.Context, *args, **kwargs):
         """|coro|
 
         Push an arbitrary event to all feature modules after a delay.
@@ -1059,7 +1059,7 @@ class Core:
         await asyncio.sleep(delay)
         await self.module_send_event(event, ctx, *args, **kwargs)
 
-    async def module_commanded(self, cmd_msg: abc.Message, ctx: Context, delay: float | None = None):
+    async def module_commanded(self, cmd_msg: zctx.Message, ctx: zctx.Context, delay: float | None = None):
         """|coro|
 
         Parse a raw command string using a registered command parser.
