@@ -264,7 +264,7 @@ def generate_table(rows: list[sqlite3.Row], target: tuple[int, Any] | None = Non
     lines = []
     headers = rows[0].keys()
     widths = [[len(str(col)) for col in row] for row in rows]
-    min_widths = [max(x) for x in zip(*widths)]
+    min_widths = [max(x) for x in zip(*widths, strict=True)]
     line, rule = "", ""
     for i, col in enumerate(headers):
         # Create header
@@ -552,7 +552,7 @@ async def quote_stats(ctx, parsed):
             await cur.execute(f"SELECT {chosen} FROM quote_stats_global")
             row = await cur.fetchone()
         result = ["**Database Stats**"]
-        zipped = zip(row.keys(), row)
+        zipped = zip(row.keys(), row, strict=True)
     else:
         pattern = prepare_pattern(parsed.args["user"] or parsed.invoker.name)
         async with DB.cursor() as cur:
@@ -574,9 +574,9 @@ async def quote_stats(ctx, parsed):
             )
             row = await cur.fetchone()
         result = [f"**Stats for {row['Name']}**"]
-        zipped = zip(row.keys()[1:], row[1:])
+        zipped = zip(row.keys()[1:], row[1:], strict=True)
     result.append("```")
-    pairs = list(zip(*[iter(zipped)] * 2))
+    pairs = list(zip(*[iter(zipped)] * 2, strict=True))
     max_n, max_v = [], []
     for i in range(2):
         max_n.append(max(len(str(x[i][0])) for x in pairs) + 1)
