@@ -8,13 +8,15 @@ from __future__ import annotations
 from argparse import ArgumentParser, _SubParsersAction
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ZeroBot.common.enums import HelpType
-from ZeroBot.context import Channel, Message, User
 from ZeroBot.exceptions import CommandParseError
 from ZeroBot.module import Module
 from ZeroBot.util import gen_repr
+
+if TYPE_CHECKING:
+    from ZeroBot.context import Channel, Message, User
 
 __all__ = ["CommandHelp", "CommandParser", "ParsedCommand"]
 
