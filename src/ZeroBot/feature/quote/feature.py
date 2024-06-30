@@ -112,21 +112,8 @@ async def module_on_message(ctx, message):
         return
     if not message.content or message.content.isspace():
         return
-    # TODO: Proper 'DirectMessage' class
-    try:
-        server = message.server.name
-    except AttributeError:
-        server = "__DM__"
-        if (channel := ctx.get_channel(message.destination.id)) is None:
-            # XXX: Discord intents shenanigans
-            # Fetch and cache the DMChannel and associated User
-            logger.debug(f"Fetching DMChannel for {message.source}")
-            channel = await message.source.create_dm()
-        else:
-            logger.debug(f"Using cached DMChannel for {message.source}")
-        channel = channel.recipient
-    else:
-        channel = message.destination
+    server = "__DM__" if not message.server else message.server.name
+    channel = message.destination
     last_messages.setdefault(ctx.protocol, {}).setdefault(server, {})[channel.name] = message
 
 

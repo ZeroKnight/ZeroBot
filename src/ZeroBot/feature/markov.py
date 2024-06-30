@@ -669,16 +669,13 @@ async def _register_commands():
 
 def can_learn(ctx, message) -> bool:
     """Check if ZeroBot can learn from the given message."""
-    if (
+    return not (
         ctx.user == message.source
         or not CFG.get("Learning.Enabled", False)
-        # TODO: Proper protocol-agnostic 'DirectMessage' class
         # For privacy reasons, don't learn from direct messages
-        or hasattr(message.destination, "recipient")
+        or message.destination.is_dm
         or message.channel.name in CFG.get("Learning.Blacklist", [])
-    ):
-        return False
-    return True
+    )
 
 
 async def module_on_message(ctx, message):

@@ -109,7 +109,16 @@ class DiscordContext(Context, discord.Client):
 
     async def on_message(self, message: discord.Message):
         """Handle messages."""
-        if message.channel.type == ChannelType.private:
+        if message.channel.type is ChannelType.private:
+            # HACK: Discord intents shenanigans. Message.recipient is always
+            # None due to a gateway change and discord.py bug(?).
+            # Have to call create_dm the first time, but get_channel will
+            # cache/populate recipient on subsequent calls.
+            if (channel := self.get_channel(message.channel.id)) is None:
+                logger.debug(f"Fetching DMChannel for {message.author}")
+                message.channel = await message.author.create_dm()
+            else:
+                message.channel = channel
             log_msg = f"[{message.author}] {message.content}"
         else:
             guild = message.guild

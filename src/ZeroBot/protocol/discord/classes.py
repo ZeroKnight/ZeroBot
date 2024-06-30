@@ -73,7 +73,6 @@ class DiscordChannel(zctx.Channel, discord.TextChannel):
         extras = {
             "id": self._original.id,
             "guild": self._original.guild,
-            "category": self._original.category,
         }
         return gen_repr(self, attrs, **extras)
 
@@ -82,15 +81,21 @@ class DiscordChannel(zctx.Channel, discord.TextChannel):
 
     @property
     def name(self) -> str:
-        if self._original.type == discord.ChannelType.private:
+        if self.is_dm:
             return self._original.recipient.display_name
         return self._original.name
 
     @property
-    def server(self) -> DiscordServer:
+    def server(self) -> DiscordServer | None:
+        if self.is_dm:
+            return None
         return DiscordServer(self.context, self._original.guild)
 
-    async def history(self, limit, before, after, authors) -> AsyncIterator[DiscordMessage]:
+    @property
+    def is_dm(self) -> bool:
+        return self._original.type is discord.ChannelType.private
+
+    async def history(self, *, limit, before, after, authors) -> AsyncIterator[DiscordMessage]:
         for i, author in enumerate(authors):
             if isinstance(author, str):
                 authors[i] = self._original.guild.get_member_named(author)
@@ -137,8 +142,10 @@ class DiscordMessage(zctx.Message, discord.Message):
         return self._original.created_at
 
     @property
-    def server(self) -> DiscordServer:
-        return self._original.guild
+    def server(self) -> DiscordServer | None:
+        if (guild := self._original.guild) is not None:
+            return DiscordServer(self.context, guild)
+        return None
 
     @staticmethod
     def is_action_str(string: str) -> bool:

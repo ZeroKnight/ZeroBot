@@ -288,20 +288,10 @@ async def module_command_obit(ctx, parsed):
                 killer = await get_participant(ctx.user.name)
             victim = killer
         else:
-            # TODO: protocol agnostic
-            import discord
-
-            if isinstance(parsed.source, discord.DMChannel):
-                if (channel := ctx.get_channel(parsed.source.id)) is None:
-                    # XXX: Discord intents shenanigans
-                    # Fetch and cache the DMChannel and associated User
-                    logger.debug(f"Fetching DMChannel for {parsed.invoker}")
-                    channel = await parsed.invoker.create_dm()
-                else:
-                    logger.debug(f"Using cached DMChannel for {parsed.invoker}")
-                chosen = random.choice((ctx.user, channel.recipient))
+            if parsed.source.is_dm:
+                chosen = random.choice((ctx.user, parsed.invoker))
             else:
-                chosen = random.choice(parsed.source.members)
+                chosen = random.choice(await parsed.source.users())
             victim = killer
             killer = await get_participant(chosen.name)
     else:

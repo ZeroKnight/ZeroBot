@@ -395,11 +395,7 @@ async def announce(ctx, destination, counter: Counter, /, **kwargs):
 async def module_on_message(ctx, message):
     """Handle `Core` message event."""
     sender = message.source
-    # TODO: Proper 'DirectMessage' class
-    try:
-        channel = message.destination.name
-    except AttributeError:
-        channel = sender.name
+    channel = message.destination.name
     if not CFG["Enabled"] or ctx.user == sender:
         return
 
@@ -420,12 +416,7 @@ async def module_command_count(ctx, parsed):
     except KeyError:
         await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadTarget)
         return
-    # TODO: Proper 'DirectMessage' class
-    try:
-        channel = parsed.source.name
-    except AttributeError:
-        channel = parsed.invoker.name
-    await counter.increment(parsed.args["count"], participant=sender.name, channel=channel)
+    await counter.increment(parsed.args["count"], participant=sender.name, channel=parsed.source.name)
     if parsed.args["quiet"]:
         await ctx.module_message("Okay, done.", parsed.source)
     else:

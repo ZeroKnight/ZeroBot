@@ -203,8 +203,12 @@ class Channel(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def server(self) -> Server:
-        """The server that this Channel belongs to."""
+    def server(self) -> Server | None:
+        """The server that this Channel belongs to.
+
+        In some protocols, some channels may not be tied to a server, e.g.
+        direct message channels in Discord.
+        """
 
     @property
     def password(self) -> str | None:
@@ -214,9 +218,15 @@ class Channel(metaclass=ABCMeta):
         """
         return None
 
+    @property
+    @abstractmethod
+    def is_dm(self) -> bool:
+        """Whether this channel represents a direct message with another User."""
+
     @abstractmethod
     async def history(
         self,
+        *,
         limit: int | None = 100,
         before: Message | datetime.datetime | None = None,
         after: Message | datetime.datetime | None = None,
@@ -283,8 +293,12 @@ class Message(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def server(self) -> Server:
-        """The Server where this message originated from."""
+    def server(self) -> Server | None:
+        """The Server where this message originated from.
+
+        In some protocols, some messages may not be tied to a server, e.g.
+        direct messages in Discord.
+        """
 
     @staticmethod
     def is_action_str(string: str) -> bool:
