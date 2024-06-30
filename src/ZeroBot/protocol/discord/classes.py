@@ -64,6 +64,19 @@ class DiscordServer(zctx.Server, discord.Guild):
     def connected(self) -> bool:
         return not self._original.unavailable
 
+    @property
+    async def channels(self) -> list[DiscordChannel]:
+        return [DiscordChannel(self.context, channel) for channel in self._original.channels]
+
+    async def get_user(
+        self, *, id_: zctx.EntityID | None = None, name: str | None = None, username: str | None = None
+    ) -> DiscordUser | None:
+        if name or username:
+            return DiscordUser(self.context, self._original.get_member_named(name or username))
+        if id_:
+            return DiscordUser(self.context, self._original.get_member(id_))
+        raise ValueError("Must specify at least one keyword argument")
+
 
 class DiscordChannel(zctx.Channel, discord.TextChannel):
     """Represents a Discord channel of any type, private or otherwise."""
@@ -107,6 +120,13 @@ class DiscordChannel(zctx.Channel, discord.TextChannel):
 
     async def users(self) -> list[DiscordUser]:
         return [DiscordUser(self.context, x) for x in self._original.members]
+
+    async def get_message(self, id_: int | str) -> DiscordMessage | None:
+        try:
+            return DiscordMessage(self.context, await self._original.fetch_message(id_))
+        except (discord.NotFound, discord.Forbidden):
+            # TODO: Revist when we have a permissions interface
+            return None
 
 
 class DiscordMessage(zctx.Message, discord.Message):

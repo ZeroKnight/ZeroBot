@@ -23,7 +23,6 @@ from ZeroBot.common.util import parse_iso_format
 from ZeroBot.context import Message
 from ZeroBot.database import Participant
 from ZeroBot.database import get_participant as getpart
-from ZeroBot.protocol.discord.classes import DiscordMessage  # TEMP
 from ZeroBot.util import flatten
 
 from .classes import Quote, QuoteLine, QuoteStyle
@@ -307,14 +306,14 @@ async def quote_exists(content: str | list[str]) -> bool:
         return bool((await cur.fetchone())[0])
 
 
-# TODO: protocol-agnostic
+# TODO: This interface kinda sucks; redesign it.
+# TODO: Support non-MultiLine protocols
 async def quote_add(ctx, parsed):
     """Add a quote to the database."""
     submitter = await get_participant(parsed.args["submitter"] or parsed.invoker.name)
     style = getattr(QuoteStyle, parsed.args["style"].title())
     if parsed.args["date"]:
-        date = read_datestamp(parsed.args["date"])
-        if date is None:
+        if (date := read_datestamp(parsed.args["date"])) is None:
             await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
             return
     else:
@@ -691,12 +690,9 @@ async def quote_quick(ctx, parsed):
         user = user.lstrip("@")
     submitter = await get_participant(parsed.args["submitter"] or parsed.invoker.name)
     style = getattr(QuoteStyle, parsed.args["style"].title())
-    if parsed.args["date"]:
-        if (date := read_datestamp(parsed.args["date"])) is None:
-            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
-            return
-    else:
-        date = datetime.utcnow()
+    if parsed.args["date"] and (date := read_datestamp(parsed.args["date"])) is None:
+        await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
+        return
 
     # Try cache first
     if not parsed.args["id"] and not user:
@@ -711,34 +707,23 @@ async def quote_quick(ctx, parsed):
                 cached = True
 
     if not cached:
-        # TODO: Protocol-agnostic interface
-        import discord
-
-        types = [discord.ChannelType.text, discord.ChannelType.private]
         channels = [parsed.msg.destination]  # Search origin channel first
-        for channel in ctx.get_all_channels():
-            if channel.type in types and channel != channels[0]:
-                channels.append(channel)
+        channels.extend(c for c in (await parsed.server.channels()) if c != channels[0])
         if parsed.args["id"]:
             for channel in channels:
-                try:
-                    msg = await channel.fetch_message(parsed.args["id"])
+                if (msg := await channel.get_message(parsed.args["id"])) is not None:
                     break
-                except (discord.NotFound, discord.Forbidden):
-                    continue
-            else:
-                # No message found
+            else:  # No message found
                 await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadTarget)
                 return
         elif user:
             # Last message in channel by user
-            user = parsed.msg.server.get_member_named(user)
-            if user is None:
+            if (user := parsed.msg.server.get_user(user)) is None:
                 # Don't bother checking history if given a bad username
                 await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadTarget)
                 return
             limit = 100
-            msg = await channels[0].history(limit=limit).get(author=user)
+            msg = await anext(await channels[0].history(limit=limit, author=user))
             if not msg:
                 await ctx.reply_command_result(
                     f"Couldn't find a message from that user in the last {limit} messages.", parsed, CmdResult.NotFound
@@ -746,19 +731,18 @@ async def quote_quick(ctx, parsed):
                 return
         else:
             # Last message in channel
-            msg = (await channels[0].history(limit=2).flatten())[-1]
+            msg = [channel async for channel in channels[0].history(limit=2)][-1]
 
     author = await get_participant(msg.author.name)
-    if parsed.args["date"] is None:
-        date = msg.created_at
-    action, body = handle_action_line(msg.clean_content, DiscordMessage(msg))
+    if not parsed.args["date"]:
+        date = msg.time
+    action, body = handle_action_line(msg.clean_content, msg)
     lines.append((body, author, action))
 
-    # TODO: protocol-agnostic
     nprev = parsed.args["num_previous"]
-    async for prev_msg in msg.channel.history(limit=nprev, before=msg):
+    async for prev_msg in msg.destination.history(limit=nprev, before=msg):
         author = await get_participant(prev_msg.author.name)
-        action, body = handle_action_line(prev_msg.clean_content, DiscordMessage(prev_msg))
+        action, body = handle_action_line(prev_msg.clean_content, prev_msg)
         lines.append((body, author, action))
 
     quote = Quote(DB, None, submitter, date=date, style=style)

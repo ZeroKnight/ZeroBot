@@ -40,6 +40,8 @@ if TYPE_CHECKING:
     from ZeroBot.core import ConfigCmdResult, ModuleCmdResult, VersionInfo
 from ZeroBot.common.enums import CmdResult
 
+EntityID: TypeAlias = str | int
+
 
 class ProtocolSupport(Flag):
     """Enum of functionality that varies between protocols.
@@ -78,6 +80,11 @@ def protocolobj(cls):
 
         def __getattr__(self, name):
             return getattr(self._original, name)
+
+        @property
+        def id(self) -> EntityID:
+            """A unique identifier for this protocol object."""
+            return self._original.id
 
         @property
         def context(self) -> Context:
@@ -182,6 +189,22 @@ class Server(metaclass=ABCMeta):
     def connected(self) -> bool:
         """Whether or not the Server is currently connected."""
 
+    @property
+    @abstractmethod
+    async def channels(self) -> list[Channel]:
+        """Get a list of channels on the server."""
+
+    @abstractmethod
+    async def get_user(
+        self, *, id_: EntityID | None = None, name: str | None = None, username: str | None = None
+    ) -> User | None:
+        """Fetch a User from the server.
+
+        Returns `None` if the User could not be found. Typically only one
+        parameter should be specified; more than one is undefined and up to
+        the protocol implementation.
+        """
+
 
 @protocolobj
 class Channel(metaclass=ABCMeta):
@@ -246,6 +269,14 @@ class Channel(metaclass=ABCMeta):
     @abstractmethod
     async def users(self) -> list[User]:
         """Returns all Users in the channel."""
+
+    @abstractmethod
+    async def get_message(self, id_: EntityID) -> Message | None:
+        """Return a message from this channel by its unique ID.
+
+        Returns `None` if no message with the ID exists. May not be possible on
+        all protocols.
+        """
 
 
 @protocolobj
