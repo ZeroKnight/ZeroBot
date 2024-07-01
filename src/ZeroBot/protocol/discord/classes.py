@@ -135,6 +135,19 @@ class DiscordChannel(zctx.Channel, discord.TextChannel):
             # TODO: Revist when we have a permissions interface
             return None
 
+    @property
+    def mention(self) -> str:
+        if self.is_dm:
+            raise NotImplementedError
+        return self._original.mention
+
+    def mentioned(self, message: DiscordMessage) -> bool:
+        return self.mention in message.content
+
+    @cached_property
+    def mention_pattern(self) -> re.Pattern:
+        return re.compile(f"(#{self.name}|<#{self.id}>)")
+
 
 class DiscordMessage(zctx.Message, discord.Message):
     """Represents a Discord message of any type."""

@@ -281,6 +281,29 @@ class Channel(metaclass=ABCMeta):
         all protocols.
         """
 
+    @property
+    @abstractmethod
+    def mention(self) -> str:
+        """Returns a string appropriate to "mention" a channel.
+
+        Mentioning a channel typically formats it as a link and/or displays it
+        in a special way.
+        """
+
+    @abstractmethod
+    def mentioned(self, message: Message) -> bool:
+        """Check if the channel was mentioned in the given message."""
+
+    @property
+    @abstractmethod
+    def mention_pattern(self) -> re.Pattern:
+        """Return a pattern that matches the bare name or a mention.
+
+        On some protocols, a mention may be formatted specially in the actual
+        message content, e.g. Discord. The returned pattern should match the
+        channel display name as-is or its mention-form, if applicable.
+        """
+
 
 @protocolobj
 class Message(metaclass=ABCMeta):
