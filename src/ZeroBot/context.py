@@ -54,6 +54,7 @@ class ProtocolSupport(Flag):
 
     MessageMultiLine = auto()
     MessageColor = auto()
+    MessageEdit = auto()
     StatusMessage = auto()
     AwayMessage = auto()
     Visibility = auto()  # Online, Away/Idle, Invisible, Offline, etc.

@@ -153,6 +153,7 @@ class DiscordContext(Context, discord.Client):
     def support() -> ProtocolSupport:
         return (
             ProtocolSupport.MessageMultiLine
+            | ProtocolSupport.MessageEdit
             | ProtocolSupport.StatusMessage
             | ProtocolSupport.Visibility
             | ProtocolSupport.Roles
