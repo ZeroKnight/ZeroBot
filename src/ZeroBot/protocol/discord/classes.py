@@ -37,6 +37,7 @@ class DiscordUser(zctx.User, discord.User):
     def bot(self) -> bool:
         return self._original.bot
 
+    @property
     def mention(self) -> str:
         return self._original.mention
 

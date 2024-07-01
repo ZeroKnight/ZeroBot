@@ -170,7 +170,7 @@ class DiscordContext(Context, discord.Client):
     async def module_message(
         self,
         content: str,
-        destination: DiscordChannel,
+        destination: DiscordChannel | DiscordUser,
         *,
         action: bool = False,
         mention_user: DiscordUser | None = None,
@@ -179,7 +179,7 @@ class DiscordContext(Context, discord.Client):
         if action:
             content = DiscordMessage.as_action_str(content)
         if mention_user:
-            content = f"{mention_user.mention()} {content}"
+            content = f"{mention_user.mention} {content}"
         await destination.send(content, embed=kwargs.get("embed"))
 
     async def module_reply(self, content: str, referent: DiscordMessage, *, action: bool = False, **kwargs):

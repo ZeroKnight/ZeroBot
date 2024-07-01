@@ -139,6 +139,7 @@ class User(metaclass=ABCMeta):
         """Whether or not this User is a bot."""
         raise NotImplementedError
 
+    @property
     @abstractmethod
     def mention(self) -> str:
         """Returns a string appropriate to "mention" a user.
