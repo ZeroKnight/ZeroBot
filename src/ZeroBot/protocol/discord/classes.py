@@ -8,11 +8,16 @@ from __future__ import annotations
 import datetime
 import re
 from collections.abc import AsyncIterator
+from functools import cached_property
 
 import discord
 
 import ZeroBot.context as zctx
 from ZeroBot.util import gen_repr
+
+USER_MENTION = re.compile(r"<@!?(\d+)>")
+CHANNEL_MENTION = re.compile(r"<#(\d+)>")
+ROLE_MENTION = re.compile(r"<@&(\d+)>")
 
 ACTION_PATTERN = re.compile(r"^\*(?:[^*]|(?<=\\)\*)*\*$")
 
@@ -44,9 +49,10 @@ class DiscordUser(zctx.User, discord.User):
     def mentioned(self, message: DiscordMessage) -> bool:
         return self._original.mentioned_in(message) or re.search(self.name, message.content, re.I)
 
-    def mention_pattern(self) -> str:
+    @cached_property
+    def mention_pattern(self) -> re.Pattern:
         # The mention string differs by a '!' if it mentions a nickname or not.
-        return f"({self.name}|<@!?{self.id}>)"
+        return re.compile(f"({self.name}|<@!?{self.id}>)")
 
 
 class DiscordServer(zctx.Server, discord.Guild):

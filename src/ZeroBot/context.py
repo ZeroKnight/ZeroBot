@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import datetime
 import functools
+import re
 from abc import ABCMeta, abstractmethod
 from collections.abc import AsyncIterator
 from enum import Flag, auto
@@ -152,8 +153,9 @@ class User(metaclass=ABCMeta):
     def mentioned(self, message: Message) -> bool:
         """Check if the user was mentioned in the given message."""
 
+    @property
     @abstractmethod
-    def mention_pattern(self) -> str:
+    def mention_pattern(self) -> re.Pattern:
         """Return a pattern that matches the bare name or a mention.
 
         On some protocols, a mention may be formatted specially in the actual

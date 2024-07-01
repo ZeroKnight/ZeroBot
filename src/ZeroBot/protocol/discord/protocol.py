@@ -16,7 +16,7 @@ from ZeroBot import util
 from ZeroBot.common import ConfigCmdStatus, ModuleCmdStatus
 from ZeroBot.context import Context, ProtocolSupport
 
-from .classes import DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
+from .classes import CHANNEL_MENTION, USER_MENTION, DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
 
 MODULE_NAME = "Discord"
 MODULE_AUTHOR = "ZeroKnight"
@@ -28,10 +28,6 @@ CORE = None
 CFG = None
 
 logger = logging.getLogger("ZeroBot.Discord")
-
-USER_MENTION = re.compile(r"<@!?(\d+)>")
-CHANNEL_MENTION = re.compile(r"<#(\d+)>")
-ROLE_MENTION = re.compile(r"<@&(\d+)>")
 
 
 async def module_register(core, cfg):

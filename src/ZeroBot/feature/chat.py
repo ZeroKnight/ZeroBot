@@ -13,9 +13,9 @@ import random
 import re
 import shutil
 from collections import deque
+from collections.abc import Iterable
 from enum import Enum, unique
 from importlib import resources
-from typing import Iterable
 
 from ZeroBot.common import CommandParser, rand_chance
 from ZeroBot.common.enums import CmdResult
@@ -282,7 +282,7 @@ async def module_on_message(ctx, message):
         for pattern in CFG.get("Questioned.Triggers"):
             # Check against bare name and mention string to handle protocols
             # where these may differ, like Discord.
-            pattern = pattern.replace(r"\z", f"{ctx.user.mention_pattern()}")
+            pattern = pattern.replace(r"\z", f"{ctx.user.mention_pattern.pattern}")
             pattern = pattern.replace(r"\q", f"[{QUESTION_CHARS}]")
             if re.search(pattern, message.content, re.I):
                 if re.search(r"would you kindly", message.content, re.I):
