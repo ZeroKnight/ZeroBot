@@ -73,15 +73,32 @@ class DiscordServer(zctx.Server, discord.Guild):
 
     @property
     async def channels(self) -> list[DiscordChannel]:
-        return [DiscordChannel(self.context, channel) for channel in self._original.channels]
+        return [DiscordChannel(self.context, channel) for channel in self._original.text_channels]
+
+    @property
+    async def users(self) -> list[DiscordUser]:
+        return [DiscordChannel(self.context, user) for user in self._original.members]
 
     async def get_user(
         self, *, id_: zctx.EntityID | None = None, name: str | None = None, username: str | None = None
     ) -> DiscordUser | None:
         if name or username:
-            return DiscordUser(self.context, self._original.get_member_named(name or username))
+            user = self._original.get_member_named((name or username).lstrip("@"))
+        elif id_:
+            user = self._original.get_member(id_)
+        else:
+            raise ValueError("Must specify at least one keyword argument")
+        return DiscordUser(self.context, user) if user else None
+
+    async def get_channel(self, *, id_: zctx.EntityID | None = None, name: str | None = None) -> DiscordChannel | None:
+        if name:
+            for channel in self.channels:
+                if channel.name == name.lstrip("#"):
+                    return channel
+            return None
         if id_:
-            return DiscordUser(self.context, self._original.get_member(id_))
+            channel = self._original.get_channel(id_)
+            return DiscordChannel(self.context, channel) if channel else None
         raise ValueError("Must specify at least one keyword argument")
 
 

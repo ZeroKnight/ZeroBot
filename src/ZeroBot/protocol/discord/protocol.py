@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import re
 import time
+from typing import TYPE_CHECKING
 
 import discord
 from discord import ChannelType
@@ -15,6 +16,9 @@ from discord import ChannelType
 from ZeroBot import util
 from ZeroBot.common import ConfigCmdStatus, ModuleCmdStatus
 from ZeroBot.context import Context, ProtocolSupport
+
+if TYPE_CHECKING:
+    from ZeroBot.context import EntityID
 
 from .classes import CHANNEL_MENTION, USER_MENTION, DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
 
@@ -110,7 +114,7 @@ class DiscordContext(Context, discord.Client):
             # None due to a gateway change and discord.py bug(?).
             # Have to call create_dm the first time, but get_channel will
             # cache/populate recipient on subsequent calls.
-            if (channel := self.get_channel(message.channel.id)) is None:
+            if (channel := super(Context, self).get_channel(message.channel.id)) is None:
                 logger.debug(f"Fetching DMChannel for {message.author}")
                 message.channel = await message.author.create_dm()
             else:
@@ -163,6 +167,21 @@ class DiscordContext(Context, discord.Client):
             | ProtocolSupport.Attachments
             | ProtocolSupport.Embeds
         )
+
+    async def get_user(
+        self, *, id_: EntityID | None = None, name: str | None = None, username: str | None = None
+    ) -> DiscordUser | None:
+        for user in self.get_all_members():
+            _name = (name or username or "").lstrip("@")
+            if user.id == id_ or user.display_name == _name or user.name == _name:
+                return DiscordUser(self, user)
+        return None
+
+    async def get_channel(self, *, id_: EntityID | None = None, name: str | None = None) -> DiscordChannel | None:
+        for channel in self.get_all_channels():
+            if channel.id == id_ or channel.name == name.lstrip("#"):
+                return DiscordChannel(self, channel)
+        return None
 
     async def module_message(
         self,

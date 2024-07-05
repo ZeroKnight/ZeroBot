@@ -202,9 +202,18 @@ class Server(metaclass=ABCMeta):
     async def get_user(
         self, *, id_: EntityID | None = None, name: str | None = None, username: str | None = None
     ) -> User | None:
-        """Fetch a User from the server.
+        """Fetch a User known by the server.
 
         Returns `None` if the User could not be found. Typically only one
+        parameter should be specified; more than one is undefined and up to
+        the protocol implementation.
+        """
+
+    @abstractmethod
+    async def get_channel(self, *, id_: EntityID | None = None, name: str | None = None) -> Channel | None:
+        """Fetch a Channel known by the server.
+
+        Returns `None` if the Channel could not be found. Typically only one
         parameter should be specified; more than one is undefined and up to
         the protocol implementation.
         """
@@ -477,6 +486,26 @@ class Context(metaclass=ABCMeta):
         May be `None` if not applicable for a particular protocol.
         """
         return None
+
+    @abstractmethod
+    async def get_user(
+        self, *, id_: EntityID | None = None, name: str | None = None, username: str | None = None
+    ) -> User | None:
+        """Fetch a User known by this context.
+
+        Returns `None` if the User could not be found. Typically only one
+        parameter should be specified; more than one is undefined and up to
+        the protocol implementation.
+        """
+
+    @abstractmethod
+    async def get_channel(self, *, id_: EntityID | None = None, name: str | None = None) -> Channel | None:
+        """Fetch a Channel known by this context.
+
+        Returns `None` if the Channel could not be found. Typically only one
+        parameter should be specified; more than one is undefined and up to
+        the protocol implementation.
+        """
 
     # TODO: Refactor/rethink the `action` param. It doesn't make sense to
     # have both action and mention_user, nor does it make sense with
