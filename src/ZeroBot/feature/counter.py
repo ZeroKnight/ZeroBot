@@ -9,10 +9,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from collections.abc import Iterable
 from datetime import datetime
 from importlib import resources
 from string import Template
-from typing import Iterable
 
 from ZeroBot.common import CommandParser
 from ZeroBot.common.enums import CmdResult
@@ -389,7 +389,7 @@ async def announce(ctx, destination, counter: Counter, /, **kwargs):
     if (msg := SPECIAL_NUMBERS.get(counter.count)) is not None:
         await asyncio.sleep(1)
         action = msg.startswith("*") and msg.endswith("*")
-        await ctx.module_message(msg, destination, action)
+        await ctx.module_message(msg, destination, action=action)
 
 
 async def module_on_message(ctx, message):
