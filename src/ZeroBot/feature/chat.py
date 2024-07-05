@@ -16,9 +16,13 @@ from collections import deque
 from collections.abc import Iterable
 from enum import Enum, unique
 from importlib import resources
+from typing import TYPE_CHECKING
 
 from ZeroBot.common import CommandParser, rand_chance
 from ZeroBot.common.enums import CmdResult
+
+if TYPE_CHECKING:
+    from ZeroBot.context import Channel, User
 
 try:
     import discord
@@ -269,7 +273,7 @@ async def module_on_message(ctx, message):
         if rand_chance(CFG.get("Berate.Chance", DEFAULT_BERATE_CHANCE)):
             phrase, action = await fetch_phrase("berate", ["action"])
             phrase.replace("%0", sender.name)
-            await ctx.module_message(phrase, message.destination, action)
+            await ctx.module_message(phrase, message.destination, action=action)
             return
 
     # wat
@@ -298,13 +302,13 @@ async def module_on_message(ctx, message):
                         action = True
                 else:
                     phrase, action = await fetch_phrase("questioned", ["action"])
-                await ctx.module_message(phrase, message.destination, action)
+                await ctx.module_message(phrase, message.destination, action=action)
                 return
 
     # Respond to being mentioned... oddly
     if CFG.get("Mentioned.Enabled") and ctx.user.mentioned(message):
         phrase, action = await fetch_phrase("mentioned", ["action"])
-        await ctx.module_message(phrase, message.destination, action)
+        await ctx.module_message(phrase, message.destination, action=action)
         return
 
     # Dots...!
@@ -324,7 +328,7 @@ async def module_on_join(ctx, channel, user):
             kicked_from.remove(channel)
     else:
         phrase, action = await fetch_phrase("greetings", ["action"])
-        await ctx.module_message(phrase, channel, action)
+        await ctx.module_message(phrase, channel, action=action)
 
 
 async def module_on_invalid_command(ctx, cmd_msg, err=CmdResult.Unspecified):
@@ -337,7 +341,7 @@ async def module_on_invalid_command(ctx, cmd_msg, err=CmdResult.Unspecified):
         # ZeroBot might still be vague regardless
         err = CmdResult.Unspecified
     phrase, action = await fetch_phrase("badcmd", ["action"], "WHERE error_type = ?", (err.value,))
-    await ctx.module_message(phrase, cmd_msg.destination, action)
+    await ctx.module_message(phrase, cmd_msg.destination, action=action)
 
 
 async def module_on_kick(ctx, channel, user):
@@ -349,16 +353,40 @@ async def module_on_kick(ctx, channel, user):
 
 async def module_command_say(ctx, parsed):
     """Handle `say` command."""
-    targets = []
+
+    if parsed.source.is_dm:
+        get_channel = ctx.get_channel
+        get_user = ctx.get_user
+    else:
+        get_channel = parsed.msg.server.get_channel
+        get_user = parsed.msg.server.get_user
+
+    # FIXME: Matching against "clean" user mentions will break if the mention
+    # contains a space. Command args should probably not be automatically
+    # cleaned and the raw pattern should be matched against.
+    async def get_target(what: str) -> User | Channel | None:
+        if ctx.CHANNEL_MENTION.plain.match(what):
+            return await get_channel(name=what)
+        return await get_user(name=what)
+
+    targets, not_found = [], []
     if parsed.args["to"]:
-        for target in parsed.args["to"]:
-            if ctx.protocol == "discord":
-                target = ctx.get_target(target)
-            targets.append(target)
+        for what in parsed.args["to"]:
+            if (target := await get_target(what)) is not None:
+                targets.append(target)
+            else:
+                not_found.append(what)
+        if not targets:
+            await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadTarget)
     else:
         targets.append(parsed.msg.destination)
     for target in targets:
-        await ctx.module_message(" ".join(parsed.args["msg"]), target, parsed.args["action"])
+        await ctx.module_message(" ".join(parsed.args["msg"]), target, action=parsed.args["action"])
+    if targets and not_found:
+        await ctx.module_reply(
+            "I don't know where to find {}: {}".format("these" if len(not_found) > 1 else "this", ", ".join(not_found)),
+            parsed.msg,
+        )
 
 
 async def module_command_fortune(ctx, parsed):

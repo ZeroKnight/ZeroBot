@@ -15,12 +15,12 @@ from discord import ChannelType
 
 from ZeroBot import util
 from ZeroBot.common import ConfigCmdStatus, ModuleCmdStatus
-from ZeroBot.context import Context, ProtocolSupport
+from ZeroBot.context import Context, MentionPattern, ProtocolSupport
 
 if TYPE_CHECKING:
     from ZeroBot.context import EntityID
 
-from .classes import CHANNEL_MENTION, USER_MENTION, DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
+from .classes import DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
 
 MODULE_NAME = "Discord"
 MODULE_AUTHOR = "ZeroKnight"
@@ -59,17 +59,9 @@ async def module_unregister(contexts, reason: str | None = None):
 class DiscordContext(Context, discord.Client):
     """Discord implementation of a ZeroBot `Context`."""
 
-    def get_target(self, target: str) -> DiscordUser | DiscordChannel:
-        """Extract the user or channel object representing the given target."""
-        if match := USER_MENTION.match(target):
-            args = {"iterable": self.get_all_members(), "id": int(match.group(1))}
-        elif match := CHANNEL_MENTION.match(target):
-            args = {"iterable": self.get_all_channels(), "id": int(match.group(1))}
-        elif target.startswith("#"):
-            args = {"iterable": self.get_all_channels(), "name": target[1:]}
-        else:
-            args = {"iterable": self.get_all_members(), "name": target}
-        return discord.utils.get(**args)
+    USER_MENTION = MentionPattern(re.compile(r"<@!?(\d+)>"), re.compile(r"@\S+"))
+    CHANNEL_MENTION = MentionPattern(re.compile(r"<#(\d+)>"), re.compile(r"#\S+"))
+    ROLE_MENTION = MentionPattern(re.compile(r"<@&(\d+)>"), USER_MENTION.plain)
 
     # Discord Handlers
 

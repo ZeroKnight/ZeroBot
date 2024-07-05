@@ -34,7 +34,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import AsyncIterator
 from enum import Flag, auto
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, NamedTuple, TypeAlias
 
 if TYPE_CHECKING:
     from ZeroBot.common import CommandHelp, ParsedCommand
@@ -64,6 +64,18 @@ class ProtocolSupport(Flag):
     ScreenShare = auto()
     Attachments = auto()
     Embeds = auto()
+
+
+class MentionPattern(NamedTuple):
+    """POD type for patterns that match a mention in different forms.
+
+    The `raw` pattern matches a mention in the underlying form that the protocol
+    uses, which may be different from what the user actually sees. The `plain`
+    pattern is the latter.
+    """
+
+    raw: re.Pattern
+    plain: re.Pattern
 
 
 def protocolobj(cls):

@@ -15,10 +15,6 @@ import discord
 import ZeroBot.context as zctx
 from ZeroBot.util import gen_repr
 
-USER_MENTION = re.compile(r"<@!?(\d+)>")
-CHANNEL_MENTION = re.compile(r"<#(\d+)>")
-ROLE_MENTION = re.compile(r"<@&(\d+)>")
-
 ACTION_PATTERN = re.compile(r"^\*(?:[^*]|(?<=\\)\*)*\*$")
 
 
