@@ -121,6 +121,7 @@ async def module_register(core):
             logger.debug(f"Adding Activity Shuffler task for context {ctx}")
             task = discord.ext.tasks.Loop(
                 shuffle_discord_activity,
+                name="feat_chat_activity_shuffle",
                 time=discord.ext.tasks.MISSING,  # XXX: This interface got a bit silly in 2.0
                 seconds=interval,
                 minutes=0,
