@@ -17,7 +17,7 @@ dependencies = [
     'appdirs',
     'discord.py>=1.5.0',
     'pydle>=0.9.4',
-    'python-dateutil ; python_version < 3.11',
+    "python-dateutil ; python_version < '3.11'",
     'toml',
 ]
 
