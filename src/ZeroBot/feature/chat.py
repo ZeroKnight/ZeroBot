@@ -24,13 +24,8 @@ from ZeroBot.common.enums import CmdResult
 if TYPE_CHECKING:
     from ZeroBot.context import Channel, User
 
-try:
-    import discord
-    import discord.ext.tasks
-
-    _discord_available = True
-except ImportError:
-    _discord_available = False
+import discord
+import discord.ext.tasks
 
 MODULE_NAME = "Chat"
 MODULE_AUTHOR = "ZeroKnight"
@@ -114,7 +109,7 @@ async def module_register(core):
     _register_commands()
 
     # Schedule Activity Shufflers
-    if _discord_available:
+    if CORE.protocol_loaded("discord"):
         interval = CFG.get("Activity.Interval", DEFAULT_ACTIVITY_INTERVAL)
         for ctx in filter(lambda x: x.protocol == "discord", CORE.get_contexts()):
             global shuffler_tasks
