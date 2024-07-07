@@ -86,6 +86,9 @@ extend-safe-fixes = ['F401', 'I', 'RET', 'RUF005', 'RUF013', 'SIM', 'UP']
 [tool.ruff.lint.isort]
 required-imports = ['from __future__ import annotations']
 
+[tool.ruff.lint.flake8-builtins]
+builtins-ignorelist = ['id']
+
 [tool.pytest.ini_options]
 minversion = '6.0'
 testpaths = ['tests']

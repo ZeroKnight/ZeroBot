@@ -76,24 +76,24 @@ class DiscordServer(zctx.Server, discord.Guild):
         return [DiscordChannel(self.context, user) for user in self._original.members]
 
     async def get_user(
-        self, *, id_: zctx.EntityID | None = None, name: str | None = None, username: str | None = None
+        self, *, id: zctx.EntityID | None = None, name: str | None = None, username: str | None = None
     ) -> DiscordUser | None:
         if name or username:
             user = self._original.get_member_named((name or username).lstrip("@"))
-        elif id_:
-            user = self._original.get_member(id_)
+        elif id:
+            user = self._original.get_member(id)
         else:
             raise ValueError("Must specify at least one keyword argument")
         return DiscordUser(self.context, user) if user else None
 
-    async def get_channel(self, *, id_: zctx.EntityID | None = None, name: str | None = None) -> DiscordChannel | None:
+    async def get_channel(self, *, id: zctx.EntityID | None = None, name: str | None = None) -> DiscordChannel | None:
         if name:
             for channel in self.channels:
                 if channel.name == name.lstrip("#"):
                     return channel
             return None
-        if id_:
-            channel = self._original.get_channel(id_)
+        if id:
+            channel = self._original.get_channel(id)
             return DiscordChannel(self.context, channel) if channel else None
         raise ValueError("Must specify at least one keyword argument")
 
@@ -141,9 +141,9 @@ class DiscordChannel(zctx.Channel, discord.TextChannel):
     async def users(self) -> list[DiscordUser]:
         return [DiscordUser(self.context, x) for x in self._original.members]
 
-    async def get_message(self, id_: int | str) -> DiscordMessage | None:
+    async def get_message(self, id: int | str) -> DiscordMessage | None:
         try:
-            return DiscordMessage(self.context, await self._original.fetch_message(id_))
+            return DiscordMessage(self.context, await self._original.fetch_message(id))
         except (discord.NotFound, discord.Forbidden):
             # TODO: Revist when we have a permissions interface
             return None

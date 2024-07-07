@@ -161,17 +161,17 @@ class DiscordContext(Context, discord.Client):
         )
 
     async def get_user(
-        self, *, id_: EntityID | None = None, name: str | None = None, username: str | None = None
+        self, *, id: EntityID | None = None, name: str | None = None, username: str | None = None
     ) -> DiscordUser | None:
         for user in self.get_all_members():
             _name = (name or username or "").lstrip("@")
-            if user.id == id_ or user.display_name == _name or user.name == _name:
+            if user.id == id or user.display_name == _name or user.name == _name:
                 return DiscordUser(self, user)
         return None
 
-    async def get_channel(self, *, id_: EntityID | None = None, name: str | None = None) -> DiscordChannel | None:
+    async def get_channel(self, *, id: EntityID | None = None, name: str | None = None) -> DiscordChannel | None:
         for channel in self.get_all_channels():
-            if channel.id == id_ or channel.name == name.lstrip("#"):
+            if channel.id == id or channel.name == name.lstrip("#"):
                 return DiscordChannel(self, channel)
         return None
 

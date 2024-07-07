@@ -212,7 +212,7 @@ class Server(metaclass=ABCMeta):
 
     @abstractmethod
     async def get_user(
-        self, *, id_: EntityID | None = None, name: str | None = None, username: str | None = None
+        self, *, id: EntityID | None = None, name: str | None = None, username: str | None = None
     ) -> User | None:
         """Fetch a User known by the server.
 
@@ -222,7 +222,7 @@ class Server(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    async def get_channel(self, *, id_: EntityID | None = None, name: str | None = None) -> Channel | None:
+    async def get_channel(self, *, id: EntityID | None = None, name: str | None = None) -> Channel | None:
         """Fetch a Channel known by the server.
 
         Returns `None` if the Channel could not be found. Typically only one
@@ -296,7 +296,7 @@ class Channel(metaclass=ABCMeta):
         """Returns all Users in the channel."""
 
     @abstractmethod
-    async def get_message(self, id_: EntityID) -> Message | None:
+    async def get_message(self, id: EntityID) -> Message | None:
         """Return a message from this channel by its unique ID.
 
         Returns `None` if no message with the ID exists. May not be possible on
@@ -501,7 +501,7 @@ class Context(metaclass=ABCMeta):
 
     @abstractmethod
     async def get_user(
-        self, *, id_: EntityID | None = None, name: str | None = None, username: str | None = None
+        self, *, id: EntityID | None = None, name: str | None = None, username: str | None = None
     ) -> User | None:
         """Fetch a User known by this context.
 
@@ -511,7 +511,7 @@ class Context(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    async def get_channel(self, *, id_: EntityID | None = None, name: str | None = None) -> Channel | None:
+    async def get_channel(self, *, id: EntityID | None = None, name: str | None = None) -> Channel | None:
         """Fetch a Channel known by this context.
 
         Returns `None` if the Channel could not be found. Typically only one
