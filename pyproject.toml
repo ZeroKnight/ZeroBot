@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ['ruff', 'pytest>=6.0']
+dev = ['ruff>=0.5.0', 'pytest>=6.0']
 
 [project.urls]
 Repository = 'https://github.com/ZeroKnight/ZeroBot'
@@ -35,50 +35,68 @@ zerobotdb = 'ZeroBot.__main__:edit_db'
 ZeroBot = ['sql/**/*.sql']
 
 [tool.ruff]
+required-version = '>=0.5.0'
 src = ['src']
 line-length = 120
 
 [tool.ruff.format]
 preview = true
+docstring-code-format = true
 
 # TBD: docstring convention
 # TODO: Enable ANN when we begin doing proper typing
 [tool.ruff.lint]
 preview = true
+explicit-preview-rules = true
 extend-select = [
     'ARG',
     'ASYNC',
     'A',
     'B',
-    'C',
-    'C90',
+    'C4', # flake8-comprehensions
+    'C90', # mccabe
     'DTZ',
+    'EM',
     'FBT',
     'I',
+    'ISC',
     'N',
     'PIE',
+    'PLC',
     'PLE',
-    'PLR1704', # redefined-argument-from-local
-    'PLR6',
+    'PLR',
+    'PLR1730', # preview: if-stmt-min-max
+    'PLR1733', # preview: unnecessary-dict-index-lookup
+    'PLR6301', # preview: no-self-use
     'PLW',
+    'PLW0211', # preview: bad-staticmethod-argument
     'PTH',
     'RET',
+    'RSE',
     'RUF',
+    'RUF022', # preview: unsorted-dunder-all
+    'RUF023', # preview: unsorted-dunder-slots
+    'RUF027', # preview: missing-f-string-syntax
     'S',
     'SIM',
     'T10',
     'T20',
+    'TCH',
     'TRY',
     'UP',
+    'UP042', # preview: replace-str-enum
     'YTT',
 ]
 
 ignore = [
     'A003', # I don't think this is a big deal
+    'ISC001', # Redundant with formatter
+    'PLC0414', # Conflicts with F401 fix
     'S311', # I'm not using random for crypto...
 ]
 
-extend-safe-fixes = ['F401', 'I', 'RET', 'RUF005', 'RUF013', 'SIM', 'UP']
+extend-safe-fixes = ['F401', 'I', 'RET', 'RUF005', 'RUF013', 'SIM', 'TCH', 'UP']
+extend-unsafe-fixes = ['SIM108']
 
 [tool.ruff.lint.per-file-ignores]
 'test_*.py' = ['ANN', 'S101']
