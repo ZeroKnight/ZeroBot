@@ -113,17 +113,18 @@ async def module_register(core):
         interval = CFG.get("Activity.Interval", DEFAULT_ACTIVITY_INTERVAL)
         for ctx in filter(lambda x: x.protocol == "discord", CORE.get_contexts()):
             global shuffler_tasks
-            logger.debug(f"Adding Activity Shuffler task for context {ctx}")
-            task = discord.ext.tasks.Loop(
-                shuffle_discord_activity,
-                name="feat_chat_activity_shuffle",
-                time=discord.ext.tasks.MISSING,  # XXX: This interface got a bit silly in 2.0
-                seconds=interval,
-                minutes=0,
-                hours=0,
-                count=None,
-                reconnect=True,
-            )
+            task_kwargs = {
+                "time": discord.ext.tasks.MISSING,  # XXX: This interface got a bit silly in 2.0
+                "seconds": interval,
+                "minutes": 0,
+                "hours": 0,
+                "count": None,
+                "reconnect": True,
+            }
+            if discord.version_info >= (2, 4):
+                task_kwargs["name"] = "feat_chat_activity_shuffle"
+            task = discord.ext.tasks.Loop(shuffle_discord_activity, **task_kwargs)
+            logger.debug(f"Adding Activity Shuffler task for context {ctx}, shuffling every {interval} seconds")
             shuffler_tasks.append(task)
             task.start(ctx)
 
