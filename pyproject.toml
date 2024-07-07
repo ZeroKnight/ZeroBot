@@ -37,7 +37,6 @@ ZeroBot = ['sql/**/*.sql']
 [tool.ruff]
 src = ['src']
 line-length = 120
-ignore-init-module-imports = true # TBD: Maybe just be explicit?
 
 [tool.ruff.format]
 preview = true
