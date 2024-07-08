@@ -93,10 +93,10 @@ ignore = [
     'ISC001', # Redundant with formatter
     'PLC0414', # Conflicts with F401 fix
     'S311', # I'm not using random for crypto...
+    'SIM108', # This rule is a bit too eager
 ]
 
 extend-safe-fixes = ['F401', 'I', 'RET', 'RUF005', 'RUF013', 'SIM', 'TCH', 'UP']
-extend-unsafe-fixes = ['SIM108']
 
 [tool.ruff.lint.per-file-ignores]
 'test_*.py' = ['ANN', 'S101']
