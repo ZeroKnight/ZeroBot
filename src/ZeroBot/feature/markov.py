@@ -19,7 +19,7 @@ from functools import partial
 from importlib import resources
 from io import StringIO
 from itertools import repeat
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Final, TypeAlias
 from urllib.parse import urlparse
 
 from ZeroBot.common import CommandParser
@@ -85,12 +85,11 @@ class MarkovSentenceGenerator:
     SENTENCE_BEGIN: Final = "___ZB_MARKOV_SENTENCE_BEGIN___"
     SENTENCE_END: Final = "___ZB_MARKOV_SENTENCE_END___"
 
-    # Type aliases
-    Corpus = list[list[str]]
-    Token = (str,)
-    ChainState = tuple[Token, ...]
-    Candidates = dict[Token, int]
-    ChainModel = dict[ChainState, Candidates]
+    Token: TypeAlias = str
+    Corpus: TypeAlias = list[list[Token]]
+    ChainState: TypeAlias = tuple[Token, ...]
+    Candidates: TypeAlias = dict[Token, int]
+    ChainModel: TypeAlias = dict[ChainState, Candidates]
 
     def __init__(self, corpus: Corpus, order: int = 1, state_map: ChainModel = None):
         if order < 1:
