@@ -10,10 +10,13 @@ import sys
 from importlib.abc import MetaPathFinder
 from importlib.util import spec_from_file_location
 from pathlib import Path
-from types import ModuleType
+from typing import TYPE_CHECKING
 
 from ZeroBot.exceptions import ModuleLoadError
 from ZeroBot.util import gen_repr
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 def module_available(module_id: str, mtype: str) -> bool:

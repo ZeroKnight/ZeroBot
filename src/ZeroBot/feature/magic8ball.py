@@ -8,16 +8,19 @@ from __future__ import annotations
 import random
 import re
 from collections import deque
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum, unique
 from importlib import resources
 from string import Template
+from typing import TYPE_CHECKING
 
 import discord
 
 from ZeroBot.common import CommandParser
 from ZeroBot.protocol.discord.util import ResponseProxy
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 MODULE_NAME = "Magic 8-Ball"
 MODULE_AUTHOR = "ZeroKnight"
@@ -256,11 +259,10 @@ async def module_command_8ball(ctx, parsed):
         output += f"*{prelude.capitalize()}, then {answer.text}*"
     elif answer.action:
         output += f"{prelude.capitalize()} {answer}"
+    elif prelude.action:
+        output += f"*{prelude.capitalize()}*, it reads: {answer}"
     else:
-        if prelude.action:
-            output += f"*{prelude.capitalize()}*, it reads: {answer}"
-        else:
-            output += f"{prelude.capitalize()} It reads: {answer}"
+        output += f"{prelude.capitalize()} It reads: {answer}"
 
     # Simplify repeat occurrances of "the 8-Ball" ...
     pat = re.compile(r"the\s+(?:magic\s+)?8-ball", flags=re.I)

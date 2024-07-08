@@ -11,14 +11,17 @@ import json
 import logging
 import re
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from importlib import resources
 from pathlib import Path
-from typing import AnyStr, Iterator
+from typing import TYPE_CHECKING, AnyStr
 
 import aiosqlite
 
-from ZeroBot.module import Module
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from ZeroBot.module import Module
 
 logger = logging.getLogger("ZeroBot.Database")
 
@@ -153,7 +156,7 @@ class DBUserInfo(DBModel):
         self._id = user_id
         self.name = name
         if created_at is None:
-            created_at = datetime.utcnow()
+            created_at = datetime.now(tz=timezone.utc)
         self.created_at = created_at
         self.creation_flags = creation_flags
         self.creation_metadata = creation_metadata or {}
@@ -823,7 +826,7 @@ def create_interactive_connection(database: str, **kwargs) -> sqlite3.Connection
         database = Path(database)
     database = database.absolute()
 
-    logger.info("Creating interactive connection to database at '{database}'")
+    logger.info(f"Creating interactive connection to database at '{database}'")
     conn = sqlite3.connect(
         database,
         detect_types=sqlite3.PARSE_DECLTYPES,

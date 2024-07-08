@@ -19,8 +19,7 @@ from functools import partial
 from importlib import resources
 from io import StringIO
 from itertools import repeat
-from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Final
 from urllib.parse import urlparse
 
 from ZeroBot.common import CommandParser
@@ -28,6 +27,12 @@ from ZeroBot.common.enums import CmdResult
 from ZeroBot.database import find_participant as findpart
 from ZeroBot.database import get_participant as getpart
 from ZeroBot.database import get_source as getsrc
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Generator
+    from pathlib import Path
+
+    from ZeroBot.context import Context, Message
 
 MODULE_NAME = "Markov"
 MODULE_AUTHOR = "ZeroKnight"
@@ -77,15 +82,15 @@ class MarkovSentenceGenerator:
         A pre-built state map.
     """
 
-    SENTENCE_BEGIN = "___ZB_MARKOV_SENTENCE_BEGIN___"
-    SENTENCE_END = "___ZB_MARKOV_SENTENCE_END___"
+    SENTENCE_BEGIN: Final = "___ZB_MARKOV_SENTENCE_BEGIN___"
+    SENTENCE_END: Final = "___ZB_MARKOV_SENTENCE_END___"
 
     # Type aliases
-    Corpus = List[List[str]]
-    Token = Union[type(SENTENCE_BEGIN), type(SENTENCE_END), str]
-    ChainState = Tuple[Token, ...]
-    Candidates = Dict[Token, int]
-    ChainModel = Dict[ChainState, Candidates]
+    Corpus = list[list[str]]
+    Token = (str,)
+    ChainState = tuple[Token, ...]
+    Candidates = dict[Token, int]
+    ChainModel = dict[ChainState, Candidates]
 
     def __init__(self, corpus: Corpus, order: int = 1, state_map: ChainModel = None):
         if order < 1:
@@ -168,7 +173,7 @@ class MarkovSentenceGenerator:
 
     @staticmethod
     def _choose_next_word(candidates: Candidates) -> str:
-        words, weights = zip(*candidates.items())
+        words, weights = zip(*candidates.items(), strict=False)
         return random.choices(words, weights)[0]
 
     def build(self, corpus: Corpus) -> ChainModel:
@@ -228,7 +233,7 @@ class MarkovSentenceGenerator:
         """
         return self._choose_next_word(self.state_map[state])
 
-    def sentence_gen(self, start: ChainState = None) -> Generator[str]:
+    def sentence_gen(self, start: ChainState | None = None) -> Generator[str]:
         """Successively yield words from a random walk on the chain.
 
         Starting from an initial state, the generator will yield words from the
@@ -251,7 +256,6 @@ class MarkovSentenceGenerator:
         str
             A randomly selected word from the chain.
         """
-        word, prev_word = None, None
         if start is None:
             start = [self.SENTENCE_BEGIN] * self._order
         elif len(start) != self._order:
@@ -299,7 +303,7 @@ class MarkovSentenceGenerator:
                     continue
                 # zip is helpful here as it only yields as far as the shortest
                 # argument, which will only ever be our check sequence.
-                if all(a == b for a, b in zip(sequence, line)):
+                if all(a == b for a, b in zip(sequence, line, strict=False)):
                     return True
         return False
 
@@ -393,12 +397,12 @@ class MarkovSentenceGenerator:
             word_count = len(tokens)
             if word_count < min_words or (max_words is not None and word_count > max_words):
                 continue
-            if starts_with is not None and not all(a == b for a, b in zip(tokens, starts_with)):
+            if starts_with is not None and not all(a == b for a, b in zip(tokens, starts_with, strict=False)):
                 continue
             if strict_quotes and quote_stack:
                 if quote_stack[0] == "c" or len(quote_stack) % 2 != 0:
                     continue  # At least one quote is missing
-                if not all(a != b for a, b in zip(*[iter(quote_stack)] * 2)):
+                if not all(a != b for a, b in zip(*[iter(quote_stack)] * 2, strict=False)):
                     continue  # Mismatched open/close quotes
             if similarity_threshold and self.check_similarity(tokens, similarity_threshold):
                 continue
@@ -479,6 +483,7 @@ class Tokenizer:
         return False
 
 
+# TODO: This should be async
 def update_chain_dump(chain: MarkovSentenceGenerator = None) -> Path | None:
     """Serialize the current state of the Markov chain to disk, if enabled."""
     if chain is None:
@@ -667,7 +672,7 @@ async def _register_commands():
     CORE.command_register(MOD_ID, *cmds)
 
 
-def can_learn(ctx, message) -> bool:
+def can_learn(ctx: Context, message: Message) -> bool:
     """Check if ZeroBot can learn from the given message."""
     return not (
         ctx.user == message.source
@@ -715,11 +720,10 @@ async def module_command_markov(ctx, parsed):
             state = parsed.args["state"] == "on"
             CFG["Learning.Enabled"] = state
             response = "Okay, now learning how to speak!" if state else "Gotcha, no longer paying attention."
+        elif CFG["Learning.Enabled"]:
+            response = "I am currently learning."
         else:
-            if CFG["Learning.Enabled"]:
-                response = "I am currently learning."
-            else:
-                response = "I'm not paying attention at the moment."
+            response = "I'm not paying attention at the moment."
     elif subcmd == "info":
         lines, words = await CORE.run_async(CHAIN.corpus_counts)
         learning = "" if CFG.get("Learning.Enabled", False) else " not"

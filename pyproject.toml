@@ -101,11 +101,20 @@ extend-unsafe-fixes = ['SIM108']
 [tool.ruff.lint.per-file-ignores]
 'test_*.py' = ['ANN', 'S101']
 
+# There are no secret tokens here, Bandit
+'feature/markov.py' = ['S105', 'S106', 'S107']
+
 [tool.ruff.lint.isort]
 required-imports = ['from __future__ import annotations']
 
+[tool.ruff.lint.flake8-unused-arguments]
+ignore-variadic-names = true
+
 [tool.ruff.lint.flake8-builtins]
 builtins-ignorelist = ['id']
+
+[tool.ruff.lint.pylint]
+max-args = 8 # Includes `self`, annoyingly
 
 [tool.pytest.ini_options]
 minversion = '6.0'

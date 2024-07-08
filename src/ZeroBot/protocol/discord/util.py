@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from discord import Embed
 
-from ZeroBot.context import Context, Message, MessageTarget
 from ZeroBot.util import gen_repr
+
+if TYPE_CHECKING:
+    from ZeroBot.context import Context, Message, MessageTarget
 
 
 class ResponseProxy:

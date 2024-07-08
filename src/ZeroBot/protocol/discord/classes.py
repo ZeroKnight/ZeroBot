@@ -5,15 +5,18 @@ Discord Implementation of ZeroBot.context classes
 
 from __future__ import annotations
 
-import datetime
 import re
-from collections.abc import AsyncIterator
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import discord
 
 import ZeroBot.context as zctx
 from ZeroBot.util import gen_repr
+
+if TYPE_CHECKING:
+    import datetime
+    from collections.abc import AsyncIterator
 
 ACTION_PATTERN = re.compile(r"^\*(?:[^*]|(?<=\\)\*)*\*$")
 

@@ -13,19 +13,20 @@ import random
 import re
 import shutil
 from collections import deque
-from collections.abc import Iterable
 from enum import Enum, unique
 from importlib import resources
 from typing import TYPE_CHECKING
+
+import discord
+import discord.ext.tasks
 
 from ZeroBot.common import CommandParser, rand_chance
 from ZeroBot.common.enums import CmdResult
 
 if TYPE_CHECKING:
-    from ZeroBot.context import Channel, User
+    from collections.abc import Iterable
 
-import discord
-import discord.ext.tasks
+    from ZeroBot.context import Channel, User
 
 MODULE_NAME = "Chat"
 MODULE_AUTHOR = "ZeroKnight"
@@ -40,9 +41,9 @@ MOD_ID = __name__.rsplit(".", 1)[-1]
 
 logger = logging.getLogger("ZeroBot.Feature.Chat")
 
-DOT_CHARS = ".·․‥…⋯"
-EXCLAMATION_CHARS = "!¡❕❗﹗！"
-QUESTION_CHARS = "?¿‽⁇⁈⁉❓❔⸮﹖？"
+DOT_CHARS = ".·․‥…⋯"  # noqa: RUF001
+EXCLAMATION_CHARS = "!¡❕❗﹗！"  # noqa: RUF001
+QUESTION_CHARS = "?¿‽⁇⁈⁉❓❔⸮﹖？"  # noqa: RUF001
 ALL_CHARS = DOT_CHARS + EXCLAMATION_CHARS + QUESTION_CHARS
 ALL_CHARS_EXCEPT_PERIOD = DOT_CHARS[1:] + EXCLAMATION_CHARS + QUESTION_CHARS
 
@@ -257,6 +258,15 @@ async def module_on_config_changed(ctx, name, key, old, new):
             task.change_interval(seconds=interval)
 
 
+def should_berate(user: User) -> bool:
+    """Check if ZeroBot should berate the user."""
+    return (
+        CFG.get("Berate.Enabled")
+        and user.name in CFG.get("Berate.UserList")
+        and rand_chance(CFG.get("Berate.Chance", DEFAULT_BERATE_CHANCE))
+    )
+
+
 async def module_on_message(ctx, message):
     """Handle `Core` message event."""
     sender = message.source
@@ -266,12 +276,11 @@ async def module_on_message(ctx, message):
         return
 
     # Berate
-    if CFG.get("Berate.Enabled") and sender.name in CFG.get("Berate.UserList"):
-        if rand_chance(CFG.get("Berate.Chance", DEFAULT_BERATE_CHANCE)):
-            phrase, action = await fetch_phrase("berate", ["action"])
-            phrase.replace("%0", sender.name)
-            await ctx.module_message(phrase, message.destination, action=action)
-            return
+    if should_berate(sender):
+        phrase, action = await fetch_phrase("berate", ["action"])
+        phrase.replace("%0", sender.name)
+        await ctx.module_message(phrase, message.destination, action=action)
+        return
 
     # wat
     if PATTERN_WAT.search(message.content):

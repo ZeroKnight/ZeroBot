@@ -9,7 +9,10 @@ from __future__ import annotations
 import operator
 from functools import reduce
 from io import StringIO
-from typing import Any, Iterable, Mapping
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 
 def gen_repr(obj: Any, attrs: Iterable, **kwargs) -> str:
@@ -74,7 +77,7 @@ def map_reduce(key_path: str | list[str], mapping: Mapping[str, Any]) -> Any:
 def flatten(iterable):
     """Simple generator that flattens nested lists and tuples."""
     for elem in iterable:
-        if isinstance(elem, (list, tuple)):
+        if isinstance(elem, list | tuple):
             yield from elem
         else:
             yield elem

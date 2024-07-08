@@ -5,11 +5,14 @@ Classes/Models used by the Quote feature.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import IntEnum, unique
-from sqlite3 import Row
+from typing import TYPE_CHECKING
 
 from ZeroBot.database import Connection, DBModel, Participant
+
+if TYPE_CHECKING:
+    from sqlite3 import Row
 
 
 @unique
@@ -124,13 +127,13 @@ class Quote(DBModel):
         quote_id: int | None,
         submitter: Participant,
         *,
-        date: datetime = datetime.utcnow(),
+        date: datetime | None = None,
         style: QuoteStyle = QuoteStyle.Standard,
     ):
         super().__init__(conn)
         self.id = quote_id
         self.submitter = submitter
-        self.date = date
+        self.date = date or datetime.now(tz=timezone.utc)
         self.style = style
         self.lines = []
         self.authors = []

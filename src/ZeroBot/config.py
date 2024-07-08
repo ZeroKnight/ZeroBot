@@ -8,9 +8,8 @@ from __future__ import annotations
 from collections import ChainMap, UserDict
 from copy import deepcopy
 from importlib import metadata
-from pathlib import Path
 from string import Template
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any
 
 import toml
 
@@ -20,6 +19,10 @@ from ZeroBot.exceptions import (
     ConfigReadError,
     ConfigWriteError,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from pathlib import Path
 
 _configvars = {"botversion": metadata.version("ZeroBot")}
 
@@ -78,8 +81,8 @@ class ConfigDict(UserDict):
         A `ChainMap` extends *all* key lookups to each `dict` in the chain. As
         an example, consider the `get` method with a default value::
 
-            foo = cfg.set_fallback(cfg['Foo'], cfg['Foo_Fallback'])
-            foo.get('Bar', 'default setting')
+            foo = cfg.set_fallback(cfg["Foo"], cfg["Foo_Fallback"])
+            foo.get("Bar", "default setting")
 
         First, the key ``Bar`` will be looked up in ``Foo`` as normal. If not
         found, then the fallback section ``Foo_Fallback`` will be searched.
@@ -137,13 +140,13 @@ class Config(ConfigDict):
     equivalent to performing successive lookups of each key on a starting
     dictionary. For example::
 
-        self.get('foo.bar.baz')
+        self.get("foo.bar.baz")
         # Is the same as:
-        self.get('foo').get('bar').get('baz')
+        self.get("foo").get("bar").get("baz")
 
-        my_config['foo.bar.baz']
+        my_config["foo.bar.baz"]
         # Is the same as:
-        my_config['foo']['bar']['baz']
+        my_config["foo"]["bar"]["baz"]
 
     In addition, key values are automatically subject to template expansion for
     some global variables, as well as on demand with the inclusion of

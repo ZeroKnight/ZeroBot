@@ -10,13 +10,13 @@ from dataclasses import dataclass, field
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
-from ZeroBot.common.enums import HelpType
 from ZeroBot.exceptions import CommandParseError
-from ZeroBot.module import Module
 from ZeroBot.util import gen_repr
 
 if TYPE_CHECKING:
+    from ZeroBot.common.enums import HelpType
     from ZeroBot.context import Channel, Message, User
+    from ZeroBot.module import Module
 
 __all__ = ["CommandHelp", "CommandParser", "ParsedCommand"]
 

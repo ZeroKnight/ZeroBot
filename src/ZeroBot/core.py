@@ -25,8 +25,7 @@ from collections import ChainMap, namedtuple
 from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
-from types import ModuleType
-from typing import Iterator
+from typing import TYPE_CHECKING
 
 import appdirs
 from toml import TomlDecodeError
@@ -60,6 +59,10 @@ from ZeroBot.module import (
     ZeroBotModuleFinder,
 )
 from ZeroBot.util import shellish_split
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from types import ModuleType
 
 # Minimal initial logging format for any messages before the config is read and
 # user logging configuration is applied.
@@ -820,7 +823,7 @@ class Core:
             self.eventloop.close()
         if self._restarting:
             self.logger.info(f"Restarting with command line: {sys.argv}")
-            os.execl(sys.executable, sys.executable, *sys.argv)
+            os.execl(sys.executable, sys.executable, *sys.argv)  # noqa: S606
         return retcode
 
     async def run_async(self, func, *args):
@@ -1226,13 +1229,12 @@ class Core:
                             # Don't include parent command in subcommand name
                             subcmds[subname].name = subname
                             prev_sub = (subname, subparser)
-                else:
+                elif prev_arg and arg is prev_arg[1]:
                     # Aliases follow the canonical name
-                    if prev_arg and arg is prev_arg[1]:
-                        args[prev_arg[0]].aliases.append(name)
-                    else:
-                        args[name] = (arg.help, False)
-                        prev_arg = (name, arg)
+                    args[prev_arg[0]].aliases.append(name)
+                else:
+                    args[name] = (arg.help, False)
+                    prev_arg = (name, arg)
             for opt in request._get_optional_actions():
                 names = tuple(opt.option_strings)
                 if opt.nargs == 0 or opt.const:

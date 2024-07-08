@@ -7,26 +7,30 @@ reporting quote database statistics.
 
 from __future__ import annotations
 
+import contextlib
 import itertools
 import logging
 import re
-import sqlite3
 import textwrap
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import partial
 from importlib import resources
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ZeroBot.common.enums import CmdResult
 from ZeroBot.common.util import parse_iso_format
-from ZeroBot.context import Message
 from ZeroBot.database import Participant
 from ZeroBot.database import get_participant as getpart
 from ZeroBot.util import flatten
 
 from .classes import Quote, QuoteLine, QuoteStyle
 from .commands import define_commands
+
+if TYPE_CHECKING:
+    import sqlite3
+
+    from ZeroBot.context import Message
 
 MODULE_NAME = "Quote"
 MODULE_AUTHOR = "ZeroKnight"
@@ -217,7 +221,7 @@ def read_datestamp(datestamp: str) -> datetime | None:
         date = parse_iso_format(datestamp)
     except ValueError:
         try:
-            date = datetime.utcfromtimestamp(int(datestamp))
+            date = datetime.fromtimestamp(int(datestamp), tz=timezone.utc)
         except ValueError:
             return None
     return date
@@ -269,7 +273,7 @@ def generate_table(rows: list[sqlite3.Row], target: tuple[int, Any] | None = Non
     for i, col in enumerate(headers):
         # Create header
         line += f"| {col:^{min_widths[i]}} "
-        min_width = max(len(headers[i]), min_widths[i])
+        min_width = max(len(col), min_widths[i])
         rule += f"|{'-' * (min_width + 2)}"
     lines.append(f"{line}|")
     lines.append(f"{rule}|")
@@ -317,7 +321,7 @@ async def quote_add(ctx, parsed):
             await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
             return
     else:
-        date = datetime.utcnow()
+        date = datetime.now(tz=timezone.utc)
     author = await get_participant(parsed.args["author"])
     body = " ".join(parsed.args["body"])
     quote = Quote(DB, None, submitter, date=date, style=style)
@@ -608,11 +612,9 @@ async def quote_stats_leaderboard(ctx, parsed, count):
     chosen = list(flatten(itertools.compress(criteria.values(), selection)))
     if parsed.args["sort"] is not None:
         sort = parsed.args["sort"].split(",")
-        try:
+        with contextlib.supress(ValueError):
             # pseudo-criteria; the actual sort is based on the chosen criteria
             sort.remove("p")
-        except ValueError:
-            pass
         if not all(key in criteria for key in sort):
             await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
             return

@@ -10,4 +10,5 @@ servers that I frequent, so he was originally and always will be a pet project.
 
 from __future__ import annotations
 
-from .core import Core, VersionInfo
+from .core import Core as Core
+from .core import VersionInfo as VersionInfo

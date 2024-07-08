@@ -9,14 +9,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timezone
 from importlib import resources
 from string import Template
+from typing import TYPE_CHECKING
 
 from ZeroBot.common import CommandParser
 from ZeroBot.common.enums import CmdResult
 from ZeroBot.database import Participant
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 MODULE_NAME = "Counter"
 MODULE_AUTHOR = "ZeroKnight"
@@ -85,7 +88,7 @@ class Counter:
         last_user: Participant = None,
         last_channel: str | None = None,
     ):
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         self.name = name
         self.description = description
         if announcement is not None:
@@ -193,7 +196,7 @@ class Counter:
             Where the increment occurred.
         """
         self.count += n
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         self.last_triggered = now.replace(microsecond=0)
         async with DB.cursor() as cur:
             if isinstance(participant, str):

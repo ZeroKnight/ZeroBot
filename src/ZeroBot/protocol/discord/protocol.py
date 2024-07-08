@@ -165,7 +165,7 @@ class DiscordContext(Context, discord.Client):
     ) -> DiscordUser | None:
         for user in self.get_all_members():
             _name = (name or username or "").lstrip("@")
-            if user.id == id or user.display_name == _name or user.name == _name:
+            if user.id == id or _name in (user.name, user.display_name):
                 return DiscordUser(self, user)
         return None
 
@@ -254,12 +254,11 @@ class DiscordContext(Context, discord.Client):
                 embed.description += (
                     f"\n**{wait.id}** | `{wait.cmd}` | {wait.delay:.2f}s | {wait.invoker} | {remaining:.2f}s"
                 )
+        elif cancelled:
+            embed.color = discord.Color.green()
+            embed.description = f"Cancelled waiting command **{wait_id}**:\n```\n{waiting.cmd}```"
         else:
-            if cancelled:
-                embed.color = discord.Color.green()
-                embed.description = f"Cancelled waiting command **{wait_id}**:\n```\n{waiting.cmd}```"
-            else:
-                embed.description = f"No waiting command with ID **{wait_id}**"
+            embed.description = f"No waiting command with ID **{wait_id}**"
         await command.source.send(embed=embed)
 
     async def core_command_backup(self, command, file):

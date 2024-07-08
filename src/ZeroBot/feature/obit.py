@@ -10,19 +10,22 @@ from __future__ import annotations
 import logging
 import random
 import re
-import sqlite3
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum, unique
 from functools import partial
 from importlib import resources
 from string import Template, punctuation
+from typing import TYPE_CHECKING
 
 from ZeroBot.common import CommandParser, rand_chance
 from ZeroBot.common.enums import CmdResult
 from ZeroBot.database import Participant
 from ZeroBot.database import find_participant as findpart
 from ZeroBot.database import get_participant as getpart
+
+if TYPE_CHECKING:
+    import sqlite3
 
 MODULE_NAME = "Obit"
 MODULE_AUTHOR = "ZeroKnight"
@@ -236,7 +239,7 @@ async def update_death_toll(killer: Participant, victim: Participant):
     """Update the obit table's kill counts."""
     killer_params = (killer.id, 1, 0, 0)
     victim_params = (victim.id, 0, 1, 0)
-    date = datetime.utcnow()
+    date = datetime.now(tz=timezone.utc)
     async with DB.cursor() as cur:
         if killer == victim:
             values = "VALUES (?, ?, ?, ?)"
@@ -318,6 +321,21 @@ async def module_command_obit(ctx, parsed):
 
 async def module_command_obitdb(ctx, parsed):
     """Handle `obitdb` command."""
+
+    def _parse_sed_substitution(sub_str: str) -> tuple[str, str, set[str] | None]:
+        if sub_str and sub_str.startswith("s/"):
+            pattern, repl, *flags = re.split(r"(?<!\\)/", sub_str[2:])
+            if flags and flags[0]:
+                flags = flags[0]
+                if "-" in flags:
+                    raise ValueError("Bad sed flags")
+                flags = set(re.findall(r"([a-zA-z]|\d+)", flags))
+            else:
+                flags = None
+        else:
+            raise ValueError("Bad sed pattern")
+        return pattern, repl, flags
+
     content = " ".join(parsed.args["content"]).strip()
     content = re.sub(r"\B@(\S+)", r"\1", content)
     if not content:
@@ -329,17 +347,7 @@ async def module_command_obitdb(ctx, parsed):
     elif parsed.subcmd == "edit":
         sub = parsed.args["substitution"].lstrip()
         try:
-            if sub and sub.startswith("s/"):
-                pattern, repl, *flags = re.split(r"(?<!\\)/", sub[2:])
-                if flags and flags[0]:
-                    flags = flags[0]
-                    if "-" in flags:
-                        raise ValueError("Bad sed flags")
-                    flags = set(re.findall(r"([a-zA-z]|\d+)", flags))
-                else:
-                    flags = None
-            else:
-                raise ValueError("Bad sed pattern")
+            pattern, repl, flags = _parse_sed_substitution(sub)
         except ValueError:
             await CORE.module_send_event("invalid_command", ctx, parsed.msg, CmdResult.BadSyntax)
         else:
@@ -383,7 +391,7 @@ async def obit_add(ctx, parsed, otype: ObitPart, content: str):
     if await obit_exists(otype, content):
         await ctx.reply_command_result(f"There is already a {otype.name}: `{content}`", parsed, CmdResult.Exists)
         return
-    date = datetime.utcnow()
+    date = datetime.now(tz=timezone.utc)
     submitter = await get_participant(parsed.invoker.name)
 
     async with DB.cursor() as cur:
@@ -431,7 +439,7 @@ async def obit_edit(
                 re_flags = re.I
             elif flag.isdigit():
                 count = int(flag)
-    edited = re.sub(pattern, repl, content, count, re_flags)
+    edited = re.sub(pattern, repl, content, count=count, flags=re_flags)
     async with DB.cursor() as cur:
         await cur.execute(
             """
@@ -496,7 +504,7 @@ async def module_command_obitstats(ctx, parsed):
             if row["Suicide Rank"] == 1:
                 suicides.append((row["User"], row["Suicides"]))
         msg = []
-        for category, top_ranks in zip(("Kills", "Deaths", "Suicides"), (kills, deaths, suicides)):
+        for category, top_ranks in zip(("Kills", "Deaths", "Suicides"), (kills, deaths, suicides), strict=False):
             if top_ranks:
                 users = ", ".join(f"{user[0]} ({user[1]})" for user in top_ranks)
                 msg.append(f"**Most {category}**: {users}")

@@ -27,19 +27,21 @@ usual way, but can still properly integrate with ZeroBot. For example:
 
 from __future__ import annotations
 
-import datetime
 import functools
-import re
 from abc import ABCMeta, abstractmethod
-from collections.abc import AsyncIterator
 from enum import Flag, auto
-from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, TypeAlias
 
+from ZeroBot.common.enums import CmdResult
+
 if TYPE_CHECKING:
+    import datetime
+    import re
+    from collections.abc import AsyncIterator
+    from pathlib import Path
+
     from ZeroBot.common import CommandHelp, ParsedCommand
     from ZeroBot.core import ConfigCmdResult, ModuleCmdResult, VersionInfo
-from ZeroBot.common.enums import CmdResult
 
 EntityID: TypeAlias = str | int
 
