@@ -27,7 +27,7 @@ from importlib import metadata
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import appdirs
+from platformdirs import PlatformDirs
 from toml import TomlDecodeError
 
 import ZeroBot
@@ -63,6 +63,8 @@ from ZeroBot.util import shellish_split
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from types import ModuleType
+
+pdirs = PlatformDirs(appname="ZeroBot", roaming=True, opinion=True, ensure_exists=True)
 
 # Minimal initial logging format for any messages before the config is read and
 # user logging configuration is applied.
@@ -231,6 +233,8 @@ class Core:
     ):
         self.eventloop = eventloop if eventloop else asyncio.get_event_loop()
         self.logger = logging.getLogger("ZeroBot")
+        self._config_dir = Path(config_dir) if config_dir else pdirs.user_config_path
+        self._data_dir = Path(data_dir) if data_dir else pdirs.user_data_path
         self._protocols = {}  # maps protocol names to their ProtocolModule
         self._features = {}  # maps feature module names to their Module
         self._all_modules = ChainMap(self._protocols, self._features)
@@ -243,21 +247,12 @@ class Core:
         self._shutdown_reason = None
         self._restarting = False
 
-        signal.signal(signal.SIGTERM, lambda x, y: self.quit("Terminated"))
+        signal.signal(signal.SIGTERM, lambda *_: self.quit("Terminated"))
 
         # Read config
-        if config_dir:
-            self._config_dir = Path(config_dir)
-        else:
-            self._config_dir = Path(appdirs.user_config_dir("ZeroBot", appauthor=False, roaming=True))
         self.config = self.load_config("ZeroBot")
         if "Core" not in self.config:
             self.config["Core"] = {}
-
-        if data_dir:
-            self._data_dir = Path(data_dir)
-        else:
-            self._data_dir = Path(appdirs.user_data_dir("ZeroBot", appauthor=False, roaming=True))
 
         # Set up our meta path finder for ZeroBot modules
         try:
@@ -267,7 +262,7 @@ class Core:
             else:
                 module_dirs = [Path(d).expanduser() for d in module_dirs]
         except KeyError:
-            module_dirs = [Path(appdirs.user_data_dir("ZeroBot", appauthor=False, roaming=True))]
+            module_dirs = [self._data_dir]
         self.config["Core"]["ModuleDirs"] = module_dirs
         # Add before built-in PathFinder
         sys.meta_path.insert(2, ZeroBotModuleFinder(module_dirs))
@@ -279,7 +274,7 @@ class Core:
         if "Database" not in self.config:
             self.config["Database"] = {}
         self.config["Database"].setdefault("Backup", {})
-        self._db_path = self._config_dir.joinpath(self.config["Database"].get("Filename", "zerobot.sqlite"))
+        self._db_path = self._data_dir.joinpath(self.config["Database"].get("Filename", "zerobot.sqlite"))
 
         async def init_db() -> None:
             if not self._db_path.exists():
