@@ -46,7 +46,11 @@ class DiscordUser(zctx.User, discord.User):
         return self._original.mention
 
     def mentioned(self, message: DiscordMessage) -> bool:
-        return self._original.mentioned_in(message) or re.search(self.name, message.content, re.I)
+        return (
+            self._original.mentioned_in(message)
+            or any(self in role.members for role in message.role_mentions)
+            or re.search(self.name, message.content, re.I)
+        )
 
     @cached_property
     def mention_pattern(self) -> re.Pattern:
