@@ -1454,8 +1454,8 @@ class Core:
         """Implementation for Core `version` command."""
         info = VersionInfo(
             metadata.version("zerobot"),
-            "N/A",
-            metadata.metadata("zerobot")["Author-email"],
+            datetime.date.fromisoformat("2024-07-11"),
+            "ZeroKnight",
             "https://github.com/ZeroKnight/ZeroBot",
         )
         await ctx.core_command_version(parsed, info)
