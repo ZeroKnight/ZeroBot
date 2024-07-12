@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 import discord
 from discord import ChannelType
+
 from zerobot import util
 from zerobot.common import ConfigCmdStatus, ModuleCmdStatus
 from zerobot.context import Context, MentionPattern, ProtocolSupport
@@ -238,7 +239,7 @@ class DiscordContext(Context, discord.Client):
     async def core_command_version(self, command, info):
         embed = discord.Embed(title="Version Info", color=discord.Color.gold(), url=info.home)
         embed.description = f"**ZeroBot v{info.version}**"
-        embed.set_thumbnail(url=self.user.avatar_url)
+        embed.set_thumbnail(url=self.user.avatar.url)
         embed.add_field(name="Release Date", value=info.release_date)
         embed.set_footer(text=f"Hacked together over the years by {info.author} with love.")
         await command.source.send(embed=embed)
