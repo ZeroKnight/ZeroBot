@@ -1,7 +1,7 @@
 """util.py
 
 Various internal utilities for ZeroBot. If you're working on a feature module,
-you *probably* want `ZeroBot.common` instead.
+you *probably* want `zerobot.common` instead.
 """
 
 from __future__ import annotations

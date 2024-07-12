@@ -122,7 +122,7 @@ class CommandNotRegistered(ZeroBotCommandError):
 class CommandAlreadyRegistered(ZeroBotCommandError):
     """Command is already registered.
 
-    Raised by `ZeroBot.Core` when attempting to register a command that has
+    Raised by `zerobot.Core` when attempting to register a command that has
     already been registered.
 
     Attributes
@@ -180,7 +180,7 @@ class ConfigDecodeError(ZeroBotConfigError):
 
 
 class ConfigEncodeError(ZeroBotConfigError):
-    """Unable to successfully encode a `ZeroBot.Config` object."""
+    """Unable to successfully encode a `zerobot.Config` object."""
 
 
 # Database

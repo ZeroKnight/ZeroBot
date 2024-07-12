@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import toml
 
-from ZeroBot.exceptions import (
+from zerobot.exceptions import (
     ConfigDecodeError,
     ConfigEncodeError,
     ConfigReadError,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
 
-_configvars = {"botversion": metadata.version("ZeroBot")}
+_configvars = {"botversion": metadata.version("zerobot")}
 
 
 class ConfigDict(UserDict):

@@ -10,15 +10,13 @@ import logging
 from typing import TYPE_CHECKING
 
 import pydle
-
-from ZeroBot.context import Context, ProtocolSupport
+from zerobot.context import Context, ProtocolSupport
 
 from .classes import IRCChannel, IRCMessage, IRCServer, IRCUser
 
 if TYPE_CHECKING:
     from pydle.features.ircv3.tags import TaggedMessage
-
-    from ZeroBot.config import Config
+    from zerobot.config import Config
 
 MODULE_NAME = "IRC"
 MODULE_AUTHOR = "ZeroKnight"

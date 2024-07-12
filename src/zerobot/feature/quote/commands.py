@@ -5,7 +5,7 @@ Command definitions and associated functions for the Quote feature.
 
 from __future__ import annotations
 
-from ZeroBot.common import CommandParser
+from zerobot.common import CommandParser
 
 from .classes import QuoteStyle
 

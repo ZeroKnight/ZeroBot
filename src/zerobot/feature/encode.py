@@ -16,8 +16,8 @@ from binascii import crc32
 from io import StringIO
 from zlib import adler32
 
-from ZeroBot.common import CommandParser
-from ZeroBot.common.enums import CmdResult
+from zerobot.common import CommandParser
+from zerobot.common.enums import CmdResult
 
 MODULE_NAME = "Encode"
 MODULE_AUTHOR = "ZeroKnight"

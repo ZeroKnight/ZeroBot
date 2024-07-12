@@ -19,7 +19,7 @@ usual way, but can still properly integrate with ZeroBot. For example:
     # Foo protocol implementation (protocol/foo/protocol.py)
 
     import foo
-    from ZeroBot.context import Context
+    from zerobot.context import Context
 
     class FooContext(Context, foo.Client):
         # Usual implementation of foo.Client ...
@@ -32,7 +32,7 @@ from abc import ABCMeta, abstractmethod
 from enum import Flag, auto
 from typing import TYPE_CHECKING, NamedTuple, TypeAlias
 
-from ZeroBot.common.enums import CmdResult
+from zerobot.common.enums import CmdResult
 
 if TYPE_CHECKING:
     import datetime
@@ -40,8 +40,8 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from pathlib import Path
 
-    from ZeroBot.common import CommandHelp, ParsedCommand
-    from ZeroBot.core import ConfigCmdResult, ModuleCmdResult, VersionInfo
+    from zerobot.common import CommandHelp, ParsedCommand
+    from zerobot.core import ConfigCmdResult, ModuleCmdResult, VersionInfo
 
 EntityID: TypeAlias = str | int
 

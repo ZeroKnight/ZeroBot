@@ -18,11 +18,11 @@ from functools import partial
 from importlib import resources
 from typing import TYPE_CHECKING, Any
 
-from ZeroBot.common.enums import CmdResult
-from ZeroBot.common.util import parse_iso_format
-from ZeroBot.database import Participant
-from ZeroBot.database import get_participant as getpart
-from ZeroBot.util import flatten
+from zerobot.common.enums import CmdResult
+from zerobot.common.util import parse_iso_format
+from zerobot.database import Participant
+from zerobot.database import get_participant as getpart
+from zerobot.util import flatten
 
 from .classes import Quote, QuoteLine, QuoteStyle
 from .commands import define_commands
@@ -30,7 +30,7 @@ from .commands import define_commands
 if TYPE_CHECKING:
     import sqlite3
 
-    from ZeroBot.context import Message
+    from zerobot.context import Message
 
 MODULE_NAME = "Quote"
 MODULE_AUTHOR = "ZeroKnight"
@@ -78,7 +78,7 @@ async def module_register(core):
 
     DB = await core.database_connect(MOD_ID)
     await DB.create_function("cooldown", 0, cooldown)
-    await DB.executescript(resources.files("ZeroBot").joinpath("sql/schema/quote.sql").read_text())
+    await DB.executescript(resources.files("zerobot").joinpath("sql/schema/quote.sql").read_text())
     get_participant = partial(getpart, DB)
 
     CORE.command_register(MOD_ID, *define_commands())

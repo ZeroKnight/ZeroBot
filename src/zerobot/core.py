@@ -30,14 +30,14 @@ from typing import TYPE_CHECKING
 from platformdirs import PlatformDirs
 from toml import TomlDecodeError
 
-import ZeroBot
-import ZeroBot.context as zctx
-import ZeroBot.database as zbdb
-from ZeroBot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus
-from ZeroBot.common.command import CommandHelp, CommandParser, ParsedCommand
-from ZeroBot.common.enums import CmdResult
-from ZeroBot.config import Config
-from ZeroBot.exceptions import (
+import zerobot
+import zerobot.context as zctx
+import zerobot.database as zbdb
+from zerobot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus
+from zerobot.common.command import CommandHelp, CommandParser, ParsedCommand
+from zerobot.common.enums import CmdResult
+from zerobot.config import Config
+from zerobot.exceptions import (
     CommandAlreadyRegistered,
     CommandNotRegistered,
     CommandParseError,
@@ -51,14 +51,14 @@ from ZeroBot.exceptions import (
     ZeroBotConfigError,
     ZeroBotModuleError,
 )
-from ZeroBot.module import (
+from zerobot.module import (
     CoreModule,
     FeatureModule,
     Module,
     ProtocolModule,
     ZeroBotModuleFinder,
 )
-from ZeroBot.util import shellish_split
+from zerobot.util import shellish_split
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -240,7 +240,7 @@ class Core:
         self._all_modules = ChainMap(self._protocols, self._features)
         self._db_connections = {}
         self._configs = {}  # maps config file names to their Config
-        self._dummy_module = CoreModule(self, metadata.version("ZeroBot"))
+        self._dummy_module = CoreModule(self, metadata.version("zerobot"))
         self._commands = CommandRegistry()
         self._delayed_commands = {}
         self._delayed_command_count = 0
@@ -547,7 +547,7 @@ class Core:
             raise TypeError(f"Invalid type '{module_type}'")
         type_str = "feature" if module_type is FeatureModule else "protocol"
         try:
-            module = module_type(f"ZeroBot.{type_str}.{name}")
+            module = module_type(f"zerobot.{type_str}.{name}")
         except ModuleNotFoundError as ex:
             raise NoSuchModule(f"Could not find {type_str} module '{name}': {ex}", mod_id=name, exc=ex) from None
         except Exception as ex:
@@ -698,7 +698,7 @@ class Core:
 
         Returns
         -------
-        ZeroBot.Config
+        zerobot.Config
             A dictionary-like object representing a parsed TOML config file.
         """
         path = self._config_dir / Path(name).with_suffix(".toml")
@@ -760,7 +760,7 @@ class Core:
         module_id : str
             The identifier of the protocol to check for.
         """
-        return self.protocol_loaded(module_id) or ZeroBot.module.module_available(module_id, "protocol")
+        return self.protocol_loaded(module_id) or zerobot.module.module_available(module_id, "protocol")
 
     def feature_available(self, module_id: str) -> bool:
         """Check if a feature module is available to load.
@@ -770,7 +770,7 @@ class Core:
         module_id : str
             The identifier of the feature to check for.
         """
-        return self.feature_loaded(module_id) or ZeroBot.module.module_available(module_id, "feature")
+        return self.feature_loaded(module_id) or zerobot.module.module_available(module_id, "feature")
 
     def get_available_protocols(self) -> list[str]:
         """Get a list of all available protocol modules.
@@ -781,7 +781,7 @@ class Core:
             List of protocol module identifiers.
         """
         modules = []
-        for mdir in [ZeroBot.__path__[0]] + self.config["Core"]["ModuleDirs"]:
+        for mdir in [zerobot.__path__[0]] + self.config["Core"]["ModuleDirs"]:
             mdir = Path(mdir)
             modules += [child.parent.name for child in mdir.glob("protocol/*/protocol.py")]
         return modules
@@ -795,7 +795,7 @@ class Core:
             List of feature module identifiers.
         """
         modules = []
-        for mdir in [ZeroBot.__path__[0]] + self.config["Core"]["ModuleDirs"]:
+        for mdir in [zerobot.__path__[0]] + self.config["Core"]["ModuleDirs"]:
             mdir = Path(mdir)
             modules += [child.stem for child in mdir.glob("feature/*.py")]
         return modules
@@ -925,7 +925,7 @@ class Core:
 
         Returns
         -------
-        ZeroBot.database.Connection
+        zerobot.database.Connection
             A connection object for the requested database.
 
         Raises
@@ -1453,9 +1453,9 @@ class Core:
     async def module_command_version(self, ctx, parsed):
         """Implementation for Core `version` command."""
         info = VersionInfo(
-            metadata.version("ZeroBot"),
+            metadata.version("zerobot"),
             "N/A",
-            metadata.metadata("ZeroBot")["Author-email"],
+            metadata.metadata("zerobot")["Author-email"],
             "https://github.com/ZeroKnight/ZeroBot",
         )
         await ctx.core_command_version(parsed, info)

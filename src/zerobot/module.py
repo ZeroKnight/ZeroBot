@@ -12,8 +12,8 @@ from importlib.util import spec_from_file_location
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ZeroBot.exceptions import ModuleLoadError
-from ZeroBot.util import gen_repr
+from zerobot.exceptions import ModuleLoadError
+from zerobot.util import gen_repr
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -34,7 +34,7 @@ def module_available(module_id: str, mtype: str) -> bool:
     bool
         Whether or not the given module is availble to load.
     """
-    return importlib.util.find_spec(f"ZeroBot.{mtype}.{module_id}") is not None
+    return importlib.util.find_spec(f"zerobot.{mtype}.{module_id}") is not None
 
 
 class ZeroBotModuleFinder(MetaPathFinder):
@@ -55,7 +55,7 @@ class ZeroBotModuleFinder(MetaPathFinder):
     def find_spec(self, fullname, path, target=None):
         spec = None
         parts = fullname.split(".")
-        if parts[0] != "ZeroBot" or parts[1] not in {"feature", "protocol"} or len(parts) < 3:
+        if parts[0] != "zerobot" or parts[1] not in {"feature", "protocol"} or len(parts) < 3:
             return None
         for loc in self.search_dirs:
             filename = Path(loc, *parts[1:]).with_suffix(".py")
@@ -71,7 +71,7 @@ def _load_zerobot_module(import_str: str) -> tuple[ModuleType, bool]:
     is_package = False
     if hasattr(module, "__path__"):
         # This Module is a package, so load the entry point. E.g. if given
-        # 'ZeroBot.feature.foo', then load 'ZeroBot.feature.foo.feature'
+        # 'zerobot.feature.foo', then load 'zerobot.feature.foo.feature'
         module_type = import_str.split(".", 2)[1]
         module = importlib.import_module(f"{import_str}.{module_type}")
         is_package = True
@@ -102,7 +102,7 @@ class Module:
         The name of the license that the module is written under.
     identifier: str
         The identifier used to initially load the module. For example, the
-        identifier for ``ZeroBot.feature.chat`` would be ``'chat'``.
+        identifier for ``zerobot.feature.chat`` would be ``'chat'``.
     handle : types.ModuleType
         A reference to the loaded Python module.
 

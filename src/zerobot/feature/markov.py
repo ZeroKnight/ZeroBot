@@ -22,17 +22,17 @@ from itertools import repeat
 from typing import TYPE_CHECKING, Any, Final, TypeAlias
 from urllib.parse import urlparse
 
-from ZeroBot.common import CommandParser
-from ZeroBot.common.enums import CmdResult
-from ZeroBot.database import find_participant as findpart
-from ZeroBot.database import get_participant as getpart
-from ZeroBot.database import get_source as getsrc
+from zerobot.common import CommandParser
+from zerobot.common.enums import CmdResult
+from zerobot.database import find_participant as findpart
+from zerobot.database import get_participant as getpart
+from zerobot.database import get_source as getsrc
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
     from pathlib import Path
 
-    from ZeroBot.context import Context, Message
+    from zerobot.context import Context, Message
 
 MODULE_NAME = "Markov"
 MODULE_AUTHOR = "ZeroKnight"
@@ -536,7 +536,7 @@ async def module_register(core):
     DEFAULT_DUMP_PATH = CORE.data_dir / "markov.pickle"
 
     DB = await core.database_connect(MOD_ID)
-    await DB.executescript(resources.files("ZeroBot").joinpath("sql/schema/markov.sql").read_text())
+    await DB.executescript(resources.files("zerobot").joinpath("sql/schema/markov.sql").read_text())
     get_participant = partial(getpart, DB)
     find_participant = partial(findpart, DB)
     get_source = partial(getsrc, DB)

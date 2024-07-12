@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING
 
 import discord
 
-from ZeroBot.common import CommandParser
-from ZeroBot.protocol.discord.util import ResponseProxy
+from zerobot.common import CommandParser
+from zerobot.protocol.discord.util import ResponseProxy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -138,7 +138,7 @@ async def module_register(core):
 
     DB = await core.database_connect(MOD_ID)
     await DB.create_function("cooldown", 0, lambda: cooldown)
-    await DB.executescript(resources.files("ZeroBot").joinpath("sql/schema/magic8ball.sql").read_text())
+    await DB.executescript(resources.files("zerobot").joinpath("sql/schema/magic8ball.sql").read_text())
 
     _register_commands()
 
@@ -237,7 +237,7 @@ async def module_command_8ball(ctx, parsed):
 
     integrate = CFG["IntegrateChat"]
     if integrate["Enabled"] and CORE.feature_loaded("chat"):
-        from ZeroBot.feature.chat import fetch_phrase
+        from zerobot.feature.chat import fetch_phrase
 
         weight_q = integrate["Weights.Questioned"]
         weight_n = integrate["Weights.None"]

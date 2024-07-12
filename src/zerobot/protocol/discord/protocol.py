@@ -12,13 +12,12 @@ from typing import TYPE_CHECKING
 
 import discord
 from discord import ChannelType
-
-from ZeroBot import util
-from ZeroBot.common import ConfigCmdStatus, ModuleCmdStatus
-from ZeroBot.context import Context, MentionPattern, ProtocolSupport
+from zerobot import util
+from zerobot.common import ConfigCmdStatus, ModuleCmdStatus
+from zerobot.context import Context, MentionPattern, ProtocolSupport
 
 if TYPE_CHECKING:
-    from ZeroBot.context import EntityID
+    from zerobot.context import EntityID
 
 from .classes import DiscordChannel, DiscordMessage, DiscordServer, DiscordUser
 

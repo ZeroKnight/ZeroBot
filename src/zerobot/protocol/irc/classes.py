@@ -1,6 +1,6 @@
 """protocol/irc/classes.py
 
-IRC implementation of ZeroBot.context classes.
+IRC implementation of zerobot.context classes.
 """
 
 from __future__ import annotations
@@ -9,8 +9,8 @@ import datetime
 import re
 from itertools import chain, islice, repeat
 
-import ZeroBot.context as zctx
-from ZeroBot.util import gen_repr, parse_iso_format
+import zerobot.context as zctx
+from zerobot.util import gen_repr, parse_iso_format
 
 from .util import UserTuple, irc_time_format
 

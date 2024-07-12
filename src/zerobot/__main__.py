@@ -11,8 +11,8 @@ from __future__ import annotations
 import code
 import sys
 
-from ZeroBot import Core
-from ZeroBot.database import create_interactive_connection
+from zerobot import Core
+from zerobot.database import create_interactive_connection
 
 
 def main() -> int:

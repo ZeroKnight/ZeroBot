@@ -21,7 +21,7 @@ import aiosqlite
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from ZeroBot.module import Module
+    from zerobot.module import Module
 
 logger = logging.getLogger("ZeroBot.Database")
 
@@ -856,7 +856,7 @@ async def create_database(database: str | Path, loop: asyncio.AbstractEventLoop 
         loop = asyncio.get_event_loop()
     logger.info(f"Creating new database at '{database}'")
     async with aiosqlite.connect(database, loop=loop) as db:
-        sql_file = resources.files("ZeroBot").joinpath("sql/schema/core.sql")
+        sql_file = resources.files("zerobot").joinpath("sql/schema/core.sql")
         logger.debug(f"Applying core schema from {sql_file}")
         await db.executescript(sql_file.read_text())
 
@@ -874,7 +874,7 @@ async def create_backup(
 
     Parameters
     ----------
-    database : ZeroBot.database.Connection
+    database : zerobot.database.Connection
         A connection to a ZeroBot database.
     target : str or Path
         Where to write the backup.

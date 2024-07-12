@@ -20,13 +20,13 @@ from typing import TYPE_CHECKING
 import discord
 import discord.ext.tasks
 
-from ZeroBot.common import CommandParser, rand_chance
-from ZeroBot.common.enums import CmdResult
+from zerobot.common import CommandParser, rand_chance
+from zerobot.common.enums import CmdResult
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from ZeroBot.context import Channel, User
+    from zerobot.context import Channel, User
 
 MODULE_NAME = "Chat"
 MODULE_AUTHOR = "ZeroKnight"
@@ -100,7 +100,7 @@ async def module_register(core):
 
     DB = await core.database_connect(MOD_ID)
     await DB.create_function("cooldown", 0, lambda: CFG.get("PhraseCooldown", 0))
-    await DB.executescript(resources.files("ZeroBot").joinpath("sql/schema/chat.sql").read_text())
+    await DB.executescript(resources.files("zerobot").joinpath("sql/schema/chat.sql").read_text())
 
     # TEMP: TODO: decide between monolithic modules.toml or per-feature config
     CFG = core.load_config("modules")[MODULE_NAME]

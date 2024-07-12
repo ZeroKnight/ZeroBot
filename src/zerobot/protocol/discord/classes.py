@@ -1,6 +1,6 @@
 """protocol/discord/classes.py
 
-Discord Implementation of ZeroBot.context classes
+Discord Implementation of zerobot.context classes
 """
 
 from __future__ import annotations
@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 
 import discord
 
-import ZeroBot.context as zctx
-from ZeroBot.util import gen_repr
+import zerobot.context as zctx
+from zerobot.util import gen_repr
 
 if TYPE_CHECKING:
     import datetime

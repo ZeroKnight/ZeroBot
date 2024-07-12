@@ -14,9 +14,9 @@ from importlib import resources
 from string import Template
 from typing import TYPE_CHECKING
 
-from ZeroBot.common import CommandParser
-from ZeroBot.common.enums import CmdResult
-from ZeroBot.database import Participant
+from zerobot.common import CommandParser
+from zerobot.common.enums import CmdResult
+from zerobot.database import Participant
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -234,7 +234,7 @@ async def module_register(core):
     CFG = core.load_config("modules")[MODULE_NAME]
 
     DB = await core.database_connect(MOD_ID)
-    await DB.executescript(resources.files("ZeroBot").joinpath("sql/schema/counter.sql").read_text())
+    await DB.executescript(resources.files("zerobot").joinpath("sql/schema/counter.sql").read_text())
     loaded = await load_counters()
     if loaded:
         logger.info(f"Loaded {loaded} Counters")

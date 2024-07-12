@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from enum import IntEnum, unique
 from typing import TYPE_CHECKING
 
-from ZeroBot.database import Connection, DBModel, Participant
+from zerobot.database import Connection, DBModel, Participant
 
 if TYPE_CHECKING:
     from sqlite3 import Row
