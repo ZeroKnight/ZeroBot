@@ -356,7 +356,7 @@ class Participant(DBModel):
         return f"<{self.__class__.__name__} {repr_str}>"
 
     def __str__(self):
-        return self.name
+        return self.user.name if self.user else self.name
 
     def __eq__(self, other):
         return self.id == other.id
