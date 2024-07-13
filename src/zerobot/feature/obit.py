@@ -18,11 +18,11 @@ from importlib import resources
 from string import Template, punctuation
 from typing import TYPE_CHECKING
 
-from zerobot.common import CommandParser, rand_chance
-from zerobot.common.enums import CmdResult
+from zerobot.command import CmdResult, CommandParser
 from zerobot.database import Participant
 from zerobot.database import find_participant as findpart
 from zerobot.database import get_participant as getpart
+from zerobot.util import rand_chance
 
 if TYPE_CHECKING:
     import sqlite3

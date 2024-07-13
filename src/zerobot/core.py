@@ -33,9 +33,15 @@ from toml import TomlDecodeError
 import zerobot
 import zerobot.context as zctx
 import zerobot.database as zbdb
-from zerobot.common import ConfigCmdStatus, HelpType, ModuleCmdStatus
-from zerobot.common.command import CommandHelp, CommandParser, ParsedCommand
-from zerobot.common.enums import CmdResult
+from zerobot.command import (
+    CmdResult,
+    CommandHelp,
+    CommandParser,
+    ConfigCmdStatus,
+    HelpType,
+    ModuleCmdStatus,
+    ParsedCommand,
+)
 from zerobot.config import Config
 from zerobot.exceptions import (
     CommandAlreadyRegistered,

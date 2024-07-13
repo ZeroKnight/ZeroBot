@@ -14,8 +14,7 @@ from importlib import resources
 from string import Template
 from typing import TYPE_CHECKING
 
-from zerobot.common import CommandParser
-from zerobot.common.enums import CmdResult
+from zerobot.command import CmdResult, CommandParser
 from zerobot.database import Participant
 
 if TYPE_CHECKING:

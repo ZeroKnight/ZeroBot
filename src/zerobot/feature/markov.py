@@ -22,8 +22,7 @@ from itertools import repeat
 from typing import TYPE_CHECKING, Any, Final, TypeAlias
 from urllib.parse import urlparse
 
-from zerobot.common import CommandParser
-from zerobot.common.enums import CmdResult
+from zerobot.command import CmdResult, CommandParser
 from zerobot.database import find_participant as findpart
 from zerobot.database import get_participant as getpart
 from zerobot.database import get_source as getsrc

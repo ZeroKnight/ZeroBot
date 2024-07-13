@@ -32,7 +32,7 @@ from abc import ABCMeta, abstractmethod
 from enum import Flag, auto
 from typing import TYPE_CHECKING, NamedTuple, TypeAlias
 
-from zerobot.common.enums import CmdResult
+from zerobot.command import CmdResult
 
 if TYPE_CHECKING:
     import datetime
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from pathlib import Path
 
-    from zerobot.common import CommandHelp, ParsedCommand
+    from zerobot.command import CommandHelp, ParsedCommand
     from zerobot.core import ConfigCmdResult, ModuleCmdResult, VersionInfo
 
 EntityID: TypeAlias = str | int

@@ -14,7 +14,7 @@ import discord
 from discord import ChannelType
 
 from zerobot import util
-from zerobot.common import ConfigCmdStatus, ModuleCmdStatus
+from zerobot.command import ConfigCmdStatus, ModuleCmdStatus
 from zerobot.context import Context, MentionPattern, ProtocolSupport
 
 if TYPE_CHECKING:

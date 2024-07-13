@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import discord
 
-from zerobot.common import CommandParser
+from zerobot.command import CommandParser
 from zerobot.protocol.discord.util import ResponseProxy
 
 if TYPE_CHECKING:

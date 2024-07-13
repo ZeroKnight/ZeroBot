@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING
 import discord
 import discord.ext.tasks
 
-from zerobot.common import CommandParser, rand_chance
-from zerobot.common.enums import CmdResult
+from zerobot.command import CmdResult, CommandParser
+from zerobot.util import rand_chance
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

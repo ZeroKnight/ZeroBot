@@ -18,7 +18,7 @@ from functools import partial
 from importlib import resources
 from typing import TYPE_CHECKING, Any
 
-from zerobot.common.enums import CmdResult
+from zerobot.command import CmdResult
 from zerobot.database import Participant
 from zerobot.database import get_participant as getpart
 from zerobot.util import flatten, parse_iso_format
