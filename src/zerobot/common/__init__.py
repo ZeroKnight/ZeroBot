@@ -8,4 +8,3 @@ from .command import ParsedCommand as ParsedCommand
 from .enums import ConfigCmdStatus as ConfigCmdStatus
 from .enums import HelpType as HelpType
 from .enums import ModuleCmdStatus as ModuleCmdStatus
-from .util import rand_chance as rand_chance

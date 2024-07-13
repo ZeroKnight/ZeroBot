@@ -1,18 +1,40 @@
 """util.py
 
-Various internal utilities for ZeroBot. If you're working on a feature module,
-you *probably* want `zerobot.common` instead.
+Various helpers and utilities. Used by ZeroBot internally as well as by feature
+and protocol modules.
 """
 
 from __future__ import annotations
 
 import operator
+import random
+import sys
 from functools import reduce
 from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable, Mapping, Sequence
+
+# fmt: off
+if sys.version_info >= (3, 11):
+    import datetime
+    parse_iso_format = datetime.datetime.fromisoformat
+else:
+    import dateutil
+    parse_iso_format = dateutil.parser.isoparse
+# fmt: on
+
+
+def rand_chance(percentage: float) -> bool:
+    """Returns `True` at the given percent chance, otherwise `False`.
+
+    Simulates the chance of something succeeding or happening at random. For
+    example, if ZeroBot should ``foo()`` with a 30% chance::
+        if rand_chance(0.3):
+            foo()
+    """
+    return random.random() < percentage
 
 
 def gen_repr(obj: Any, attrs: Iterable, **kwargs) -> str:
@@ -44,7 +66,7 @@ def gen_repr(obj: Any, attrs: Iterable, **kwargs) -> str:
     return f"<{name} {body}>"
 
 
-def map_reduce(key_path: str | list[str], mapping: Mapping[str, Any]) -> Any:
+def map_reduce(key_path: str | Sequence[str], mapping: Mapping[str, Any]) -> Any:
     """Reduce a mapping, returning a value from an arbitrarily deep hierarcy.
 
     The result of calling this function is the same as successively
@@ -52,9 +74,9 @@ def map_reduce(key_path: str | list[str], mapping: Mapping[str, Any]) -> Any:
 
     Parameters
     ----------
-    key_path : str or list[str]
+    key_path : str or Sequence[str]
         A collection of sequential child keys into `mapping`. May be given as
-        either a list of strings or a single string with dots (``.``)
+        either a sequence of strings or a single string with dots (``.``)
         delimiting keys.
     mapping : Mapping[str, Any]
         The mapping to subscript.

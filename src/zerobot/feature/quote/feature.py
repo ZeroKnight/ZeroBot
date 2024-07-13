@@ -19,10 +19,9 @@ from importlib import resources
 from typing import TYPE_CHECKING, Any
 
 from zerobot.common.enums import CmdResult
-from zerobot.common.util import parse_iso_format
 from zerobot.database import Participant
 from zerobot.database import get_participant as getpart
-from zerobot.util import flatten
+from zerobot.util import flatten, parse_iso_format
 
 from .classes import Quote, QuoteLine, QuoteStyle
 from .commands import define_commands
